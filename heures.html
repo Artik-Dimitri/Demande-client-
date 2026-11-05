@@ -876,7 +876,7 @@ async function loadData(full){
       merged.date_to=j.date_to||merged.date_to;
     }
     merged.interventions=Object.values(seen);
-    H.applyImport(merged,false);H.fillTech();H.sourceBadge();
+    H.applyImport(merged,false);H.fillTech();H.sourceBadge();["#imp-btn","#imp-reset"].forEach(s=>{const x=$(s);if(x)x.hidden=true});
     const b=$("#src");if(b)b.textContent+=" · à jour à "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
     H.render();hideGate();
   }catch(e){
