@@ -902,7 +902,7 @@ async function loadData(full){
       if(!full&&m<limit){try{j=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}}
       if(!j){j=await fetchMonth(m);if(m<limit){try{localStorage.setItem(key,JSON.stringify(j))}catch(e){}}}
       if(j.users&&j.users.length)merged.users=j.users;
-      merged.clients=merged.clients.concat(j.clients||[]);
+      merged.clients=merged.clients.concat(j.clients||[]);if(j.clients_debug)merged.clients_debug=j.clients_debug;
       (j.interventions||[]).forEach(i=>{seen[i.id]=i});
       merged.date_to=j.date_to||merged.date_to;
     }
@@ -984,7 +984,7 @@ const b=document.createElement("button");b.id="chx-b";b.textContent="🔎 Champs
 const short=v=>{v=typeof v==="object"?JSON.stringify(v):String(v);return v.length>60?v.slice(0,60)+"…":v};
 function scan(list){const k={};list.forEach(o=>{Object.entries(o||{}).forEach(([key,v])=>{const e=k[key]||(k[key]={n:0,vals:new Map()});if(v!==null&&v!==""&&v!=="0"&&v!==0&&!(Array.isArray(v)&&!v.length)){e.n++;const sv=short(v);e.vals.set(sv,(e.vals.get(sv)||0)+1)}})});
  return Object.keys(k).sort().map(key=>{const e=k[key],vs=[...e.vals.entries()].sort((a,b)=>b[1]-a[1]);return {key,n:e.n,tot:list.length,distinct:vs.length,ex:vs.slice(0,vs.length<=15?15:4)}})}
-function txt(){const r=window.__rawOrg;if(!r)return "";let out="CHAMPS ORGANILOG – "+(r.date_from||"")+" → "+(r.date_to||"")+"\n";
+function txt(){const r=window.__rawOrg;if(!r)return "";let out="CHAMPS ORGANILOG – "+(r.date_from||"")+" → "+(r.date_to||"")+"\n";if(r.clients_debug)out+="\nREPONSE CLIENTS BRUTE : "+r.clients_debug+"\n";
  [["INTERVENTIONS",r.interventions||[]],["UTILISATEURS",r.users||[]],["CLIENTS",r.clients||[]]].forEach(([t,l])=>{out+="\n== "+t+" ("+l.length+") ==\n";scan(l).forEach(f=>{out+=f.key+"  ["+f.n+"/"+f.tot+(f.distinct<=15?", "+f.distinct+" valeurs":"")+"]  "+f.ex.map(([v,c])=>v+(f.distinct<=15?" ×"+c:"")).join(" | ")+"\n"})});return out}
 b.onclick=()=>{const r=window.__rawOrg;const old=document.getElementById("chx");if(old)old.remove();const d=document.createElement("div");d.id="chx";
  if(!r){d.innerHTML='<header><b>Champs Organilog</b><button data-x>Fermer</button></header><div class="bd"><p>Les interventions ne sont pas encore chargées. Attendez la fin du chargement ou cliquez sur « Actualiser », puis rouvrez.</p></div>'}
@@ -993,6 +993,8 @@ b.onclick=()=>{const r=window.__rawOrg;const old=document.getElementById("chx");
  document.body.appendChild(d);
  d.addEventListener("click",async e=>{if(e.target.closest("[data-x]"))d.remove();if(e.target.closest("[data-c]")){const t=txt(),btn=e.target.closest("[data-c]");try{await navigator.clipboard.writeText(t);btn.textContent="Copié ✓"}catch(er){const ta=document.getElementById("chx-t");ta.value=t;ta.style.position="static";ta.style.width="100%";ta.style.height="200px";ta.select();btn.textContent="Sélectionné : Ctrl+C"}}})};
 })();</script><!--/CHAMPS-->
+
+
 
 
 
