@@ -118,6 +118,11 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mu
 .pn{display:inline-flex;gap:6px;align-items:center;font-weight:700}.pn i{width:10px;height:10px;border-radius:50%;background:var(--pc)}
 .pd{width:34px;height:30px;border-radius:8px;border:1.5px dashed var(--line);background:var(--surface);cursor:pointer;font-weight:700;color:#fff}
 .pd.on{background:var(--pc);border:1.5px solid var(--pc)}.pd:hover{border-color:var(--pc)}
+.mise{border:1.5px solid var(--ok);border-radius:12px;padding:10px 12px;background:color-mix(in srgb,var(--ok) 5%,var(--surface));display:flex;flex-direction:column;gap:8px}
+.mrow{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:8px;align-items:end}
+.aff{display:flex;gap:6px;flex-wrap:wrap}.af{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-left:4px solid var(--pc);border-radius:9px;padding:3px 4px 3px 8px;font-size:13px;background:var(--surface)}
+.af small{color:var(--muted)}
+@media (max-width:640px){.mrow{grid-template-columns:1fr 1fr}.mrow .btn{grid-column:1/-1}}
 textarea{min-height:90px;resize:vertical;font:inherit}
 input.num{text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:980px){.fgrid{grid-template-columns:1fr}.side{position:static}.td{grid-template-columns:28px 1fr 1fr;}.td .c-cat,.td .c-qui{grid-column:2/-1}}
@@ -403,7 +408,8 @@ function secHTML(){const e=cur,S=stats(e),pers=P.personnes.map(p=>p.nom);
      <label class="f"><span>Du</span><input type="date" data-ev="du" value="${esc(e.du)}"></label><label class="f"><span>Au</span><input type="date" data-ev="au" value="${esc(e.au)}"></label></div>
     <div class="row2"><label class="f"><span>Lieu</span><input type="text" data-ev="lieu" value="${esc(e.lieu)}" placeholder="Ville, parc des expos…"></label><label class="f"><span>Adresse / infos d'accès</span><input type="text" data-ev="adresse" value="${esc(e.adresse)}"></label></div>
     <label class="f"><span>Responsable</span><select data-ev="resp">${pers.map(n=>`<option${n===e.resp?" selected":""}>${esc(n)}</option>`).join("")}</select></label>
-    <div><div class="hint" style="font-weight:600;margin-bottom:6px">Qui y va ? <span style="font-weight:400">(une fois bloqué, l'événement part dans leur agenda)</span></div>
+    ${miseHTML(e)}
+    <div><div class="hint" style="font-weight:600;margin-bottom:6px">Qui y va, quel jour <span style="font-weight:400">(ajustement jour par jour)</span></div>
      <div class="chips">${pers.map(n=>`<button type="button" class="chip" data-pp="${esc(n)}" style="--pc:${pc(n)}" aria-pressed="${n in presOf(e)}"><i></i>${esc(n)}</button>`).join("")}</div>
      ${presHTML(e)}</div>
     <label class="f"><span>Objectif / pourquoi on y va</span><textarea data-ev="objectif" placeholder="ex. rencontrer les fabricants PAC, amener 3 clients, faire 20 contacts">${esc(e.objectif)}</textarea></label>
@@ -436,6 +442,14 @@ function secHTML(){const e=cur,S=stats(e),pers=P.personnes.map(p=>p.nom);
     <div class="row2"><label class="f"><span>CA signé grâce à l'événement (€ HT)</span>${nI('data-bl="ca"',e.bilan.ca,"","0")}</label><div id="z-roi"></div></div>
     <label class="f"><span>Ce qu'on retient (à refaire, à éviter)</span><textarea data-bl="note">${esc(e.bilan.note)}</textarea></label></section>`;
   return ""}
+ const runsOf=L=>{const D=L.slice().sort(),r=[];D.forEach(d=>{const x=r[r.length-1];if(x&&ymd(addD(parse(x[1]),1))===d)x[1]=d;else r.push([d,d])});return r};
+ function miseHTML(e){const pers=P.personnes.map(p=>p.nom),P0=presOf(e),N=Object.keys(P0).filter(n=>P0[n].length);
+  return `<div class="mise"><div class="hint" style="font-weight:700;margin-bottom:6px">📅 Mise au planning</div>
+   <div class="mrow"><label class="f"><span>Qui</span><select id="mp-p">${pers.map(n=>`<option>${esc(n)}</option>`).join("")}</select></label>
+    <label class="f"><span>Du</span><input type="date" id="mp-du" value="${esc(e.du)}"></label><label class="f"><span>Au</span><input type="date" id="mp-au" value="${esc(e.au||e.du)}"></label>
+    <button type="button" class="btn go" data-mpadd>💾 Enregistrer au planning</button></div>
+   ${N.length?`<div class="aff">${N.map(n=>runsOf(P0[n]).map(([a,b])=>`<span class="af" style="--pc:${pc(n)}"><i></i><b>${esc(n)}</b> ${a===b?jfmt(a):jfmt(a)+" → "+jfmt(b)} <small>(${Math.round((parse(b)-parse(a))/864e5)+1} j)</small><button type="button" class="x" data-prx="${esc(n)}|${a}|${b}" aria-label="Retirer">✕</button></span>`).join("")).join("")}</div>`:`<p class="hint">Personne n'est encore au planning de cet événement.</p>`}
+   <p class="hint">Chaque enregistrement est écrit dans l'agenda des chargés d'affaires concernés. Le tableau ci-dessous permet d'ajuster jour par jour.</p></div>`}
  function presHTML(e){const J=jrs(e),P0=presOf(e),N=Object.keys(P0);if(!N.length)return "";if(!J.length)return `<p class="hint">Fixe les dates pour choisir qui est là quel jour.</p>`;
   return `<div class="pres"><div class="hint" style="margin:8px 0 6px">Clique sur une case pour retirer ou ajouter une journée. Ex. salon de 5 jours : Dimitri les 3 premiers, Karim les 3 derniers, un collègue juste le mercredi.</div>
    <div class="tbl"><table class="pg"><thead><tr><th></th>${J.map(d=>`<th class="c${[0,6].includes(parse(d).getDay())?" we":""}">${jfmt(d)}</th>`).join("")}<th></th></tr></thead><tbody>
@@ -491,6 +505,12 @@ document.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)r
   if(d.st){cur.statut=d.st;persist();render();if(d.st==="fini")boom();return}
   if(d.pp){const n=d.pp,P0=presOf(cur);if(n in P0)delete P0[n];else P0[n]=jrs(cur);syncPart(cur);persist();keepFocus(render);return}
   if(d.pd){const [n,dd]=d.pd.split("|"),P0=presOf(cur),L=P0[n]||(P0[n]=[]),i=L.indexOf(dd);if(i>=0)L.splice(i,1);else L.push(dd);syncPart(cur);persist();keepFocus(render);return}
+  if(d.mpadd!==undefined){const n=$("#mp-p").value,a=$("#mp-du").value,b=$("#mp-au").value||a;if(!n||!a){toast("Choisis la personne et les dates");return}if(b<a){toast("La date de fin est avant le début");return}
+    if(!cur.du||a<cur.du)cur.du=a;if(!cur.au||b>cur.au)cur.au=b;recalEch();
+    const P0=presOf(cur),L=new Set(P0[n]||[]);for(let d=parse(a);ymd(d)<=b;d=addD(d,1))L.add(ymd(d));P0[n]=[...L].sort();syncPart(cur);cur._oldJ=jrs(cur);persist();
+    block(true).then(()=>toast(`Enregistré : ${n} ${a===b?"le "+jfmt(a):"du "+jfmt(a)+" au "+jfmt(b)}`));return}
+  if(d.prx){const [n,a,b]=d.prx.split("|"),P0=presOf(cur);P0[n]=(P0[n]||[]).filter(x=>x<a||x>b);syncPart(cur);persist();
+    if(cur.bloque){if(cur.participants.length)block(true);else block(false)}else render();return}
   if(d.pall){const n=d.pall,P0=presOf(cur),J=jrs(cur);P0[n]=P0[n]&&P0[n].length===J.length?[]:J;syncPart(cur);persist();keepFocus(render);return}
   if(d.tadd!==undefined){cur.todo.push({id:uid(),t:"",cat:"Autre",j:null,ech:"",qui:"",fait:false});persist();stab="todo";render();const ins=document.querySelectorAll(".td input.tt");if(ins.length)ins[ins.length-1].focus();return}
   if(d.tq){const cat=/fournisseur/i.test(d.tq)?"Fournisseur":/client/i.test(d.tq)?"Client":/repas/i.test(d.tq)?"Repas":"Réservation";cur.todo.push({id:uid(),t:d.tq,cat,j:null,ech:"",qui:"",fait:false});persist();render();return}
