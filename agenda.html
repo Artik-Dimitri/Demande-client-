@@ -110,8 +110,13 @@ select,input,textarea{font:inherit;font-size:15px;color:var(--ink);background:va
 .tl{position:relative;flex:none;border-radius:6px}
 .tl .hr{position:absolute;left:0;right:0;border-top:1px dashed var(--grid);pointer-events:none}
 .tl .hr span{position:absolute;left:1px;top:-1px;font-size:9px;line-height:1;color:var(--muted);opacity:.7}
-.tl .midi{position:absolute;left:-4px;right:-4px;background:repeating-linear-gradient(90deg,var(--line) 0 4px,transparent 4px 8px);opacity:.9;pointer-events:none;display:flex;align-items:center;justify-content:flex-end}
-.tl .midi span{font-size:9px;font-weight:700;color:var(--muted);background:var(--surface);padding:0 3px;border-radius:3px;line-height:1.1;margin-right:4px}
+.midi{position:absolute;left:0;right:0;z-index:0;pointer-events:none;display:flex;align-items:center;justify-content:center;
+  background:color-mix(in srgb,#B8901A 8%,transparent);border-top:1px solid color-mix(in srgb,#B8901A 28%,transparent);border-bottom:1px solid color-mix(in srgb,#B8901A 28%,transparent)}
+.midi span{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);line-height:1}
+.tl .midi{left:-4px;right:-4px}
+.dcol .midi span{font-size:11px}
+.mididiv{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:4px 2px}
+.mididiv::before,.mididiv::after{content:"";flex:1;height:1px;background:color-mix(in srgb,#B8901A 35%,transparent)}
 .tl .ev{position:absolute;margin:0;padding:2px 5px 2px 4px;font-size:12px;line-height:1.15;border-radius:5px;height:auto;overflow:hidden;box-sizing:border-box;z-index:1}
 .tl .ev .ei{font-size:11px}.tl .ev small{display:block;font-size:10.5px;opacity:.9}
 .tl .ev.tiny small,.tl .ev.tiny .avec,.tl .ev.tiny .rappel{display:none}
@@ -784,7 +789,7 @@ function evHTML(o,row){
 }
 const HOR=()=>Object.assign({},DEF.horaires,cfg.horaires||{});
 /* frise de la semaine : la pause de midi est réduite à une fine bande, le reste est à l'échelle */
-function tlScale(occ){const H=HOR(),hpx=zoom==="deux"?15:20,band=zoom==="deux"?8:10,mD=hm(H.midiDeb),mF=Math.max(hm(H.midiFin),mD);
+function tlScale(occ){const H=HOR(),hpx=zoom==="deux"?15:20,band=zoom==="deux"?8:14,mD=hm(H.midiDeb),mF=Math.max(hm(H.midiFin),mD);
   let a=hm(H.deb),b=hm(H.fin);occ.forEach(o=>{if(o.e.allDay)return;a=Math.min(a,hm(o.e.debut));b=Math.max(b,hm(o.e.fin))});
   a=Math.floor(a/60)*60;b=Math.ceil(b/60)*60;
   const cl=(m,x,z)=>Math.max(x,Math.min(z,m)),s1=cl(mD,a,b),l0=cl(mD,a,b),l1=cl(mF,a,b),s2=cl(mF,a,b),lw=l1>l0?band:0;
@@ -807,7 +812,7 @@ function weekHTML(){
   let h=`<div class="gridwrap"><div class="wk${zoom==="deux"?" z2":""}" style="grid-template-columns:120px repeat(${ds.length},minmax(${zoom==="deux"?90:130}px,1fr))"><div class="hd"></div>`;
   ds.forEach(d=>{const fe=ferie(ymd(d));h+=`<div class="hd${ymd(d)===t?" today":""}${fe?" fer":""}"${fe?` title="Jour férié : ${fe}"`:""}>${JOURS[(d.getDay()+6)%7].slice(0,zoom==="deux"?3:9)}<b>${d.getDate()}</b>${fe?`<span class="ferl">🎌 ${zoom==="deux"?"Férié":fe}</span>`:""}</div>`});
   const grid=[];for(let m=S.a;m<=S.b;m+=60){if(m>=S.mD&&m<S.mF)continue;grid.push(`<div class="hr" style="top:${S.y(m).toFixed(1)}px">${zoom==="deux"?"":`<span>${m/60}h</span>`}</div>`)}
-  const midi=S.mF>S.mD&&S.mD>S.a&&S.mF<S.b?`<div class="midi" style="top:${S.y(S.mD).toFixed(1)}px;height:${S.band}px"><span>midi</span></div>`:"";
+  const midi=S.mF>S.mD&&S.mD>S.a&&S.mF<S.b?`<div class="midi" style="top:${S.y(S.mD).toFixed(1)}px;height:${S.band}px"><span>${zoom==="deux"?"":"midi"}</span></div>`:"";
   ppl.forEach(p=>{
     h+=`<div class="pl" style="--pc:${col(p.couleur)}"><i></i><span>${esc(p.nom)}<small>${+p.hj||+HOR().jour||8} h / jour</small></span></div>`;
     ds.forEach(d=>{const s=ymd(d),we=d.getDay()===0||d.getDay()===6,mine=occ.filter(o=>o.d===s&&who(o.e).includes(p.nom));
@@ -828,11 +833,11 @@ function listHTML(){
   return `<div class="dlist">${ppl.map(p=>{const mine=occ.filter(o=>who(o.e).includes(p.nom));
     if(p.nom===m.nom&&m.role!=="lecture")return myDayHTML(p,mine,s,isToday,nm);
     return `<section class="dperson" style="--pc:${col(p.couleur)}"><h3><i></i>${esc(p.nom)}${p.nom===m.nom?' <small>(moi)</small>':""}<span class="cnt">${mine.length?mine.length+" rendez-vous":"rien de prévu"}</span></h3>
-    ${mine.length?mine.map(o=>{const e=o.e,c=catOf(e.cat),past=isToday&&!e.allDay&&hm(e.fin)<=nm,cur=isToday&&(e.allDay||(hm(e.debut)<=nm&&nm<hm(e.fin)));
+    ${mine.length?midiJoin(mine,o=>{const e=o.e,c=catOf(e.cat),past=isToday&&!e.allDay&&hm(e.fin)<=nm,cur=isToday&&(e.allDay||(hm(e.debut)<=nm&&nm<hm(e.fin)));
       return `<button type="button" class="ditem${past?" past":""}${cur?" cur":""}${prioCls(e)}" data-ev="${e.id}" data-d="${s}" style="--cc:${col(c.couleur)}">
         <span class="dt${e.allDay?" ad":""}">${e.allDay?"Toute la journée":esc(e.debut)+"<small>"+esc(e.fin)+"</small>"}</span>
         <span class="dc"><span class="dk">${c.icone} ${esc(c.nom)}${e.rec&&e.rec.freq&&e.rec.freq!=="none"?" ↻":""}${cur?' <em>en cours</em>':""}</span>
-        <b>${esc(e.titre||(e.allDay&&e.dateFin&&e.dateFin>s?"jusqu'au "+fmtD(parse(e.dateFin)):c.nom))}</b>${e.titre&&e.allDay&&e.dateFin&&e.dateFin>s?`<span class="dl">jusqu'au ${fmtD(parse(e.dateFin))}</span>`:""}${withHTML(who(e).filter(n=>n!==p.nom))}${rappel(e)}${e.lieu?`<span class="dl">📍 ${esc(e.lieu)}</span>`:""}${e.note?`<span class="dn">${esc(e.note)}</span>`:""}</span></button>`}).join(""):""}
+        <b>${esc(e.titre||(e.allDay&&e.dateFin&&e.dateFin>s?"jusqu'au "+fmtD(parse(e.dateFin)):c.nom))}</b>${e.titre&&e.allDay&&e.dateFin&&e.dateFin>s?`<span class="dl">jusqu'au ${fmtD(parse(e.dateFin))}</span>`:""}${withHTML(who(e).filter(n=>n!==p.nom))}${rappel(e)}${e.lieu?`<span class="dl">📍 ${esc(e.lieu)}</span>`:""}${e.note?`<span class="dn">${esc(e.note)}</span>`:""}</span></button>`}):""}
     </section>`}).join("")}</div>`+(m.role!=="lecture"?`<p class="hint" style="margin-top:10px">Touchez un rendez-vous pour le modifier · bouton « + Nouveau » pour ajouter.</p>`:"");
 }
 /* ---------- ma journée : RDV du jour à cocher + mes tâches (chacun ne voit que les siennes) ---------- */
@@ -905,20 +910,24 @@ function boom(el,big){try{if(matchMedia("(prefers-reduced-motion: reduce)").matc
     p.style.cssText=`left:${cx}px;top:${cy}px;background:${cols[i%cols.length]};--x:${Math.cos(a)*d}px;--y:${Math.sin(a)*d+(big?40:10)}px;--r:${Math.random()*540}deg`;document.body.appendChild(p);setTimeout(()=>p.remove(),950)}}catch(e){}}
 function taskHTML(t,s){const rep=!t.fait&&t.date&&t.date<s;
   return `<div class="task${t.fait?" done":""}"><label><input type="checkbox" data-tk="${t.id}"${t.fait?" checked":""}><span>${esc(t.titre)}${rep?` <em class="rep">reporté du ${fmtD(parse(t.date)).replace(/^\S+ /,"")}</em>`:""}${t.ref?` <em class="tref">📂 ${esc(t.ref)}</em>`:""}</span></label><button type="button" class="tdel" data-tdel="${t.id}" aria-label="Supprimer la tâche">✕</button></div>`}
+/* liste de la journée : un séparateur « pause de midi » entre le matin et l'après-midi */
+function midiJoin(list,fn){const H=HOR(),md=hm(H.midiDeb),txt=`<div class="mididiv" role="separator">🍽 Pause de midi · ${esc(H.midiDeb)} – ${esc(H.midiFin)}</div>`;
+  if(!list.some(o=>!o.e.allDay))return list.map(fn).join("");let out="",put=false;
+  list.forEach(o=>{if(!put&&!o.e.allDay&&hm(o.e.debut)>=md){out+=txt;put=true}out+=fn(o)});return out+(put?"":txt)}
 function myDayHTML(p,mine,s,isToday,nm){
   const T=mesTaches(),t0=ymd(new Date());
   const linked=(e)=>T.filter(t=>t.eventId===e.id&&t.occ===s);
   const libres=T.filter(t=>!t.eventId||!events.some(e=>e.id===t.eventId)).filter(t=>s===t0?(!t.fait&&(!t.date||t.date<=s))||(t.fait&&t.faitLe===s):(t.date===s));
   const nbEv=mine.length,nbEvOk=mine.filter(o=>isDone(o.e,s)).length,allT=mine.flatMap(o=>linked(o.e)),nbT=allT.length,nbTok=allT.filter(t=>t.fait).length;
   return `<section class="dperson me" style="--pc:${col(p.couleur)}"><h3><i></i>${esc(p.nom)} <small>(moi)</small><span class="cnt">${nbEvOk}/${nbEv} RDV fait${nbEvOk>1?"s":""}${nbT?` · ${nbTok}/${nbT} tâches liées`:""}</span></h3>
-  ${mine.map(o=>{const e=o.e,c=catOf(e.cat),done=isDone(e,s),past=isToday&&!e.allDay&&hm(e.fin)<=nm,cur=isToday&&(e.allDay||(hm(e.debut)<=nm&&nm<hm(e.fin))),lk=linked(e),ns=nextStep[e.id+"|"+s];
+  ${midiJoin(mine,o=>{const e=o.e,c=catOf(e.cat),done=isDone(e,s),past=isToday&&!e.allDay&&hm(e.fin)<=nm,cur=isToday&&(e.allDay||(hm(e.debut)<=nm&&nm<hm(e.fin))),lk=linked(e),ns=nextStep[e.id+"|"+s];
     return `<div class="mrow${done?" ok":""}"><label class="chk" title="Fait"><input type="checkbox" data-evdone="${e.id}" data-d="${s}"${done?" checked":""}${canEdit(e)?"":" disabled"}></label>
     <div class="mcol"><button type="button" class="ditem${past&&!done?" past":""}${cur?" cur":""}${prioCls(e)}" data-ev="${e.id}" data-d="${s}" style="--cc:${col(c.couleur)}">
         <span class="dt${e.allDay?" ad":""}">${e.allDay?"Toute la journée":esc(e.debut)+"<small>"+esc(e.fin)+"</small>"}</span>
         <span class="dc"><span class="dk">${c.icone} ${esc(c.nom)}${e.rec&&e.rec.freq&&e.rec.freq!=="none"?" ↻":""}${cur?' <em>en cours</em>':""}${done?' <em class="okk">fait</em>':""}</span>
         <b>${e.ref?"📂 ":""}${esc(e.titre||c.nom)}</b>${withHTML(who(e).filter(n=>n!==p.nom))}${rappel(e)}${e.lieu?`<span class="dl">📍 ${esc(e.lieu)}</span>`:""}${e.note?`<span class="dn">${esc(e.note)}</span>`:""}</span></button>
       ${ns==="suite"?`<div class="nextstep">✓ Terminé. Une suite à donner ? <button class="btn small primary" type="button" data-ns="suite" data-ev="${e.id}" data-d="${s}">➡️ Étape suivante…</button><button class="btn small" type="button" data-ns="non" data-ev="${e.id}" data-d="${s}">Non, c'est bouclé</button></div>`:ns?`<div class="nextstep">${ns==="rdv"?`✓ RDV fait. <button class="btn small primary" type="button" data-ns="chiffrage" data-ev="${e.id}">Planifier le chiffrage</button>`:`✓ Chiffrage fait. Le devis est parti ? <button class="btn small primary" type="button" data-ns="envoye" data-ev="${e.id}">Oui, marquer « Devis envoyé »</button>`}<button class="btn small" type="button" data-ns="non" data-ev="${e.id}" data-d="${s}">Plus tard</button></div>`:""}
-      <div class="tlist">${lk.map(t=>taskHTML(t,s)).join("")}<div class="addf" data-addf><input class="addt" data-addt data-ev="${e.id}" data-d="${s}" placeholder="+ tâche pour ce créneau" enterkeyhint="done" autocomplete="off"><button class="btn small addb" type="button" data-addgo aria-label="Ajouter la tâche">+</button></div></div></div></div>`}).join("")}
+      <div class="tlist">${lk.map(t=>taskHTML(t,s)).join("")}<div class="addf" data-addf><input class="addt" data-addt data-ev="${e.id}" data-d="${s}" placeholder="+ tâche pour ce créneau" enterkeyhint="done" autocomplete="off"><button class="btn small addb" type="button" data-addgo aria-label="Ajouter la tâche">+</button></div></div></div></div>`})}
   </section>`;
 }
 async function addTask(inp){const titre=inp.value.trim();if(!titre||!db)return;const ev=inp.dataset.ev?events.find(e=>e.id===inp.dataset.ev):null;
@@ -978,7 +987,7 @@ function dayHTML(){
   ppl.forEach(p=>{h+=`<div class="hd" style="--pc:${col(p.couleur)}"><i></i>${esc(p.nom)}</div>`});
   h+=`<div class="hours"><div style="height:var(--adh);border-bottom:1px solid var(--line);font-size:11px;padding-top:6px">journée</div>${[...Array(H1-H0)].map((_,i)=>`<div>${H0+i}h</div>`).join("")}</div>`;
   ppl.forEach(p=>{const mine=occ.filter(o=>who(o.e).includes(p.nom));
-    h+=`<div class="dcol${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}"><div class="adlist">${mine.filter(o=>o.e.allDay).map(o=>evHTML(o,p.nom)).join("")}</div><div style="position:relative">${[...Array(H1-H0)].map((_,i)=>`<div class="hl" data-h="${H0+i}"></div>`).join("")}
+    h+=`<div class="dcol${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}"><div class="adlist">${mine.filter(o=>o.e.allDay).map(o=>evHTML(o,p.nom)).join("")}</div><div style="position:relative">${[...Array(H1-H0)].map((_,i)=>`<div class="hl" data-h="${H0+i}"></div>`).join("")}${(()=>{const Hh=HOR(),a=Math.max(hm(Hh.midiDeb),H0*60),b=Math.min(hm(Hh.midiFin),H1*60);return b>a?`<div class="midi" style="top:${(a-H0*60)/60*48}px;height:${(b-a)/60*48}px"><span>🍽 Pause de midi</span></div>`:""})()}
     ${lanes(mine.filter(o=>!o.e.allDay)).map(o=>{const a=Math.max(hm(o.e.debut),H0*60),b=Math.min(Math.max(hm(o.e.fin),a+20),H1*60),c=catOf(o.e.cat);
       return `<div class="dev${prioCls(o.e)}" data-ev="${o.e.id}" data-d="${s}" style="top:${(a-H0*60)/60*48}px;height:${Math.max(22,(b-a)/60*48-2)}px;left:calc(4px + (100% - 8px) * ${o.lane}/${o.nl});right:auto;width:calc((100% - 8px) / ${o.nl} - ${o.nl>1?3:0}px);--cc:${evColor(o.e,p.nom)};--pc:${col(p.couleur)}" data-row="${esc(p.nom)}">${badge(o.e)}${c.icone} <b>${esc(o.e.titre||c.nom)}</b><small>${esc(o.e.debut)}–${esc(o.e.fin)}${o.e.lieu?" · "+esc(o.e.lieu):""}</small>${withHTML(who(o.e).filter(n=>n!==p.nom))}${rappel(o.e)}${canEdit(o.e)?'<span class="rz" aria-hidden="true"></span>':""}</div>`}).join("")}
     ${s===ymd(new Date())?(()=>{const n=new Date(),m=n.getHours()*60+n.getMinutes();return m>=H0*60&&m<=H1*60?`<div class="nowline" style="top:${(m-H0*60)/60*48}px"></div>`:""})():""}</div></div>`});
