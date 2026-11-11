@@ -33,8 +33,8 @@ button,input,select{font:inherit;color:inherit}
 .btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 .btn.sm{padding:4px 9px;font-size:13px}
 .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px 6px;border-radius:6px}.x:hover{background:var(--soft);color:var(--warn)}
-input[type=text],input[type=number],input[type=date],select{border:1px solid var(--line);border-radius:9px;padding:7px 9px;background:var(--surface);width:100%;min-width:0}
-input[type=number]{text-align:right;font-variant-numeric:tabular-nums}
+input[type=text],input[type=date],select{border:1px solid var(--line);border-radius:9px;padding:7px 9px;background:var(--surface);width:100%;min-width:0}
+input[inputmode=decimal]{text-align:right;font-variant-numeric:tabular-nums}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:600;min-width:0}
 label.f>span{letter-spacing:.02em}
 /* en-tête */
@@ -247,6 +247,7 @@ let saved=(LS("saved")||[]).filter(x=>!/^Exemple/.test(x.client||""));
 let S=LS("draft");if(!S||S.id==="exemple"||/^Exemple/.test(S.client||""))S=blank(); /* on part de zéro, sans exemple */
 let view="sim";
 const $=s=>document.querySelector(s);
+const num=v=>{const x=parseFloat(String(v??"").replace(/[\s\u202f€]/g,"").replace(",","."));return isFinite(x)?x:0};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const eur=(n,d=0)=>(+n||0).toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d})+" €";
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(el._t);el._t=setTimeout(()=>el.hidden=true,2200)}
@@ -298,15 +299,15 @@ function simHTML(){const p=prm(),R=calc();
     <div class="row2"><label class="f"><span>Commune</span><input type="text" id="f-commune" value="${esc([S.cp,S.commune].filter(Boolean).join(" "))}"></label>
      <label class="f"><span>Début du contrat</span><input type="date" id="f-debut" value="${esc(S.debut)}"></label></div>
     <label class="f"><span>Lieu (déplacement)</span><select id="f-lieu">${p.lieux.map((l,i)=>`<option value="${i}"${+S.lieu===i?" selected":""}>${esc(l.n)} · ${eur(l.p)} / visite</option>`).join("")}</select></label>
-    <label class="f"><span>Remise commerciale (%)</span><input type="number" id="f-remise" min="0" max="50" step="1" value="${+S.remise||0}"></label>
+    <label class="f"><span>Remise commerciale (%)</span><input type="text" inputmode="decimal" id="f-remise" min="0" max="50" step="1" value="${+S.remise||0}"></label>
   </section>`;
   const mat=`<section class="card"><h2>🔧 Matériel <small>cochez les métiers, puis ajoutez les appareils</small></h2>
     <div class="cats">${CATS.map(C=>`<button type="button" class="cat-t" data-cat="${C.k}" aria-pressed="${!!S.cats[C.k]}" style="--cc:var(--c-${C.k})"><i></i>${C.ic} ${C.n}</button>`).join("")}</div>
     ${CATS.filter(C=>S.cats[C.k]).map(C=>{const L=S.lignes.map((l,i)=>({...l,i})).filter(l=>l.c===C.k);const rc=R.cats.find(x=>x.k===C.k);
       return `<div class="sec" style="--cc:var(--c-${C.k})"><div class="sec-h"><b>${C.ic} ${C.n}</b><span class="hint">${rc?eur(rc.sub)+" HT / an":""}</span>
-        <label class="vis">visites / an <input type="number" min="1" max="12" data-vis="${C.k}" value="${vis(C.k)}"></label></div>
+        <label class="vis">visites / an <input type="text" inputmode="decimal" min="1" max="12" data-vis="${C.k}" value="${vis(C.k)}"></label></div>
         ${L.length?`<div class="tbl"><table><thead><tr><th>Appareil</th><th>Repère</th><th class="n">Qté</th><th class="n">Prix / visite</th><th class="n">Total / an</th><th></th></tr></thead><tbody>${L.map(l=>{const r=rc&&rc.rows.find(z=>z.d===l.d&&z.rep===l.rep&&z.q==l.q);const pu=ar(tempsOf(C.k,l.d)/60*p.taux);
-          return `<tr><td style="min-width:150px"><b>${esc(l.d)}</b></td><td><input type="text" class="rep" data-lr="${l.i}" value="${esc(l.rep||"")}" placeholder="pièce, n° de série…"></td><td class="n"><input type="number" class="q" min="0" data-lq="${l.i}" value="${+l.q||0}"></td><td class="n">${eur(pu)}</td><td class="n"><b>${eur(pu*vis(C.k)*(+l.q||0))}</b></td><td><button type="button" class="x" data-ldel="${l.i}" aria-label="Retirer">✕</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">Aucun appareil. Cliquez sur un type ci-dessous pour l'ajouter.</div>`}
+          return `<tr><td style="min-width:150px"><b>${esc(l.d)}</b></td><td><input type="text" class="rep" data-lr="${l.i}" value="${esc(l.rep||"")}" placeholder="pièce, n° de série…"></td><td class="n"><input type="text" inputmode="decimal" class="q" min="0" data-lq="${l.i}" value="${+l.q||0}"></td><td class="n">${eur(pu)}</td><td class="n"><b>${eur(pu*vis(C.k)*(+l.q||0))}</b></td><td><button type="button" class="x" data-ldel="${l.i}" aria-label="Retirer">✕</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">Aucun appareil. Cliquez sur un type ci-dessous pour l'ajouter.</div>`}
         <div class="add">${(p.cata[C.k]||[]).map(([d])=>`<button type="button" class="chip" data-addl="${C.k}" data-d="${esc(d)}">+ ${esc(d)}</button>`).join("")}</div></div>`}).join("")||`<p class="hint">Choisissez un ou plusieurs métiers. Un seul contrat peut regrouper clim, PAC, froid et cuisine : chaque métier aura sa propre partie dans le contrat.</p>`}
   </section>`;
   const nb=S.lignes.filter(l=>S.cats[l.c]&&+l.q>0).length;
@@ -351,23 +352,23 @@ function paramsHTML(){const p=prm(),sn=S.soc==="chassaing"?"Chassaing":"Artik";
   return `<p class="hint">Réglages de <b>${sn}</b> (changez de société en haut pour régler l'autre). Les prix ci-dessous sont des valeurs de départ à ajuster.</p>
   <div class="pgrid">
    <section class="card"><h2>💶 Base de calcul</h2>
-    <div class="row2"><label class="f"><span>Taux horaire HT (€)</span><input type="number" data-p="taux" value="${p.taux}"></label><label class="f"><span>Minimum de contrat HT / an (€)</span><input type="number" data-p="minimum" value="${p.minimum}"></label></div>
-    <div class="row2"><label class="f"><span>TVA particulier (%)</span><input type="number" data-p="tvaPart" value="${p.tvaPart}"></label><label class="f"><span>TVA professionnel (%)</span><input type="number" data-p="tvaPro" value="${p.tvaPro}"></label></div>
-    <label class="f"><span>Arrondir le prix par appareil au multiple de (€)</span><input type="number" data-p="arrondi" min="1" value="${p.arrondi}"></label>
-    <div><div class="hint" style="font-weight:600;margin-bottom:4px">Visites par an, par défaut</div><div class="row2">${CATS.map(C=>`<label class="f"><span>${C.ic} ${C.n}</span><input type="number" min="1" max="12" data-pv="${C.k}" value="${p.visites[C.k]}"></label>`).join("")}</div></div>
+    <div class="row2"><label class="f"><span>Taux horaire HT (€)</span><input type="text" inputmode="decimal" data-p="taux" value="${p.taux}"></label><label class="f"><span>Minimum de contrat HT / an (€)</span><input type="text" inputmode="decimal" data-p="minimum" value="${p.minimum}"></label></div>
+    <div class="row2"><label class="f"><span>TVA particulier (%)</span><input type="text" inputmode="decimal" data-p="tvaPart" value="${p.tvaPart}"></label><label class="f"><span>TVA professionnel (%)</span><input type="text" inputmode="decimal" data-p="tvaPro" value="${p.tvaPro}"></label></div>
+    <label class="f"><span>Arrondir le prix par appareil au multiple de (€)</span><input type="text" inputmode="decimal" data-p="arrondi" min="1" value="${p.arrondi}"></label>
+    <div><div class="hint" style="font-weight:600;margin-bottom:4px">Visites par an, par défaut</div><div class="row2">${CATS.map(C=>`<label class="f"><span>${C.ic} ${C.n}</span><input type="text" inputmode="decimal" min="1" max="12" data-pv="${C.k}" value="${p.visites[C.k]}"></label>`).join("")}</div></div>
    </section>
    <section class="card"><h2>📍 Lieux et déplacement</h2><p class="hint">Prix d'un déplacement par visite selon le lieu du client. Le déplacement varie avec le carburant : ajustez ici. Nommez un lieu avec ses communes (ex. « Creissels / Millau ») : quand un client Organilog est choisi, le lieu se règle tout seul.</p>
-    <div class="tbl"><table><thead><tr><th>Lieu / zone</th><th class="n">€ HT / visite</th><th></th></tr></thead><tbody>${p.lieux.map((l,i)=>`<tr><td><input type="text" data-ln="${i}" value="${esc(l.n)}"></td><td class="n"><input type="number" style="width:90px" data-lp="${i}" value="${l.p}"></td><td><button type="button" class="x" data-lx="${i}" aria-label="Supprimer">✕</button></td></tr>`).join("")}</tbody></table></div>
+    <div class="tbl"><table><thead><tr><th>Lieu / zone</th><th class="n">€ HT / visite</th><th></th></tr></thead><tbody>${p.lieux.map((l,i)=>`<tr><td><input type="text" data-ln="${i}" value="${esc(l.n)}"></td><td class="n"><input type="text" inputmode="decimal" style="width:90px" data-lp="${i}" value="${l.p}"></td><td><button type="button" class="x" data-lx="${i}" aria-label="Supprimer">✕</button></td></tr>`).join("")}</tbody></table></div>
     <div><button type="button" class="btn sm" data-ladd>+ Ajouter un lieu</button></div></section>
    ${CATS.map(C=>`<section class="card" style="--cc:var(--c-${C.k})"><h2>${C.ic} ${C.n} <small>temps d'entretien par appareil et par visite</small></h2>
-    <div class="tbl"><table><thead><tr><th>Appareil</th><th class="n">Minutes</th><th class="n">Prix / visite</th><th></th></tr></thead><tbody>${(p.cata[C.k]||[]).map(([d,t],i)=>`<tr><td><input type="text" data-cn="${C.k}|${i}" value="${esc(d)}"></td><td class="n"><input type="number" style="width:80px" data-ct="${C.k}|${i}" value="${t}"></td><td class="n">${eur(ar(t/60*p.taux))}</td><td><button type="button" class="x" data-cx="${C.k}|${i}" aria-label="Supprimer">✕</button></td></tr>`).join("")}</tbody></table></div>
+    <div class="tbl"><table><thead><tr><th>Appareil</th><th class="n">Minutes</th><th class="n">Prix / visite</th><th></th></tr></thead><tbody>${(p.cata[C.k]||[]).map(([d,t],i)=>`<tr><td><input type="text" data-cn="${C.k}|${i}" value="${esc(d)}"></td><td class="n"><input type="text" inputmode="decimal" style="width:80px" data-ct="${C.k}|${i}" value="${t}"></td><td class="n">${eur(ar(t/60*p.taux))}</td><td><button type="button" class="x" data-cx="${C.k}|${i}" aria-label="Supprimer">✕</button></td></tr>`).join("")}</tbody></table></div>
     <div><button type="button" class="btn sm" data-cadd="${C.k}">+ Ajouter un appareil</button></div></section>`).join("")}
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" data-preset>Remettre les valeurs de départ (${sn})</button></div>`}
 function render(){document.body.className=S.soc==="chassaing"?"chas":"";
   $("#app").innerHTML=head()+(view==="sim"?simHTML():view==="contrat"?contratHTML():view==="saved"?savedHTML():paramsHTML());
   SS("draft",S)}
-const keepFocus=f=>{const a=document.activeElement,id=a&&(a.id||[...a.attributes].filter(x=>x.name.startsWith("data-")).map(x=>`[${x.name}="${x.value}"]`).join("")),pos=a&&a.selectionStart;f();if(id){const el=a.id?document.getElementById(id):document.querySelector(id);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}};
+const keepFocus=f=>{const a=document.activeElement,id=a&&(a.id||[...a.attributes].filter(x=>x.name.startsWith("data-")).map(x=>`[${x.name}="${x.value}"]`).join("")),fromEnd=a&&a.value!=null&&a.selectionStart!=null?a.value.length-a.selectionStart:null;f();if(id){const el=a.id?document.getElementById(id):document.querySelector(id);if(el){el.focus();try{if(fromEnd!=null){const q=Math.max(0,el.value.length-fromEnd);el.setSelectionRange(q,q)}}catch(e){}}}};
 
 /* ---------- actions ---------- */
 document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const d=t.dataset;
@@ -398,13 +399,13 @@ document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)r
 document.addEventListener("input",e=>{const t=e.target,d=t.dataset,p=prm();let rer=true;
   if(t.id==="f-org"){clearTimeout(orgSearch._t);orgSearch._t=setTimeout(()=>orgSearch(t.value),180);return}
   if(t.id==="f-client")S.client=t.value;else if(t.id==="f-adresse")S.adresse=t.value;else if(t.id==="f-commune"){const m=t.value.match(/^\s*(\d{5})\s*(.*)$/);if(m){S.cp=m[1];S.commune=m[2]}else{S.cp="";S.commune=t.value}rer=false}else if(t.id==="f-debut")S.debut=t.value;
-  else if(t.id==="f-remise")S.remise=Math.max(0,Math.min(50,+t.value||0));else if(t.id==="f-lieu")S.lieu=+t.value;
-  else if(d.vis){S.vis={...(S.vis||{}),[d.vis]:Math.max(1,+t.value||1)}}
-  else if(d.lq!==undefined)S.lignes[+d.lq].q=Math.max(0,+t.value||0);else if(d.lr!==undefined){S.lignes[+d.lr].rep=t.value;rer=false}else if(d.ld!==undefined)S.lignes[+d.ld].d=t.value;
-  else if(d.p){p[d.p]=+t.value||0;SS("params",P)}else if(d.pv){p.visites[d.pv]=Math.max(1,+t.value||1);SS("params",P)}
-  else if(d.ln!==undefined){p.lieux[+d.ln].n=t.value;SS("params",P);rer=false}else if(d.lp!==undefined){p.lieux[+d.lp].p=+t.value||0;SS("params",P)}
+  else if(t.id==="f-remise")S.remise=Math.max(0,Math.min(50,num(t.value)||0));else if(t.id==="f-lieu")S.lieu=num(t.value);
+  else if(d.vis){S.vis={...(S.vis||{}),[d.vis]:Math.max(1,num(t.value)||1)}}
+  else if(d.lq!==undefined)S.lignes[+d.lq].q=Math.max(0,num(t.value)||0);else if(d.lr!==undefined){S.lignes[+d.lr].rep=t.value;rer=false}else if(d.ld!==undefined)S.lignes[+d.ld].d=t.value;
+  else if(d.p){p[d.p]=num(t.value)||0;SS("params",P)}else if(d.pv){p.visites[d.pv]=Math.max(1,num(t.value)||1);SS("params",P)}
+  else if(d.ln!==undefined){p.lieux[+d.ln].n=t.value;SS("params",P);rer=false}else if(d.lp!==undefined){p.lieux[+d.lp].p=num(t.value)||0;SS("params",P)}
   else if(d.cn){const [c,i]=d.cn.split("|");const old=p.cata[c][+i][0];p.cata[c][+i][0]=t.value;S.lignes.forEach(l=>{if(l.c===c&&l.d===old)l.d=t.value});SS("params",P);rer=false}
-  else if(d.ct){const [c,i]=d.ct.split("|");p.cata[c][+i][1]=Math.max(0,+t.value||0);SS("params",P)}
+  else if(d.ct){const [c,i]=d.ct.split("|");p.cata[c][+i][1]=Math.max(0,num(t.value)||0);SS("params",P)}
   else rer=false;
   if(rer)keepFocus(render);else SS("draft",S)});
 document.addEventListener("focusin",e=>{if(e.target.id==="f-org")orgList(S.soc).catch(()=>{})});
