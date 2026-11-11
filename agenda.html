@@ -95,6 +95,10 @@ select,input,textarea{font:inherit;font-size:15px;color:var(--ink);background:va
 @media (hover:none){.cell .plus{opacity:.4}}
 .ev{--bg:var(--cc);background:var(--bg);color:#fff;border-radius:7px;padding:4px 7px 4px 6px;font-size:13px;line-height:1.25;cursor:grab;display:flex;gap:5px;align-items:flex-start;border-left:4px solid var(--pc);touch-action:manipulation;user-select:none;min-width:0}
 .ev .ei{flex:none;font-size:13px}
+.qlast{margin-top:8px;border:1.5px solid var(--c-orange,#E4670A);border-radius:12px;padding:8px 10px;background:rgba(228,103,10,.06);animation:qpop .25s}
+.qlast .qkl{margin:0 0 6px;font-weight:600}.qlast .qkl small{font-weight:400;opacity:.7}
+.qother{display:inline-flex;gap:4px;align-items:center}.qother input{font:inherit;border:1px solid var(--line,#ddd);border-radius:999px;padding:5px 10px;width:150px;background:var(--surface,#fff);color:inherit}
+@keyframes qpop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 .wk .hd .ferl{display:block;font-size:11px;font-weight:700;color:var(--c-bordeaux,#8E2344);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wk .cell.fer{background:repeating-linear-gradient(135deg,transparent 0 8px,rgba(228,103,10,.07) 8px 16px)}
 /* taille proportionnelle à la durée : 1 h = --hpx (réglé selon le zoom) */
@@ -807,16 +811,22 @@ function cataNiv(titre,liste){const C=cata()[liste||"affaires"]||{},b=nz2(String
 function niv(t){const c=cataNiv(t.titre,t.liste);if(c)return c;if(t.niv)return t.niv;return t.imp?2:3}
 const nivLocked=t=>!!cataNiv(t.titre,t.liste);
 let qsel={};
-function qClients(){const m=me(),set=new Set(),t0=ymd(new Date()),lo=ymd(addD(new Date(),-14)),hi=ymd(addD(new Date(),14));
+function qClients(){try{return qClients0()}catch(e){console.error(e);return []}}
+function qClients0(){const m=me(),set=new Set(),t0=ymd(new Date()),lo=ymd(addD(new Date(),-14)),hi=ymd(addD(new Date(),14));
   mesDossiers().forEach(d=>d.client&&set.add(d.client));
   events.filter(e=>who(e).includes(m.nom)&&e.titre&&e.date>=lo&&e.date<=hi).sort((a,b)=>Math.abs(a.date.localeCompare(t0))-Math.abs(b.date.localeCompare(t0))).forEach(e=>set.add(e.titre));
   return [...set].slice(0,10)}
 let qOpen={};
+/* toute erreur inattendue s'affiche en bas de l'écran au lieu de bloquer en silence (plus facile à signaler) */
+window.addEventListener("error",e=>{try{toast("Oups : "+(e.message||"erreur")+" — envoyez une capture à Claude",true)}catch(x){}});
+window.addEventListener("unhandledrejection",e=>{try{const m=(e.reason&&e.reason.message)||String(e.reason||"");if(m!=="redirect")toast("Oups : "+m+" — envoyez une capture à Claude",true)}catch(x){}});
 function qkHTML(l){const C=cata()[l.k]||{},sel=qsel[l.k],open=!!qOpen[l.k];
   let h=`<div class="qk" data-qk="${l.k}">${[1,2,3,4].filter(n=>open||n<4).flatMap(n=>(C[n]||[]).map(a=>`<button type="button" data-qa="${esc(a)}" aria-pressed="${a===sel}" style="--nc:${NIV[n].c}"><i class="nd"></i>${esc(a)}</button>`)).join("")}${(C[4]||[]).length?`<button type="button" class="qmore" data-qmore="${l.k}">${open?"Masquer « à temps perdu »":"☕ À temps perdu…"}</button>`:""}</div>`;
-  if(sel&&l.k==="affaires"){const C=qClients();h+=`<div class="qkl">« ${esc(sel)} » pour quel client ?</div><div class="qk" data-qk="${l.k}">${C.map(c=>`<button type="button" class="qc" data-qcl="${esc(c)}">${esc(c)}</button>`).join("")}<button type="button" class="qc" data-qcl="">Sans client</button><button type="button" class="qc" data-qtype>✏️ Autre client…</button></div>`}
+  if(qlast&&l.k==="affaires"&&taches.some(t=>t.id===qlast.id)){const C=qClients();h+=`<div class="qlast"><div class="qkl">✓ « ${esc(qlast.titre)} » ajouté. Pour quel client ? <small>(facultatif)</small></div><div class="qk">${C.map(c=>`<button type="button" class="qc" data-qcl="${esc(c)}">${esc(c)}</button>`).join("")}<span class="qother"><input type="text" id="qcl-in" placeholder="Autre client…" aria-label="Autre client"><button type="button" class="qc" data-qclok>OK</button></span><button type="button" class="qc" data-qclx>Sans client ✕</button></div></div>`}
   return h}
-async function quickAdd(liste,titre,d){if(!db)return;try{await db.collection("taches").doc("t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)).set({owner:myKey(),liste,titre,date:d||"",eventId:"",occ:"",ref:"",fait:false,faitLe:"",cree:new Date().toISOString()});qsel={};render();toast("Ajouté : "+titre)}catch(e){toast("Tâche non enregistrée : "+(e.message||e),true)}}
+let qlast=null;
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.id==="qcl-in"){e.preventDefault();const b=document.querySelector("[data-qclok]");if(b)b.click()}});
+async function quickAdd(liste,titre,d){if(!db)return;const id="t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);if(liste==="affaires")qlast={id,titre};try{await db.collection("taches").doc(id).set({owner:myKey(),liste,titre,date:d||"",eventId:"",occ:"",ref:"",fait:false,faitLe:"",cree:new Date().toISOString()});qsel={};render();toast("Ajouté : "+titre)}catch(e){toast("Tâche non enregistrée : "+(e.message||e),true)}}
 const LISTES=[{k:"affaires",ic:"🧰",nom:"Technique",sub:"chiffrages, relances, commandes, chantiers…",c:"var(--c-orange,#E4670A)"},{k:"admin",ic:"🗂️",nom:"Administratif",sub:"mails, papiers, factures, dossiers…",c:"var(--c-blue,#1F7FC4)"}];
 function streak(){const T=mesTaches(),done=new Set(T.filter(t=>t.fait&&t.faitLe).map(t=>t.faitLe));let d=new Date(),n=0;
   if(!done.has(ymd(d)))d=addD(d,-1);
@@ -884,9 +894,10 @@ $("#main-tasks").addEventListener("click",async e=>{
   if(e.target.closest(".rtp,[data-rtopen]")){if(await rtClick(e))return}
   const ti=e.target.closest("[data-tniv]");if(ti){const t=taches.find(z=>z.id===ti.dataset.tniv);if(t&&!nivLocked(t)){const n=niv(t)%4+1;await db.doc("taches/"+t.id).update({niv:n,imp:false});toast("Niveau : "+NIV[n].nom)}return}
   const qa=e.target.closest("[data-qa]");if(qa){const l=qa.closest("[data-qk]").dataset.qk,a=qa.dataset.qa,d=(qa.closest(".blist").querySelector("[data-addt]")||{dataset:{}}).dataset.d;
-    if(l==="affaires"&&cataNiv(a,"affaires")!==4){qsel={[l]:qsel[l]===a?undefined:a};render()}else quickAdd(l,a,d);return}
+    quickAdd(l,a,d);return}
   const qm=e.target.closest("[data-qmore]");if(qm){qOpen[qm.dataset.qmore]=!qOpen[qm.dataset.qmore];render();return}
-  const qc=e.target.closest("[data-qcl]");if(qc){const bl=qc.closest(".blist"),a=qsel.affaires,d=(bl.querySelector("[data-addt]")||{dataset:{}}).dataset.d;if(a)quickAdd("affaires",qc.dataset.qcl?a+" – "+qc.dataset.qcl:a,d);return}
+  const qc=e.target.closest("[data-qcl],[data-qclok]");if(qc&&qlast){const cl=qc.dataset.qclok!==undefined?(($("#qcl-in")||{}).value||"").trim():qc.dataset.qcl;const q=qlast;qlast=null;if(cl){try{await db.doc("taches/"+q.id).update({titre:q.titre+" – "+cl});toast("Client ajouté : "+cl)}catch(er){toast("Client non enregistré",true)}}render();return}
+  if(e.target.closest("[data-qclx]")){qlast=null;render();return}
   const qt=e.target.closest("[data-qtype]");if(qt){const bl=qt.closest(".blist"),i=bl.querySelector("[data-addt]"),a=qsel.affaires||"";if(i){i.value=a+" – ";i.focus();try{i.setSelectionRange(i.value.length,i.value.length)}catch(er){}}return}
   const ag=e.target.closest("[data-addgo]");if(ag){e.preventDefault();const i=ag.parentElement.querySelector("[data-addt]");if(i)addTask(i);return}
   const tdn=e.target.closest("[data-tday]");if(tdn){const n=+tdn.dataset.tday;tday=n?addD(tday,n):new Date();while(n&&(tday.getDay()===0||tday.getDay()===6))tday=addD(tday,n);render();return}
