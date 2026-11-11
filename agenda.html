@@ -95,6 +95,8 @@ select,input,textarea{font:inherit;font-size:15px;color:var(--ink);background:va
 @media (hover:none){.cell .plus{opacity:.4}}
 .ev{--bg:var(--cc);background:var(--bg);color:#fff;border-radius:7px;padding:4px 7px 4px 6px;font-size:13px;line-height:1.25;cursor:grab;display:flex;gap:5px;align-items:flex-start;border-left:4px solid var(--pc);touch-action:manipulation;user-select:none;min-width:0}
 .ev .ei{flex:none;font-size:13px}
+.wk .hd .ferl{display:block;font-size:11px;font-weight:700;color:var(--c-bordeaux,#8E2344);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk .cell.fer{background:repeating-linear-gradient(135deg,transparent 0 8px,rgba(228,103,10,.07) 8px 16px)}
 /* taille proportionnelle à la durée : 1 h = --hpx (réglé selon le zoom) */
 .wk{--hpx:40px}.wk.z2{--hpx:30px}
 .wk .ev:not(.allday){height:max(24px,calc(var(--dh,1) * var(--hpx)));box-sizing:border-box;overflow:hidden;flex:none}
@@ -647,6 +649,11 @@ const ymd=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
 const parse=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d,12)};
 const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const monday=d=>addD(d,-((d.getDay()+6)%7));
+/* jours fériés en France (calculés, aucune mise à jour à faire chaque année) */
+const FERIES=(()=>{const c={};return y=>{if(c[y])return c[y];const a=y%19,b=Math.floor(y/100),cc=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(cc/4),k=cc%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  const P=new Date(y,mo-1,da,12),z=n=>{const x=new Date(P);x.setDate(x.getDate()+n);return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0")};
+  const o={};o[y+"-01-01"]="Jour de l'An";o[z(1)]="Lundi de Pâques";o[y+"-05-01"]="Fête du Travail";o[y+"-05-08"]="Victoire 1945";o[z(39)]="Ascension";o[z(50)]="Lundi de Pentecôte";o[y+"-07-14"]="Fête nationale";o[y+"-08-15"]="Assomption";o[y+"-11-01"]="Toussaint";o[y+"-11-11"]="Armistice 1918";o[y+"-12-25"]="Noël";return c[y]=o}})();
+const ferie=s=>{s=String(s).slice(0,10);return FERIES(+s.slice(0,4))[s]||""};
 const JOURS=["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"];
 const MOIS=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const hm=s=>{const [h,m]=(s||"0:0").split(":").map(Number);return h*60+(m||0)};
@@ -755,11 +762,11 @@ function weekHTML(){
   const ds=days(),ppl=cfg.personnes.filter(p=>!hidden.has(p.nom)),t=ymd(new Date());
   const occ=occurrences(ymd(ds[0]),ymd(ds[ds.length-1]));
   let h=`<div class="gridwrap"><div class="wk${zoom==="deux"?" z2":""}" style="grid-template-columns:120px repeat(${ds.length},minmax(${zoom==="deux"?90:130}px,1fr))"><div class="hd"></div>`;
-  ds.forEach(d=>{h+=`<div class="hd${ymd(d)===t?" today":""}">${JOURS[(d.getDay()+6)%7].slice(0,zoom==="deux"?3:9)}<b>${d.getDate()}</b></div>`});
+  ds.forEach(d=>{const fe=ferie(ymd(d));h+=`<div class="hd${ymd(d)===t?" today":""}${fe?" fer":""}"${fe?` title="Jour férié : ${fe}"`:""}>${JOURS[(d.getDay()+6)%7].slice(0,zoom==="deux"?3:9)}<b>${d.getDate()}</b>${fe?`<span class="ferl">🎌 ${zoom==="deux"?"Férié":fe}</span>`:""}</div>`});
   ppl.forEach(p=>{
     h+=`<div class="pl" style="--pc:${col(p.couleur)}"><i></i>${esc(p.nom)}</div>`;
     ds.forEach(d=>{const s=ymd(d),we=d.getDay()===0||d.getDay()===6;
-      h+=`<div class="cell${we?" we":""}${s===t?" today":""}${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}">${occ.filter(o=>o.d===s&&who(o.e).includes(p.nom)).map(o=>evHTML(o,p.nom)).join("")}<span class="plus" aria-hidden="true">+</span></div>`});
+      h+=`<div class="cell${we?" we":""}${ferie(s)?" fer":""}${s===t?" today":""}${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}">${occ.filter(o=>o.d===s&&who(o.e).includes(p.nom)).map(o=>evHTML(o,p.nom)).join("")}<span class="plus" aria-hidden="true">+</span></div>`});
   });
   if(!ppl.length)h+=`<div class="empty" style="grid-column:1/-1">Aucune personne affichée.</div>`;
   return h+`</div></div>`+legendHTML();

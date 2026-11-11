@@ -185,6 +185,7 @@ small.just{display:block;font-size:11px;color:var(--muted)}
 .rep .replegend .lv b{font-family:var(--f-display);font-size:22px;line-height:1;color:var(--ink)}
 .rep .replegend .lv small{font-size:12px;color:var(--muted);margin:0}
 .rep .replegend .hors{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
+.pill.fer{display:inline-block;margin-top:3px;background:#FCEBDD;color:#8E2344;border:1px solid #E4670A;font-size:11px;font-weight:700;border-radius:999px;padding:0 7px;white-space:nowrap}
 </style>
 <script>if(/[?&]embed=1/.test(location.search))document.documentElement.classList.add("embed")</script>
 <style>
@@ -303,7 +304,7 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
 (function(){
 /* ----- Réglages : mémorisés dans le navigateur, et partagés sur SharePoint quand la page est en ligne ----- */
 function persist(k,v){try{if(v===null)localStorage.removeItem("hx-"+k);else localStorage.setItem("hx-"+k,JSON.stringify(v))}catch(e){}if(typeof window!=="undefined"&&window.__hxSync)window.__hxSync(k,v)}
-const DEF={debutSuivi:"",plageDeb:"07:00",plageFin:"19:00",nuitDeb:"21:00",nuitFin:"06:00",tHors:25,tNuit:50,tSam:25,tDim:100,trajetMode:"un",trajetChoix:"long",base:35,demiCP:4,primePerm:40,mPanier:10,mResto:0};
+const DEF={debutSuivi:"",plageDeb:"07:00",plageFin:"19:00",nuitDeb:"21:00",nuitFin:"06:00",tHors:25,tNuit:50,tSam:25,tDim:100,tFer:100,trajetMode:"un",trajetChoix:"long",base:35,demiCP:4,primePerm:40,mPanier:10,mResto:0};
 let R={...DEF};try{R={...DEF,...JSON.parse(localStorage.getItem("hx-regles")||"{}")}}catch(e){}
 const CODES=[
   {code:"ZZZ DEPOT",k:"depot",label:"Dépôt"},
@@ -402,7 +403,7 @@ const norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").repl
 function codeOf(c){const n=norm(c);return CODES.find(x=>n===norm(x.code)||n.startsWith(norm(x.code)+" "))}
 function ov(a0,a1,b0,b1){return Math.max(0,Math.min(a1,b1)-Math.max(a0,b0))}
 function isTrajet(e){const c=codeOf(e.client);return !!c&&c.k==="trajet"}
-const ZERO={atelier:0,restoEC:0,ecole:0,nuitLegal:0,travail:0,inter:0,trajet:0,trajetND:0,depot:0,fourn:0,pause:0,hors:0,nuit:0,sam:0,dim:0,panier:0,resto:0,recup:0,congesJ:0,perm:0};
+const ZERO={atelier:0,restoEC:0,ecole:0,nuitLegal:0,travail:0,inter:0,trajet:0,trajetND:0,depot:0,fourn:0,pause:0,hors:0,nuit:0,sam:0,dim:0,fer:0,panier:0,resto:0,recup:0,congesJ:0,perm:0};
 function computeDay(tech,date){
   const es=DATA.filter(e=>e.tech===tech&&e.date===date).map(e=>({...e})).sort((a,b)=>a.deb.localeCompare(b.deb));
   const wd=new Date(date+"T12:00").getDay();
@@ -451,6 +452,7 @@ function computeDay(tech,date){
       if(r.deb===null||s<r.deb)r.deb=s;if(r.fin===null||f>r.fin)r.fin=f;
       r.nuitLegal+=ov(s,f,22*60,1440)+ov(s,f,0,6*60);
       if(c&&c.k==="ecole"){}
+      else if(ferie(date)){r.fer+=dur;e.maj=true}
       else if(wd===6){r.sam+=dur;e.maj=true}
       else if(wd===0){r.dim+=dur;e.maj=true}
       else{const nuit=ov(s,f,n0,1440)+ov(s,f,0,n1),inP=Math.max(0,ov(s,f,p0,p1)-pOv(Math.max(s,p0),Math.min(f,p1))),hors=Math.max(0,dur-inP-nuit);r.nuit+=nuit;r.hors+=hors;if(nuit||hors)e.maj=true}
@@ -518,6 +520,11 @@ const fmt=m=>{const neg=m<0;m=Math.abs(Math.round(m));const h=Math.floor(m/60),m
 const H=m=>m?fmt(m):'<span class="z">–</span>';
 const Hh=h=>h?fmt(h*60):'<span class="z">–</span>';
 const eur=n=>Math.round(n).toLocaleString("fr-FR")+" €";
+/* jours fériés en France (calculés, aucune mise à jour à faire chaque année) */
+const FERIES=(()=>{const c={};return y=>{if(c[y])return c[y];const a=y%19,b=Math.floor(y/100),cc=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(cc/4),k=cc%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  const P=new Date(y,mo-1,da,12),z=n=>{const x=new Date(P);x.setDate(x.getDate()+n);return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0")};
+  const o={};o[y+"-01-01"]="Jour de l'An";o[z(1)]="Lundi de Pâques";o[y+"-05-01"]="Fête du Travail";o[y+"-05-08"]="Victoire 1945";o[z(39)]="Ascension";o[z(50)]="Lundi de Pentecôte";o[y+"-07-14"]="Fête nationale";o[y+"-08-15"]="Assomption";o[y+"-11-01"]="Toussaint";o[y+"-11-11"]="Armistice 1918";o[y+"-12-25"]="Noël";return c[y]=o}})();
+const ferie=s=>{s=String(s).slice(0,10);return FERIES(+s.slice(0,4))[s]||""};
 const JOURS=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
 const isoW=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);const y=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y)/864e5+1)/7)};
 let tab="equipe",per="semaine",ref=new Date(),tech=(TECHS[0]||{nom:""}).nom,selDay=null;
@@ -551,11 +558,11 @@ function repartition(t){
 function techView(){
   const P=techPeriod(tech,per,ref),t=P.t,trav=t.travail/60;
   const pc=Math.min(100,trav/(P.contratP*1.25)*100),mk=80;
-  const maj=t.hors+t.nuit+t.sam+t.dim,rp=repartition(t);
+  const maj=t.hors+t.nuit+t.sam+t.dim+(t.fer||0),rp=repartition(t);
   let h=`<section class="tiles">
     <div class="tile${trav>P.contratP?" hi":""}"><span>Temps de travail</span><b>${Hh(trav)}</b><small>contrat ${P.contratP} h${per==="mois"?" ("+P.weeks.length+" sem.)":""}</small><div class="meter"><i style="width:${pc}%"></i><span class="mark" style="left:${mk}%"></span></div></div>
     <div class="tile${P.hs25+P.hs50?" hi":""}"><span>Heures sup. · compteur</span><b>${Hh(P.hs25+P.hs50)}</b><small>${Hh(P.hs25)} à 25 % · ${Hh(P.hs50)} à 50 %<br>compteur : ${fmt(P.s0*60)} → <strong>${fmt(P.s1*60)}</strong></small></div>
-    <div class="tile${maj?" hi":""}"><span>Heures majorées</span><b>${H(maj)}</b><small>hors plage ${H(t.hors)} · nuit ${H(t.nuit)}<br>sam. ${H(t.sam)} · dim. ${H(t.dim)}</small></div>
+    <div class="tile${maj?" hi":""}"><span>Heures majorées</span><b>${H(maj)}</b><small>hors plage ${H(t.hors)} · nuit ${H(t.nuit)}<br>sam. ${H(t.sam)} · dim. ${H(t.dim)}${t.fer?` · férié ${H(t.fer)}`:""}</small></div>
     <div class="tile"><span>Trajets payés</span><b>${H(t.trajet)}</b><small>${t.trajetND?H(t.trajetND)+" non dû (aller ou retour)":"aucun trajet écarté"}</small></div>
     <div class="tile"><span>Repas</span><b>${t.panier} · ${t.resto} · ${t.restoEC}</b><small>paniers · resto sans compte · en compte<br>à verser : ${P.repasEur?eur2(P.repasEur):"–"}${P.restoJustif?` + ${P.restoJustif} resto sur justif.`:""}</small></div>
     <div class="tile${t.perm?" hi":""}"><span>Astreinte · absences</span><b>${P.permW} j</b><small>prime ${eur(P.prime)} brut<br>récup ${H(t.recup)} · CP ${t.congesJ||0} j</small></div>
@@ -569,9 +576,9 @@ function techView(){
     h+=`<div class="days"><div class="dgrid">
       <div class="dh">Jour</div><div class="dh" style="flex-direction:column;align-items:stretch">${axisHead()}</div>
       <div class="dh num">Début–fin</div><div class="dh num">Interv.</div><div class="dh num">Trajet</div><div class="dh num">Dépôt / atelier / fourn.</div><div class="dh num">Total</div><div class="dh num">Majorées</div><div class="dh">Repas · absences</div>`;
-    P.days.forEach(d=>{const we=d.date.getDay()%6===0,cls=we?" we":"",mj=d.hors+d.nuit+d.sam+d.dim;
+    P.days.forEach(d=>{const we=d.date.getDay()%6===0,cls=we?" we":"",mj=d.hors+d.nuit+d.sam+d.dim+(d.fer||0);
       const ab=[d.perm?'<span class="pill o">Astreinte</span>':"",d.panier?'<span class="pill">Panier</span>':"",d.resto?'<span class="pill">Resto s/c</span>':"",d.restoEC?'<span class="pill">Resto en compte</span>':"",d.recup?`<span class="pill o">Récup ${H(d.recup)}</span>`:"",d.congesJ?`<span class="pill">CP ${d.congesJ} j</span>`:""].join("");
-      h+=`<div class="dc day${cls}" data-day="${ymd(d.date)}" style="cursor:pointer"><b>${JOURS[d.date.getDay()]}</b><small>${d.date.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</small></div>
+      h+=`<div class="dc day${cls}" data-day="${ymd(d.date)}" style="cursor:pointer"><b>${JOURS[d.date.getDay()]}</b><small>${d.date.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</small>${ferie(ymd(d.date))?`<span class="pill fer" title="Jour férié">🎌 ${ferie(ymd(d.date))}</span>`:""}</div>
         <div class="dc${cls}" data-day="${ymd(d.date)}" style="cursor:pointer">${axisHTML(d)}</div>
         <div class="dc num${cls}">${d.deb!==null?hm(d.deb)+"–"+hm(d.fin):'<span class="z">–</span>'}</div>
         <div class="dc num${cls}">${H(d.inter)}</div><div class="dc num${cls}">${H(d.trajet)}</div><div class="dc num${cls}">${H(d.depot+d.atelier+d.fourn)}</div>
@@ -584,7 +591,7 @@ function techView(){
       return `<tr><td>${e.deb}</td><td>${e.fin}</td><td class="num">${dur?H(dur):"–"}</td><td class="num${e.decl&&toM(e.decl)!==dur?" hot":""}" title="${e.decl&&toM(e.decl)!==dur?"Temps déclaré différent des horaires":""}">${e.decl?H(toM(e.decl)):"–"}</td><td class="${c?"codes":""}">${esc(e.client)}${e.nom&&!c?`<small class="just">${esc(e.nom)}</small>`:""}</td><td>${cls}${e.maj?' <span class="pill o">majorée</span>':""}${e.chev?` <span class="pill o" title="Chevauche la saisie précédente : ${e.chev} min non comptées en double">chevauchement ${H(e.chev)}</span>`:""}${e.pded?` <span class="pill" title="La pause saisie pendant cette intervention est retirée du temps de travail">− ${H(e.pded)} de pause</span>`:""}</td><td>${eff}</td></tr>`}).join("")||'<tr><td colspan="7" class="hint">Aucune saisie ce jour-là.</td></tr>'}</tbody></table></div></div>`;
     else h+=`<p class="hint">Cliquez sur un jour pour voir le détail des saisies Organilog.</p>`;
   }else{
-    h+=`<div class="panel"><h3>Semaines du mois</h3><div class="tblwrap"><table><thead><tr><th>Semaine</th><th class="num">Travaillé</th><th class="num">Contrat</th><th class="num">HS 25 %</th><th class="num">HS 50 %</th><th class="num">Majorées</th><th class="num">Trajet</th><th class="num">Pause</th><th class="num">Paniers</th><th class="num">Resto s/c</th><th class="num">Astr.</th><th class="num">Récup</th><th class="num">CP</th></tr></thead><tbody>${P.weeks.map(w=>{const s=w.s,mj=s.hors+s.nuit+s.sam+s.dim;
+    h+=`<div class="panel"><h3>Semaines du mois</h3><div class="tblwrap"><table><thead><tr><th>Semaine</th><th class="num">Travaillé</th><th class="num">Contrat</th><th class="num">HS 25 %</th><th class="num">HS 50 %</th><th class="num">Majorées</th><th class="num">Trajet</th><th class="num">Pause</th><th class="num">Paniers</th><th class="num">Resto s/c</th><th class="num">Astr.</th><th class="num">Récup</th><th class="num">CP</th></tr></thead><tbody>${P.weeks.map(w=>{const s=w.s,mj=s.hors+s.nuit+s.sam+s.dim+(s.fer||0);
       return `<tr class="click" data-week="${ymd(w.mon)}"><td>S${isoW(w.mon)} · du ${w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</td><td class="num"><b>${H(s.travail)}</b></td><td class="num">${P.contrat} h</td><td class="num${w.hs25?" hot":""}">${Hh(w.hs25)}</td><td class="num${w.hs50?" hot":""}">${Hh(w.hs50)}</td><td class="num${mj?" hot":""}">${H(mj)}</td><td class="num">${H(s.trajet)}</td><td class="num">${H(s.pause)}</td><td class="num">${s.panier||'<span class="z">–</span>'}</td><td class="num">${s.resto||'<span class="z">–</span>'}</td><td class="num">${s.perm?s.perm+" j":'<span class="z">–</span>'}</td><td class="num">${H(s.recup)}</td><td class="num">${s.congesJ?s.congesJ+" j":'<span class="z">–</span>'}</td></tr>`}).join("")}</tbody></table></div><p class="hint">Cliquez sur une semaine pour l'ouvrir jour par jour. Le mois regroupe les semaines qui commencent dans le mois.</p></div>`;
   }
   return h;
@@ -655,12 +662,14 @@ function reglesView(){
     <label class="field"><span>Majoration nuit (%)</span><input type="number" id="r-tn" min="0" value="${R.tNuit}"></label>
     <label class="field"><span>Majoration samedi (%)</span><input type="number" id="r-ts" min="0" value="${R.tSam}"></label>
     <label class="field"><span>Majoration dimanche (%)</span><input type="number" id="r-td" min="0" value="${R.tDim}"></label>
+    <label class="field"><span>Majoration jour férié (%)</span><input type="number" id="r-tf" min="0" value="${R.tFer??100}"></label>
     <label class="field"><span>Début du suivi (compteur d'heures sup.)</span><input type="date" id="r-ds" value="${R.debutSuivi||""}"></label>
     <label class="field"><span>Heures sup. au-delà de (h/semaine)</span><input type="number" id="r-base" min="1" value="${R.base}"></label>
     <label class="field"><span>Congés : demi-journée jusqu'à (h)</span><input type="number" id="r-cp" min="1" step="0.5" value="${R.demiCP}"></label>
     <label class="field"><span>Trajets aller / retour</span><select id="r-tm"><option value="un"${R.trajetMode==="un"?" selected":""}>Un seul dû par jour (aller ou retour)</option><option value="tous"${R.trajetMode==="tous"?" selected":""}>Aller et retour comptés</option><option value="aucun"${R.trajetMode==="aucun"?" selected":""}>Aucun compté</option></select></label>
     <label class="field"><span>Quand un seul est dû, garder</span><select id="r-tc"><option value="long"${R.trajetChoix==="long"?" selected":""}>Le plus long des deux</option><option value="matin"${R.trajetChoix==="matin"?" selected":""}>Toujours celui du matin</option><option value="soir"${R.trajetChoix==="soir"?" selected":""}>Toujours celui du soir</option></select></label>
   </div><p class="hint">Les taux sont des exemples à caler sur votre convention collective et vos accords avant tout usage pour la paie. Les heures sup. suivent ici la règle légale par défaut : 25 % pour les 8 premières heures au-delà du seuil, 50 % ensuite.</p>
+  ${(()=>{const y=new Date().getFullYear(),Y=[y-1,y,y+1,y+2],noms=Object.values(FERIES(y));return `<details class="panel" style="margin-top:12px"><summary><h3>🎌 Jours fériés · ${Y[0]} à ${Y[3]} <small>calculés automatiquement, toutes les années</small></h3></summary><div class="tblwrap"><table><thead><tr><th>Jour férié</th>${Y.map(a=>`<th>${a}</th>`).join("")}</tr></thead><tbody>${noms.map((n,i)=>`<tr><td><b>${n}</b></td>${Y.map(a=>{const e=Object.entries(FERIES(a))[i];const d=new Date(e[0]+"T12:00");return `<td>${JOURS[d.getDay()].slice(0,3)}. ${d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</td>`}).join("")}</tr>`).join("")}</tbody></table></div><p class="hint">Une heure travaillée un jour férié est majorée au taux « jour férié » (au lieu du samedi, du dimanche ou du hors plage).</p></details>`})()}
   <div style="margin-top:12px;display:flex;gap:8px"><button class="btn" type="button" id="r-save">Appliquer</button><button class="btn" type="button" id="r-reset">Valeurs par défaut</button></div></div>`;
 }
 
@@ -680,15 +689,15 @@ function pdfTech(doc,P,p,r){
   doc.setDrawColor(...L);doc.line(14,26,W-14,26);
   doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(pdfTxt(P.tech),14,32);
   doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...G);doc.text(pdfTxt(`${P.type==="apprenti"?"Apprenti"+(P.mineur?" mineur":"")+" - ":""}Contrat ${P.contrat} h / semaine${P.org?" - Organilog "+P.org:""}`),14,37);
-  const t=P.t,maj=t.hors+t.nuit+t.sam+t.dim;
+  const t=P.t,maj=t.hors+t.nuit+t.sam+t.dim+(t.fer||0);
   let head,body;
   if(p==="semaine"){
     head=[["Jour","Début","Fin","Interv.","Trajet","Dépôt/Atel.","Fourn.","Pause","Total","Majorées","Repas / absences"]];
-    body=P.days.map(d=>[pdfTxt(JOURS[d.date.getDay()]+" "+d.date.getDate()),d.deb!==null?hm(d.deb):"-",d.fin!==null?hm(d.fin):"-",fm(d.inter),fm(d.trajet),fm(d.depot+d.atelier),fm(d.fourn),fm(d.pause),fm(d.travail),fm(d.hors+d.nuit+d.sam+d.dim),pdfTxt([d.perm?"Astreinte":"",d.panier?"Panier":"",d.resto?"Resto s/c":"",d.restoEC?"Resto en compte":"",d.recup?"Récup "+fmt(d.recup):"",d.congesJ?"CP "+d.congesJ+" j":""].filter(Boolean).join(", ")||"-")]);
+    body=P.days.map(d=>[pdfTxt(JOURS[d.date.getDay()]+" "+d.date.getDate()+(ferie(ymd(d.date))?" (férié)":"")),d.deb!==null?hm(d.deb):"-",d.fin!==null?hm(d.fin):"-",fm(d.inter),fm(d.trajet),fm(d.depot+d.atelier),fm(d.fourn),fm(d.pause),fm(d.travail),fm(d.hors+d.nuit+d.sam+d.dim+(d.fer||0)),pdfTxt([d.perm?"Astreinte":"",d.panier?"Panier":"",d.resto?"Resto s/c":"",d.restoEC?"Resto en compte":"",d.recup?"Récup "+fmt(d.recup):"",d.congesJ?"CP "+d.congesJ+" j":""].filter(Boolean).join(", ")||"-")]);
     body.push(["Total","","",fm(t.inter),fm(t.trajet),fm(t.depot+t.atelier),fm(t.fourn),fm(t.pause),fm(t.travail),fm(maj),""]);
   }else{
     head=[["Semaine","Travaillé","HS 25 %","HS 50 %","Majorées","Trajet","Pause","Paniers","Resto s/c","Astr.","Récup","CP"]];
-    body=P.weeks.map(w=>{const s=w.s;return [pdfTxt("S"+isoW(w.mon)+" - du "+w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})),fm(s.travail),w.hs25?fmt(w.hs25*60):"-",w.hs50?fmt(w.hs50*60):"-",fm(s.hors+s.nuit+s.sam+s.dim),fm(s.trajet),fm(s.pause),String(s.panier||"-"),String(s.resto||"-"),s.perm?s.perm+" j":"-",fm(s.recup),s.congesJ?s.congesJ+" j":"-"]});
+    body=P.weeks.map(w=>{const s=w.s;return [pdfTxt("S"+isoW(w.mon)+" - du "+w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})),fm(s.travail),w.hs25?fmt(w.hs25*60):"-",w.hs50?fmt(w.hs50*60):"-",fm(s.hors+s.nuit+s.sam+s.dim+(s.fer||0)),fm(s.trajet),fm(s.pause),String(s.panier||"-"),String(s.resto||"-"),s.perm?s.perm+" j":"-",fm(s.recup),s.congesJ?s.congesJ+" j":"-"]});
     body.push(["Total",fm(t.travail),P.hs25?fmt(P.hs25*60):"-",P.hs50?fmt(P.hs50*60):"-",fm(maj),fm(t.trajet),fm(t.pause),String(t.panier),String(t.resto),P.permW+" j",fm(t.recup),(t.congesJ||0)+" j"]);
   }
   doc.autoTable({startY:43,head,body,theme:"grid",styles:{font:"helvetica",fontSize:8.5,cellPadding:1.8,lineColor:[222,220,216],lineWidth:.2,textColor:[34,33,31]},
@@ -701,7 +710,7 @@ function pdfTech(doc,P,p,r){
     doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(34,33,31);lines.forEach((l,i)=>{doc.text(pdfTxt(l[0]),x+4,yy+11+i*5.2);doc.text(pdfTxt(l[1]),x+w-4,yy+11+i*5.2,{align:"right"})});return 8+lines.length*5.2};
   const cw=(W-28-8)/2;
   const h1=box(14,y,cw,"Temps de travail",[["Total travaillé",fmt(t.travail)],["Contrat sur la période",P.contratP+" h"],["Heures sup. à 25 %",P.hs25?fmt(P.hs25*60):"-"],["Heures sup. à 50 %",P.hs50?fmt(P.hs50*60):"-"],["HS payées"+(p==="mois"?" ce mois":""),P.payeesP?fmt(P.payeesP*60):"-"],["Compteur HS début / fin",fmt(P.s0*60)+" / "+fmt(P.s1*60)]]);
-  const h2=box(14+cw+8,y,cw,"Majorations",[["Hors plage (+"+R.tHors+" %)",fm(t.hors)],["Nuit (+"+R.tNuit+" %)",fm(t.nuit)],["Samedi (+"+R.tSam+" %)",fm(t.sam)],["Dimanche (+"+R.tDim+" %)",fm(t.dim)],["Trajet non dû (non payé)",fm(t.trajetND)]]);
+  const h2=box(14+cw+8,y,cw,"Majorations",[["Hors plage (+"+R.tHors+" %)",fm(t.hors)],["Nuit (+"+R.tNuit+" %)",fm(t.nuit)],["Samedi (+"+R.tSam+" %)",fm(t.sam)],["Dimanche (+"+R.tDim+" %)",fm(t.dim)],["Jour férié (+"+R.tFer+" %)",fm(t.fer)],["Trajet non dû (non payé)",fm(t.trajetND)]]);
   y+=Math.max(h1,h2)+6;
   const h3=box(14,y,cw,P.primeM?"Repas, astreinte et prime":"Repas et astreinte",[["Paniers repas",String(t.panier)],["Restaurants sans compte",String(t.resto)],["Restaurants en compte (payés "+window.__SOCN+")",String(t.restoEC)],["Repas à verser",(P.repasEur?eur2(P.repasEur).replace(/\s/g," "):"-")+(P.restoJustif?" + "+P.restoJustif+" sur justif.":"")],["Jours d'astreinte",P.permW+" j"],["Prime d'astreinte (brut)",eur(P.prime).replace(/\s/g," ")+" brut"]].concat(P.primeM?[["Prime mensuelle (brut)",eur(P.primeM).replace(/\s/g," ")+" brut"]]:[]));
   const rpT=REP.reduce((a,[k])=>a+t[k],0)||1;
@@ -774,7 +783,7 @@ function render(){
     $("#t-reset").addEventListener("click",()=>{TECHS=DEF_TECHS.map(t=>({...t}));persist("techs",null);fillTech();render()});
   }
   if(tab==="regles"){
-    $("#r-save").addEventListener("click",()=>{R={plageDeb:$("#r-pd").value,plageFin:$("#r-pf").value,nuitDeb:$("#r-nd").value,nuitFin:$("#r-nf").value,tHors:+$("#r-th").value,tNuit:+$("#r-tn").value,tSam:+$("#r-ts").value,tDim:+$("#r-td").value,base:+$("#r-base").value||35,demiCP:+$("#r-cp").value||4,trajetMode:$("#r-tm").value,trajetChoix:$("#r-tc").value,debutSuivi:$("#r-ds")?$("#r-ds").value:R.debutSuivi};persist("regles",R);toast("Règles appliquées");render()});
+    $("#r-save").addEventListener("click",()=>{R={plageDeb:$("#r-pd").value,plageFin:$("#r-pf").value,nuitDeb:$("#r-nd").value,nuitFin:$("#r-nf").value,tHors:+$("#r-th").value,tNuit:+$("#r-tn").value,tSam:+$("#r-ts").value,tDim:+$("#r-td").value,tFer:+$("#r-tf").value,base:+$("#r-base").value||35,demiCP:+$("#r-cp").value||4,trajetMode:$("#r-tm").value,trajetChoix:$("#r-tc").value,debutSuivi:$("#r-ds")?$("#r-ds").value:R.debutSuivi};persist("regles",R);toast("Règles appliquées");render()});
     $("#r-reset").addEventListener("click",()=>{R={...DEF,debutSuivi:R.debutSuivi};persist("regles",R);render()});
   }
 }
@@ -998,6 +1007,11 @@ b.onclick=()=>{const r=window.__rawOrg;const old=document.getElementById("chx");
  document.body.appendChild(d);
  d.addEventListener("click",async e=>{if(e.target.closest("[data-x]"))d.remove();if(e.target.closest("[data-c]")){const t=txt(),btn=e.target.closest("[data-c]");try{await navigator.clipboard.writeText(t);btn.textContent="Copié ✓"}catch(er){const ta=document.getElementById("chx-t");ta.value=t;ta.style.position="static";ta.style.width="100%";ta.style.height="200px";ta.select();btn.textContent="Sélectionné : Ctrl+C"}}})};
 })();</script><!--/CHAMPS-->
+
+
+
+
+
 
 
 
