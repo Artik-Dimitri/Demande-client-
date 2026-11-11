@@ -28,6 +28,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-b)}
 .hello .t{flex:1;min-width:220px}
 .mood{font-weight:600;margin-top:6px}
 /* encouragements */
+.ratt{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:5px solid #C5372C;border-radius:14px;padding:12px 16px;flex-wrap:wrap}
+.ratt .e{font-size:28px}.ratt div{flex:1;min-width:200px;display:flex;flex-direction:column}.ratt b{font-size:17px}.ratt span{color:var(--muted);font-size:14px}
+.ratt .btn{background:#C5372C;border-color:#C5372C;color:#fff}
 .cheers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .cheer{display:flex;gap:12px;align-items:center;background:var(--cs);border-radius:14px;padding:12px 14px;border:1px solid transparent;animation:pop .5s both}
 .cheer:nth-child(2){animation-delay:.08s}.cheer:nth-child(3){animation-delay:.16s}
@@ -253,7 +256,11 @@ function compute(D){
   const teamRel=dv.filter(d=>d.statut==="envoye"&&(d.relance||d.envoi)&&(now-parse(d.relance||d.envoi))/864e5>=relJ).length;
   const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate(),dayPct=now.getDate()/dim;
   const team={obj:+A.objectifMois||0,sig:teamSig,defi:df,defiN,teamRel,dayPct};
-  return {team,me,today,rdvToday,rdvNext,cats,sigM,sigP,sumM,sentM,sentP,taux,record,relances,aChiffrer,saisiesM,saisiesP,aAttribuer,todo,week,doneW,doneLW,streak,enCours,bientot,aPlan,T,relJ}
+  /* à rattraper : RDV passés non cochés « fait » (14 jours) et tâches en retard */
+  const from14=ymd(addD(now,-14)),hier=ymd(addD(now,-1));
+  const rattEv=occ(events.filter(mine),from14,hier).filter(o=>!o.e.allDay&&!(cats[o.e.cat]||{}).jour&&!(o.e.faits||[]).includes(o.d)&&!(o.e.lache||[]).includes(o.d));
+  const rattTk=T.filter(t=>!t.fait&&t.auto!=="routine"&&((t.date&&t.date<today)||(t.eventId&&t.occ&&t.occ<today)));
+  return {rattEv,rattTk,team,me,today,rdvToday,rdvNext,cats,sigM,sigP,sumM,sentM,sentP,taux,record,relances,aChiffrer,saisiesM,saisiesP,aAttribuer,todo,week,doneW,doneLW,streak,enCours,bientot,aPlan,T,relJ}
 }
 
 /* ---------- encouragements : toujours par rapport à soi-même ---------- */
@@ -316,6 +323,7 @@ function render(S){
     <div class="av" style="--pc:${pc}">${esc((S.me.nom||"?").slice(0,1).toUpperCase())}</div>
     <div class="t"><h1>${hi} ${esc(S.me.nom)} 👋</h1><div class="dt">${esc(dt)}</div><div class="mood">${mood}</div></div>
   </div></section>
+  ${S.rattEv.length+S.rattTk.length?`<section class="ratt" role="status"><span class="e">🔁</span><div><b>${S.rattEv.length+S.rattTk.length} chose${S.rattEv.length+S.rattTk.length>1?"s":""} à rattraper</b><span>${[S.rattEv.length?S.rattEv.length+" rendez-vous pas coché"+(S.rattEv.length>1?"s":"")+" « fait »":"",S.rattTk.length?S.rattTk.length+" tâche"+(S.rattTk.length>1?"s":"")+" en retard":""].filter(Boolean).join(" · ")}. On décide quand les faire ?</span></div><button class="btn" type="button" data-ratt>Rattraper →</button></section>`:""}
   <div class="cheers">${cheers(S).map(c=>`<div class="cheer" style="--cs:var(--${c.col}s)"><span class="e">${c.e}</span><div><b>${esc(c.t)}</b><span>${esc(c.x)}</span></div></div>`).join("")}</div>
   ${defiHTML(S.team)}
   <div class="tiles">${tiles.map(t=>`<div class="tile" style="--tc:${t.c}"><div class="v">${t.v}</div><div class="l">${esc(t.l)}</div>${t.d}</div>`).join("")}</div>
@@ -328,6 +336,7 @@ function render(S){
   <p class="foot">Ton accueil ne montre que tes chiffres à toi. Ils se mettent à jour à chaque ouverture.</p>`;
   $("#app").hidden=false;$("#gate").hidden=true;
 }
+document.addEventListener("click",e=>{if(e.target.closest("[data-ratt]")){try{localStorage.setItem("ag-ratt-open",String(Date.now()))}catch(x){}go("agenda","agenda.html")}});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)go(b.dataset.go,b.dataset.f)});
 
 (async()=>{

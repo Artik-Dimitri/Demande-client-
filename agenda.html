@@ -115,6 +115,17 @@ select,input,textarea{font:inherit;font-size:15px;color:var(--ink);background:va
 .midi span{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);line-height:1}
 .tl .midi{left:-4px;right:-4px}
 .dcol .midi span{font-size:11px}
+.ratt h2{margin:0;font-family:var(--f-display);font-size:28px;line-height:1.05}
+.ratt .rsec{display:flex;flex-direction:column;gap:8px}
+.ratt .rsec h3{margin:6px 0 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ritem{border:1px solid var(--line);border-left:4px solid var(--cc,var(--line));border-radius:12px;padding:9px 11px;display:flex;flex-direction:column;gap:7px;background:var(--surface)}
+.ritem .rt{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.ritem .rt b{font-size:15px}
+.ritem .rw{font-size:12px;font-weight:700;color:#C5372C;white-space:nowrap}
+.ritem .ra{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ritem .ra input{font:inherit;border:1px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--surface);color:inherit}
+.ritem.gone{opacity:.45;pointer-events:none}
+.rbtn{position:relative}.rbtn .nb{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#C5372C;color:#fff;font-size:11px;font-weight:700;margin-left:4px;line-height:18px;text-align:center}
+.rempty{text-align:center;padding:30px 10px;display:flex;flex-direction:column;gap:6px;align-items:center}.rempty .big{font-size:44px}
 .mididiv{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:4px 2px}
 .mididiv::before,.mididiv::after{content:"";flex:1;height:1px;background:color-mix(in srgb,#B8901A 35%,transparent)}
 .tl .ev{position:absolute;margin:0;padding:2px 5px 2px 4px;font-size:12px;line-height:1.15;border-radius:5px;height:auto;overflow:hidden;box-sizing:border-box;z-index:1}
@@ -416,7 +427,7 @@ html.embed header.top{margin-bottom:8px;min-height:0}
       <div class="eyebrow">Artik &amp; Chassaing · Chargés d'affaires</div>
       <h1>Agenda commun</h1>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="switch" id="asw" style="font-weight:500;font-size:14px;min-width:0">Essai, voir comme <select id="as" style="max-width:min(62vw,320px)"></select></label><button class="btn primary" type="button" id="btn-new">+ Nouveau</button></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="switch" id="asw" style="font-weight:500;font-size:14px;min-width:0">Essai, voir comme <select id="as" style="max-width:min(62vw,320px)"></select></label><button class="btn rbtn" type="button" id="btn-ratt" hidden>🔁 À rattraper<span class="nb" id="ratt-n"></span></button><button class="btn primary" type="button" id="btn-new">+ Nouveau</button></div>
   </header>
   <div id="banner" class="banner" hidden></div>
   <section class="now" id="now" aria-label="En ce moment"></section>
@@ -914,6 +925,50 @@ function taskHTML(t,s){const rep=!t.fait&&t.date&&t.date<s;
 function midiJoin(list,fn){const H=HOR(),md=hm(H.midiDeb),txt=`<div class="mididiv" role="separator">🍽 Pause de midi · ${esc(H.midiDeb)} – ${esc(H.midiFin)}</div>`;
   if(!list.some(o=>!o.e.allDay))return list.map(fn).join("");let out="",put=false;
   list.forEach(o=>{if(!put&&!o.e.allDay&&hm(o.e.debut)>=md){out+=txt;put=true}out+=fn(o)});return out+(put?"":txt)}
+/* ---------- « À rattraper » : ce qui n'a pas été fait les jours passés, à faire ou à replanifier ---------- */
+const RATT_J=14;let rattOpen=false;
+function rattRefresh(){if(!loaded)return;rattCount();if(rattOpen){const sc=$("#sheet").scrollTop;$("#sheet").innerHTML=rattHTML();$("#sheet").scrollTop=sc}}
+function rattList(){const m=me();if(!m.nom||m.role==="lecture")return {ev:[],tk:[]};const t0=ymd(new Date()),from=ymd(addD(new Date(),-RATT_J)),hier=ymd(addD(new Date(),-1));
+  const ev=occurrences(from,hier).filter(o=>!o.e.allDay&&!catOf(o.e.cat).jour&&who(o.e).includes(m.nom)&&canEdit(o.e)&&!isDone(o.e,o.d)&&!(o.e.lache||[]).includes(o.d)).sort((a,b)=>(a.d+a.e.debut).localeCompare(b.d+b.e.debut));
+  const tk=mesTaches().filter(t=>!t.fait&&t.auto!=="routine"&&((t.date&&t.date<t0)||(t.eventId&&t.occ&&t.occ<t0))).sort((a,b)=>String(a.occ||a.date).localeCompare(String(b.occ||b.date)));
+  return {ev,tk}}
+const ilya=d=>{const n=Math.round((parse(ymd(new Date()))-parse(d))/864e5);return n<=1?"hier":"il y a "+n+" jours"};
+function nextMonday(){const d=new Date();d.setDate(d.getDate()+((8-d.getDay())%7||7));return ymd(d)}
+function rattHTML(){const {ev,tk}=rattList(),t0=ymd(new Date()),dm=ymd(addD(new Date(),1));
+  const jourBtns=(attr)=>`<button class="btn small" type="button" ${attr}="${t0}">Aujourd'hui</button><button class="btn small" type="button" ${attr}="${dm}">Demain</button><button class="btn small" type="button" ${attr}="${nextMonday()}">Lundi</button>`;
+  return `<div class="ratt" style="display:flex;flex-direction:column;gap:14px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="eyebrow">Pour ne rien oublier</div><h2>🔁 À rattraper</h2></div><button class="btn small" type="button" data-close>Fermer</button></div>
+   ${!ev.length&&!tk.length?`<div class="rempty"><span class="big">🎉</span><b>Rien en retard.</b><span class="hint">Tout ce qui était prévu ces ${RATT_J} derniers jours est fait ou replanifié.</span></div>`:`<p class="hint" style="margin:0">Ce qui était prévu ces ${RATT_J} derniers jours et n'est pas coché « fait ». Pour chaque ligne : c'est fait, on le replanifie (quel jour, à quelle heure), ou on laisse tomber.</p>`}
+   ${ev.length?`<div class="rsec"><h3>📅 Rendez-vous pas cochés « fait » (${ev.length})</h3>${ev.map(o=>{const e=o.e,c=catOf(e.cat),k=e.id+"|"+o.d;return `<div class="ritem" style="--cc:${col(c.couleur)}" data-rk="${esc(k)}">
+     <div class="rt"><span>${c.icone}</span><b>${esc(e.titre||c.nom)}</b><span class="hint">${fmtD(parse(o.d))} · ${esc(e.debut)}–${esc(e.fin)}</span><span class="rw">${ilya(o.d)}</span></div>
+     <div class="ra"><button class="btn small primary" type="button" data-rdone="${esc(k)}">✓ C'était fait</button><span class="hint">ou replanifier :</span>${jourBtns("data-rjour")}<input type="date" data-rdate value="${t0}" aria-label="Nouveau jour"><input type="time" data-rheure value="${esc(e.debut)}" aria-label="Heure"><button class="btn small" type="button" data-rmove="${esc(k)}">📅 Replanifier</button><button class="btn small" type="button" data-rlache="${esc(k)}">Laisser tomber</button></div></div>`}).join("")}</div>`:""}
+   ${tk.length?`<div class="rsec"><h3>✅ Tâches pas faites (${tk.length})</h3>${tk.map(t=>{const d=t.occ||t.date,lk=t.eventId&&events.find(x=>x.id===t.eventId);return `<div class="ritem" style="--cc:var(--c-blue,#1F7FC4)" data-rt="${esc(t.id)}">
+     <div class="rt"><b>${esc(t.titre)}</b>${lk?`<span class="hint">liée à « ${esc(lk.titre||catOf(lk.cat).nom)} »</span>`:""}<span class="rw">prévue ${ilya(d)}</span></div>
+     <div class="ra"><button class="btn small primary" type="button" data-tdone="${esc(t.id)}">✓ Fait</button><span class="hint">quand ?</span>${jourBtns("data-tjour")}<input type="date" data-tdate value="${dm}" aria-label="Jour"><input type="time" data-theure value="" aria-label="Heure (facultatif)" title="Facultatif : bloque un créneau d'1 h dans l'agenda"><button class="btn small" type="button" data-tmove="${esc(t.id)}">📅 Planifier</button><button class="btn small" type="button" data-tlache="${esc(t.id)}">Laisser tomber</button></div></div>`}).join("")}
+     <p class="hint" style="margin:0">Avec une heure, la tâche bloque aussi un créneau d'1 h dans ton agenda.</p></div>`:""}
+   ${ev.length>1?`<div><button class="btn small" type="button" data-rall>✓ Tous ces rendez-vous étaient faits</button></div>`:""}</div>`}
+function rattCount(){const r=rattList();const n=r.ev.length+r.tk.length,b=$("#btn-ratt");if(b){b.hidden=!n&&!rattOpen;$("#ratt-n").textContent=n||"";$("#ratt-n").hidden=!n}return n}
+function openRatt(){rattOpen=true;$("#sheet").innerHTML=rattHTML();$("#overlay").hidden=false}
+function rattAsked(){try{const t=+localStorage.getItem("ag-ratt-open")||0;if(Date.now()-t<60000){localStorage.removeItem("ag-ratt-open");return true}}catch(e){}return false}
+window.addEventListener("storage",e=>{if(e.key==="ag-ratt-open"&&e.newValue&&loaded&&db&&!TMODE&&rattAsked()){if(!$("#overlay").hidden)close();setTimeout(openRatt,50)}});
+function rattAuto(){if(!TMODE&&rattAsked()){openRatt();return}const n=rattCount();if(!n)return;const k="ag-ratt-"+myKey()+"-"+ymd(new Date());try{if(localStorage.getItem(k))return;localStorage.setItem(k,"1")}catch(e){}if($("#overlay").hidden)openRatt()}
+async function rattAct(b){const d=b.dataset,it=b.closest(".ritem");const gone=()=>{if(it)it.classList.add("gone")};
+  try{
+    if(d.rjour||d.tjour){const inp=it.querySelector(d.rjour?"[data-rdate]":"[data-tdate]");inp.value=d.rjour||d.tjour;it.querySelectorAll("[data-rjour],[data-tjour]").forEach(x=>x.classList.toggle("primary",x===b));return}
+    if(d.rdone||d.rlache||d.rmove){const [id,occ]=(d.rdone||d.rlache||d.rmove).split("|"),x=events.find(z=>z.id===id);if(!x)return;gone();
+      if(d.rdone){await db.doc("events/"+id).update({faits:[...new Set([...(x.faits||[]),occ])]});toast("Noté comme fait ✓")}
+      else if(d.rlache){await db.doc("events/"+id).update({lache:[...new Set([...(x.lache||[]),occ])]});toast("Laissé tomber")}
+      else{const nd=it.querySelector("[data-rdate]").value,nh=it.querySelector("[data-rheure]").value||x.debut,dur=Math.max(15,hm(x.fin)-hm(x.debut)),ns=hm(nh);
+        if(!nd){toast("Choisissez un jour",true);it.classList.remove("gone");return}
+        await moveOcc(x,occ,{date:nd,debut:toHM(ns),fin:toHM(Math.min(ns+dur,24*60-1))},`Replanifié le ${fmtD(parse(nd))} à ${toHM(ns)}`)}}
+    if(d.rall!==undefined){const {ev}=rattList(),by={};ev.forEach(o=>{(by[o.e.id]=by[o.e.id]||[]).push(o.d)});for(const id in by){const x=events.find(z=>z.id===id);await db.doc("events/"+id).update({faits:[...new Set([...(x.faits||[]),...by[id]])]})}toast("Tous notés comme faits ✓")}
+    if(d.tdone){gone();await db.doc("taches/"+d.tdone).update({fait:true,faitLe:ymd(new Date())});toast("Bien joué ✓")}
+    if(d.tlache){if(!b.dataset.armed){b.dataset.armed=1;b.textContent="Sûr ? (supprime la tâche)";return}gone();await db.doc("taches/"+d.tlache).delete();toast("Tâche supprimée")}
+    if(d.tmove){const t=taches.find(z=>z.id===d.tmove);if(!t)return;const nd=it.querySelector("[data-tdate]").value,nh=it.querySelector("[data-theure]").value;if(!nd){toast("Choisissez un jour",true);return}gone();
+      if(nh){const m=me(),cat=(cfg.categories.find(c=>!c.jour&&/bureau|admin|chiffr/i.test(c.nom)&&(!c.pour||c.pour===m.nom))||cfg.categories.find(c=>!c.jour)||cfg.categories[0]).nom,eid="e"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ns=hm(nh);
+        await db.collection("events").doc(eid).set({ref:t.ref||"",personne:m.nom,personnes:[m.nom],cat,titre:t.titre,lieu:"",note:"Créneau pour une tâche en retard",prio:"",rappel:"",date:nd,allDay:false,dateFin:"",debut:toHM(ns),fin:toHM(Math.min(ns+60,24*60-1)),rec:{freq:"none",jusqu:""},cree:new Date().toISOString()});
+        await db.doc("taches/"+t.id).update({date:nd,eventId:eid,occ:nd});toast(`Planifié le ${fmtD(parse(nd))} à ${toHM(ns)}, créneau bloqué`)}
+      else{await db.doc("taches/"+t.id).update({date:nd,eventId:"",occ:""});toast("Reportée au "+fmtD(parse(nd)))}}
+  }catch(e){if(it)it.classList.remove("gone");toast("Impossible : "+(e.code||e.message),true)}}
 function myDayHTML(p,mine,s,isToday,nm){
   const T=mesTaches(),t0=ymd(new Date());
   const linked=(e)=>T.filter(t=>t.eventId===e.id&&t.occ===s);
@@ -1225,8 +1280,9 @@ function wireBilan(x,d){
     catch(e){ok.disabled=false;toast("Enregistrement impossible",true)}});
   if(suiteNext){suiteNext=false;$("#f-suite").click()}
 }
-function close(){$("#overlay").hidden=true;$("#sheet").innerHTML="";if(loaded&&!drag)setTimeout(()=>{if($("#overlay").hidden)render()},0)}
-$("#overlay").addEventListener("click",e=>{if(e.target.id==="overlay"||e.target.closest("[data-close]")){close();return}if(e.target.closest(".rtp"))rtClick(e)});
+function close(){rattOpen=false;$("#overlay").hidden=true;$("#sheet").innerHTML="";if(loaded&&!drag)setTimeout(()=>{if($("#overlay").hidden)render()},0)}
+$("#overlay").addEventListener("click",e=>{if(e.target.id==="overlay"||e.target.closest("[data-close]")){rattOpen=false;close();return}
+  if(rattOpen){const b=e.target.closest(".ratt button");if(b){rattAct(b);return}}if(e.target.closest(".rtp"))rtClick(e)});
 $("#overlay").addEventListener("keydown",e=>{if(e.target.id==="rt-t"&&e.key==="Enter"){e.preventDefault();const b=document.querySelector("[data-rtadd]");if(b)b.click()}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#overlay").hidden)close()});
 
@@ -1406,7 +1462,7 @@ function render(){
   renderNow();
   const m=me(),pt=document.querySelector('.tab[data-tab="params"]');
   pt.hidden=!m.admin;if(tab==="params"&&!m.admin)tab="agenda";
-  $("#btn-new").hidden=m.role==="lecture";
+  $("#btn-new").hidden=m.role==="lecture";if(loaded)rattCount();
   const asw=$("#asw");if(asw){asw.hidden=!!window.__me;$("#as").innerHTML=cfg.personnes.map(p=>`<option value="${esc(p.nom)}"${p.nom===m.nom?" selected":""}>${esc(p.nom)} (${p.role==="resp"?"planifie pour tous":"ses RDV"}${p.admin?" + paramètres":""})</option>`).join("")+`<option value="__lecture"${m.role==="lecture"?" selected":""}>Assistante (lecture seule)</option>`}
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
   document.querySelectorAll("#zoom button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.z===zoom));
@@ -1431,6 +1487,7 @@ $("#colmode").value=ls("col")==="pers"?"pers":"cat";
 $("#colmode").addEventListener("change",()=>{ls("col",$("#colmode").value);render()});
 $("#we").checked=ls("we")==="1";$("#we").addEventListener("change",()=>{ls("we",$("#we").checked?"1":"0");render()});
 $("#btn-new").addEventListener("click",()=>{if(db)openSheet(null,{date:zoom==="jour"?ymd(view):ymd(new Date())})});
+$("#btn-ratt").addEventListener("click",()=>{if(db&&loaded)openRatt()});
 setInterval(()=>{if($("#overlay").hidden&&!drag)renderNow()},60000);
 
 render();
@@ -1441,11 +1498,11 @@ render();
   db.doc("config/agenda").onSnapshot(s=>{if(s.exists){const d=s.data();cfg={personnes:d.personnes&&d.personnes.length?d.personnes:DEF.personnes,categories:d.categories&&d.categories.length?d.categories:DEF.categories,lecteurs:d.lecteurs||"",horaires:Object.assign({},DEF.horaires,d.horaires||{})}}if($("#overlay").hidden&&!drag&&tab!=="params")render();else renderNow()},()=>{});
   db.collection("routines").onSnapshot(s=>{routines=s.docs.map(d=>({id:d.id,...d.data()}));if(loaded&&TMODE&&$("#overlay").hidden)render();setTimeout(routinesDuJour,300)},()=>{});
   db.collection("suites").onSnapshot(s=>{suites=s.docs.map(d=>({id:d.id,...d.data()}));if(loaded)renderDoss()},()=>{});
-  db.collection("taches").onSnapshot(s=>{taches=s.docs.map(d=>({id:d.id,...d.data()}));if(!autoTaches.done){autoTaches.done=1;setTimeout(autoTaches,300);setTimeout(routinesDuJour,500)}if(loaded&&$("#overlay").hidden&&!drag&&tab!=="params"&&!document.activeElement.matches("[data-addt],#rt-t,#rt-jm"))render()},()=>{});
+  db.collection("taches").onSnapshot(s=>{taches=s.docs.map(d=>({id:d.id,...d.data()}));rattRefresh();if(!autoTaches.done){autoTaches.done=1;setTimeout(autoTaches,300);setTimeout(routinesDuJour,500)}if(loaded&&$("#overlay").hidden&&!drag&&tab!=="params"&&!document.activeElement.matches("[data-addt],#rt-t,#rt-jm"))render()},()=>{});
   db.collection("events").onSnapshot(s=>{
-    events=s.docs.map(d=>({id:d.id,...d.data()}));
+    events=s.docs.map(d=>({id:d.id,...d.data()}));setTimeout(rattRefresh,0);
     clearTimeout(timer);banner("");
-    const first=!loaded;loaded=true;
+    const first=!loaded;loaded=true;if(first)setTimeout(rattAuto,900);
     if(first||($("#overlay").hidden&&!drag&&tab!=="params"))render();else renderNow();
   },e=>{clearTimeout(timer);loaded=true;banner("Chargement impossible ("+(e.code||e.message)+"). Rechargez la page.");render()});
 })();
