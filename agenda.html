@@ -2,13 +2,8 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<script>/* version d'essai : listes et mémoire du navigateur séparées du site officiel */
-(function(){var P=/^(dd-|ag-|ch-|hx-|hxc-)/,S=Storage.prototype,g=S.getItem,s=S.setItem,r=S.removeItem,k=function(x){x=String(x);return P.test(x)?"essai-"+x:x};
-S.getItem=function(x){return g.call(this,k(x))};S.setItem=function(x,v){return s.call(this,k(x),v)};S.removeItem=function(x){return r.call(this,k(x))};
-document.addEventListener("DOMContentLoaded",function(){var b=document.createElement("div");b.textContent="ESSAI";b.title="Version d'essai : données séparées du site officiel";
-b.style.cssText="position:fixed;right:max(10px,env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:9999;background:#E8650A;color:#fff;font:700 12px/1 system-ui,sans-serif;letter-spacing:.12em;padding:7px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none";document.body.appendChild(b)})})();</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>[Essai] Agenda commun – chargés d'affaires</title>
+<title>Agenda commun – chargés d'affaires</title>
 <meta name="robots" content="noindex,nofollow">
 
 
@@ -100,6 +95,9 @@ select,input,textarea{font:inherit;font-size:15px;color:var(--ink);background:va
 @media (hover:none){.cell .plus{opacity:.4}}
 .ev{--bg:var(--cc);background:var(--bg);color:#fff;border-radius:7px;padding:4px 7px 4px 6px;font-size:13px;line-height:1.25;cursor:grab;display:flex;gap:5px;align-items:flex-start;border-left:4px solid var(--pc);touch-action:manipulation;user-select:none;min-width:0}
 .ev .ei{flex:none;font-size:13px}
+/* taille proportionnelle à la durée : 1 h = --hpx (réglé selon le zoom) */
+.wk{--hpx:40px}.wk.z2{--hpx:30px}
+.wk .ev:not(.allday){height:max(24px,calc(var(--dh,1) * var(--hpx)));box-sizing:border-box;overflow:hidden;flex:none}
 .ev .et{min-width:0;overflow:hidden}
 .ev .et b{font-weight:700}
 .ev .et small{display:block;opacity:.88;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -496,9 +494,9 @@ const ACONFIG = {
   tenantId: "14b03bce-aec8-408e-9686-c43ea4a503d8",
   clientId: "f66f2711-d9e4-4fd3-be11-57367c333c87",
   site:     "root",
-  liste:    "Agenda charges affaires - essai",
-  taches:   "Taches equipe - essai",            // tâches perso de chacun (tout le monde en modification)
-  devis:    "Demandes de devis - essai"
+  liste:    "Agenda charges affaires",
+  taches:   "Taches equipe",            // tâches perso de chacun (tout le monde en modification)
+  devis:    "Demandes de devis"
 };
 /* Réglages de départ (repris de la version d'essai), utilisés seulement si la liste est vide */
 const ASEED = {"personnes": [{"couleur": "orange", "nom": "Dimitri", "email": "d.blin@chassaing-technologies.fr", "role": "resp", "admin": true}, {"couleur": "ocre", "nom": "Karim", "email": "k.kerfah@chassaing-technologies.fr", "role": "resp", "admin": false}, {"couleur": "bordeaux", "nom": "Alexis", "email": "", "role": "charge", "admin": false}, {"couleur": "blue", "nom": "Guilhem", "email": "", "role": "charge", "admin": false}], "categories": [{"couleur": "vert", "icone": "🎯", "jour": false, "nom": "Prospection"}, {"couleur": "ardoise", "icone": "🧮", "jour": false, "nom": "Chiffrage bureau"}, {"couleur": "teal", "icone": "🤝", "jour": false, "nom": "RDV client"}, {"couleur": "sable", "icone": "🏗️", "jour": false, "nom": "Visite chantier"}, {"couleur": "violet", "icone": "💬", "jour": false, "nom": "Réunion interne"}, {"couleur": "gris", "icone": "🚗", "jour": false, "nom": "Déplacement"}, {"couleur": "rose", "icone": "🎓", "jour": true, "nom": "Formation"}, {"couleur": "rouge", "icone": "🌴", "jour": true, "nom": "Congés"}, {"couleur": "rouge", "icone": "😴", "jour": true, "nom": "Récup"}, {"couleur": "gris", "icone": "🍽️", "jour": false, "nom": "Repas"}, {"couleur": "ardoise", "icone": "⛔", "jour": false, "nom": "Ne pas déranger"}], "lecteurs": ""};
@@ -750,12 +748,13 @@ const rappel=e=>{const P=PRIO[e.prio],t=e.rappel||(P?e.note:"");if(!P&&!t)return
 function evHTML(o,row){
   const e=o.e,c=catOf(e.cat),oth=who(e).filter(n=>n!==row);const rec=e.rec&&e.rec.freq&&e.rec.freq!=="none";
   const time=e.allDay?(e.dateFin&&e.dateFin>e.date?(o.first?"dès aujourd'hui":o.last?"dernier jour":"toute la journée"):"journée"):`${esc(e.debut)}–${esc(e.fin)}`;
-  return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${withHTML(oth)}${rappel(e)}</span></div>`;
+  const dur=e.allDay?0:Math.max(.25,(hm(e.fin)-hm(e.debut))/60);
+  return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}${dur?`;--dh:${dur.toFixed(2)}`:""}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${withHTML(oth)}${rappel(e)}</span></div>`;
 }
 function weekHTML(){
   const ds=days(),ppl=cfg.personnes.filter(p=>!hidden.has(p.nom)),t=ymd(new Date());
   const occ=occurrences(ymd(ds[0]),ymd(ds[ds.length-1]));
-  let h=`<div class="gridwrap"><div class="wk" style="grid-template-columns:120px repeat(${ds.length},minmax(${zoom==="deux"?90:130}px,1fr))"><div class="hd"></div>`;
+  let h=`<div class="gridwrap"><div class="wk${zoom==="deux"?" z2":""}" style="grid-template-columns:120px repeat(${ds.length},minmax(${zoom==="deux"?90:130}px,1fr))"><div class="hd"></div>`;
   ds.forEach(d=>{h+=`<div class="hd${ymd(d)===t?" today":""}">${JOURS[(d.getDay()+6)%7].slice(0,zoom==="deux"?3:9)}<b>${d.getDate()}</b></div>`});
   ppl.forEach(p=>{
     h+=`<div class="pl" style="--pc:${col(p.couleur)}"><i></i>${esc(p.nom)}</div>`;
