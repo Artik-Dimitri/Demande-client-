@@ -424,10 +424,15 @@ function computeDay(tech,date){
   }
   /* chevauchements : une même minute n'est comptée qu'une fois (hors pauses, absences, astreinte) */
   let cov=0;
+  /* pauses saisies (ZZZ PANIER REPAS, RESTAURANT…) : retirées du travail qu'elles recouvrent.
+     Ex. intervention 10:00-14:30 + panier 12:15-13:30 = 3h15 de travail, sans avoir à couper l'intervention en deux. */
+  const PA=es.filter(e=>{const c=codeOf(e.client);return c&&c.k==="repas"&&toM(e.fin)>toM(e.deb)}).map(e=>[toM(e.deb),toM(e.fin)]);
+  const pOv=(a,b)=>PA.reduce((x,[p,q])=>x+ov(a,b,p,q),0);
   es.forEach(e=>{
     const c=codeOf(e.client),s0=toM(e.deb),f=toM(e.fin);
     const timed=!c||["trajet","depot","fourn","atelier","ecole"].includes(c.k);
-    const s=timed?Math.max(s0,Math.min(cov,f)):s0,dur=Math.max(0,f-s);
+    const s=timed?Math.max(s0,Math.min(cov,f)):s0;
+    e.pded=timed?pOv(s,f):0;const dur=Math.max(0,f-s-e.pded);
     e.chev=timed&&s>s0?s-s0:0;if(timed)cov=Math.max(cov,f);
     let travail=false;
     if(isTrajet(e)){travail=e.du;if(e.du)r.trajet+=dur;else r.trajetND+=dur}
@@ -448,7 +453,7 @@ function computeDay(tech,date){
       if(c&&c.k==="ecole"){}
       else if(wd===6){r.sam+=dur;e.maj=true}
       else if(wd===0){r.dim+=dur;e.maj=true}
-      else{const nuit=ov(s,f,n0,1440)+ov(s,f,0,n1),inP=ov(s,f,p0,p1),hors=Math.max(0,dur-inP-nuit);r.nuit+=nuit;r.hors+=hors;if(nuit||hors)e.maj=true}
+      else{const nuit=ov(s,f,n0,1440)+ov(s,f,0,n1),inP=Math.max(0,ov(s,f,p0,p1)-pOv(Math.max(s,p0),Math.min(f,p1))),hors=Math.max(0,dur-inP-nuit);r.nuit+=nuit;r.hors+=hors;if(nuit||hors)e.maj=true}
     }
   });
   r.congesJ=r.conges?(r.conges/60<=R.demiCP?0.5:1):0;
@@ -576,7 +581,7 @@ function techView(){
     if(sd)h+=`<div class="detail"><h3>${JOURS[sd.date.getDay()]} ${sd.date.toLocaleDateString("fr-FR",{day:"numeric",month:"long"})} · détail Organilog</h3><div class="tblwrap"><table><thead><tr><th>Début</th><th>Fin</th><th class="num">Durée</th><th class="num">Déclaré</th><th>Client Organilog</th><th>Classé en</th><th>Effet</th></tr></thead><tbody>${sd.es.map(e=>{const c=codeOf(e.client),dur=toM(e.fin)-toM(e.deb),tj=isTrajet(e);
       const cls=tj?{aller:"Trajet aller",retour:"Trajet retour",entre:"Trajet entre chantiers"}[e.sens]:c?c.label:"Intervention";
       const eff=tj?(e.du?"temps de travail (trajet dû)":"non compté (trajet non dû)"):e.compte?"temps de travail":c&&c.compte?"pause · 1 "+c.label.toLowerCase():c&&c.k==="perm"?"jour d'astreinte · 1 prime":c&&c.k==="ecole"?"temps de travail (formation)":c&&c.k==="recup"?"déduit du compteur d'heures sup.":c&&c.k==="conges"?"déduit des CP":"–";
-      return `<tr><td>${e.deb}</td><td>${e.fin}</td><td class="num">${dur?H(dur):"–"}</td><td class="num${e.decl&&toM(e.decl)!==dur?" hot":""}" title="${e.decl&&toM(e.decl)!==dur?"Temps déclaré différent des horaires":""}">${e.decl?H(toM(e.decl)):"–"}</td><td class="${c?"codes":""}">${esc(e.client)}${e.nom&&!c?`<small class="just">${esc(e.nom)}</small>`:""}</td><td>${cls}${e.maj?' <span class="pill o">majorée</span>':""}${e.chev?` <span class="pill o" title="Chevauche la saisie précédente : ${e.chev} min non comptées en double">chevauchement ${H(e.chev)}</span>`:""}</td><td>${eff}</td></tr>`}).join("")||'<tr><td colspan="7" class="hint">Aucune saisie ce jour-là.</td></tr>'}</tbody></table></div></div>`;
+      return `<tr><td>${e.deb}</td><td>${e.fin}</td><td class="num">${dur?H(dur):"–"}</td><td class="num${e.decl&&toM(e.decl)!==dur?" hot":""}" title="${e.decl&&toM(e.decl)!==dur?"Temps déclaré différent des horaires":""}">${e.decl?H(toM(e.decl)):"–"}</td><td class="${c?"codes":""}">${esc(e.client)}${e.nom&&!c?`<small class="just">${esc(e.nom)}</small>`:""}</td><td>${cls}${e.maj?' <span class="pill o">majorée</span>':""}${e.chev?` <span class="pill o" title="Chevauche la saisie précédente : ${e.chev} min non comptées en double">chevauchement ${H(e.chev)}</span>`:""}${e.pded?` <span class="pill" title="La pause saisie pendant cette intervention est retirée du temps de travail">− ${H(e.pded)} de pause</span>`:""}</td><td>${eff}</td></tr>`}).join("")||'<tr><td colspan="7" class="hint">Aucune saisie ce jour-là.</td></tr>'}</tbody></table></div></div>`;
     else h+=`<p class="hint">Cliquez sur un jour pour voir le détail des saisies Organilog.</p>`;
   }else{
     h+=`<div class="panel"><h3>Semaines du mois</h3><div class="tblwrap"><table><thead><tr><th>Semaine</th><th class="num">Travaillé</th><th class="num">Contrat</th><th class="num">HS 25 %</th><th class="num">HS 50 %</th><th class="num">Majorées</th><th class="num">Trajet</th><th class="num">Pause</th><th class="num">Paniers</th><th class="num">Resto s/c</th><th class="num">Astr.</th><th class="num">Récup</th><th class="num">CP</th></tr></thead><tbody>${P.weeks.map(w=>{const s=w.s,mj=s.hors+s.nuit+s.sam+s.dim;
@@ -993,6 +998,8 @@ b.onclick=()=>{const r=window.__rawOrg;const old=document.getElementById("chx");
  document.body.appendChild(d);
  d.addEventListener("click",async e=>{if(e.target.closest("[data-x]"))d.remove();if(e.target.closest("[data-c]")){const t=txt(),btn=e.target.closest("[data-c]");try{await navigator.clipboard.writeText(t);btn.textContent="Copié ✓"}catch(er){const ta=document.getElementById("chx-t");ta.value=t;ta.style.position="static";ta.style.width="100%";ta.style.height="200px";ta.select();btn.textContent="Sélectionné : Ctrl+C"}}})};
 })();</script><!--/CHAMPS-->
+
+
 
 
 
