@@ -243,8 +243,8 @@ const blank=()=>({id:"s"+Date.now().toString(36),soc:"artik",client:"",type:"pro
 /* Exemple marqué comme tel au premier lancement, pour voir l'outil en situation */
 const EXEMPLE=()=>({...blank(),id:"exemple",client:"Exemple : Restaurant La Capelle",type:"pro",commune:"Millau",lieu:1,cats:{clim:true,froid:true,cuisine:true},
   lignes:[{c:"clim",d:"Split mural",q:3,rep:"Salle"},{c:"clim",d:"Unité extérieure (multi / DRV)",q:1,rep:"Toiture"},{c:"froid",d:"Chambre froide positive",q:1,rep:"Réserve"},{c:"froid",d:"Groupe de condensation",q:1,rep:""},{c:"froid",d:"Armoire réfrigérée",q:2,rep:"Cuisine"},{c:"cuisine",d:"Four mixte",q:1,rep:""},{c:"cuisine",d:"Hotte d'extraction",q:1,rep:""},{c:"cuisine",d:"Lave-vaisselle / lave-batterie",q:1,rep:"Plonge"}]});
-let saved=LS("saved")||[];
-let S=LS("draft")||EXEMPLE();
+let saved=(LS("saved")||[]).filter(x=>!/^Exemple/.test(x.client||""));
+let S=LS("draft");if(!S||S.id==="exemple"||/^Exemple/.test(S.client||""))S=blank(); /* on part de zéro, sans exemple */
 let view="sim";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

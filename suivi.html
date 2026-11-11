@@ -226,7 +226,7 @@ html.embed header.top{margin-bottom:8px;min-height:0}
 <body>
 <div class="brandline" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <div class="wrap" id="app">
-  <header class="top"><div><div class="eyebrow">Artik · Chantiers</div><h1 id="ttl">Suivi de chantier</h1></div><div><span class="trial">Maquette · Organilog pas encore branché</span></div></header>
+  <header class="top"><div><div class="eyebrow">Artik · Chantiers</div><h1 id="ttl">Suivi de chantier</h1></div><div><span class="trial">En préparation · Organilog pas encore branché</span></div></header>
   <div id="view"><p class="hint">Chargement…</p></div>
 </div>
 <div id="overlay" class="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
@@ -533,10 +533,14 @@ let open=null,stab="postes",tview=null,ttab="avancement",me=ls("tech")||"Tech 1"
 const memDB=(()=>{const store={};return{collection:c=>({onSnapshot(cb){(store[c]=store[c]||{_cb:[]})._cb.push(cb);setTimeout(()=>cb({docs:Object.entries(store[c]).filter(([k])=>k!=="_cb").map(([id,v])=>({id,data:()=>v}))}),0)},doc:id=>({async set(v){(store[c]=store[c]||{_cb:[]})[id]=v;const s=store[c];s._cb.forEach(cb=>cb({docs:Object.entries(s).filter(([k])=>k!=="_cb").map(([i,x])=>({id:i,data:()=>x}))}))}})}),doc:p=>{const [c,id]=p.split("/");return{async update(v){const s=store[c];s[id]={...s[id],...v};s._cb.forEach(cb=>cb({docs:Object.entries(s).filter(([k])=>k!=="_cb").map(([i,x])=>({id:i,data:()=>x}))}))},async set(v){const s=store[c]=store[c]||{_cb:[]};s[id]=v;s._cb.forEach(cb=>cb({docs:Object.entries(s).filter(([k])=>k!=="_cb").map(([i,x])=>({id:i,data:()=>x}))}))},async delete(){const s=store[c];delete s[id];s._cb.forEach(cb=>cb({docs:Object.entries(s).filter(([k])=>k!=="_cb").map(([i,x])=>({id:i,data:()=>x}))}))}}}}})();
 if(!db)db=memDB;
 const seeded={};
-function sub(col,setter,seed,key){db.collection(col).onSnapshot(s=>{const arr=s.docs.map(d=>({id:d.id,...d.data()}));
-  if(!arr.length&&!seeded[col]){seeded[col]=1;seed().forEach(x=>{const {id,...v}=x;db.collection(col).doc(id).set(v).catch(()=>{})});return}
+/* Plus de données d'exemple : on part de zéro. Les exemples déjà enregistrés sont effacés une fois. */
+const DEMO_IDS={chantiers:{muse:"CH-26-041",leclerc:"CH-26-044",smptvd:"CH-26-047"},fil:{f1:1,f2:1,f3:1},jour:{j1:1,j2:1,j3:1}};
+const isDemo=(col,x)=>{const m=DEMO_IDS[col];if(!m||!(x.id in m))return false;if(col==="chantiers")return x.ref===m[x.id];
+  const dm=(col==="fil"?demoFil():demoJour()).find(z=>z.id===x.id);return !!dm&&dm.txt===x.txt};
+function sub(col,setter,seed,key){db.collection(col).onSnapshot(s=>{let arr=s.docs.map(d=>({id:d.id,...d.data()}));
+  const old=arr.filter(x=>isDemo(col,x));if(old.length){old.forEach(x=>db.collection(col).doc(x.id).delete().catch(()=>{}));arr=arr.filter(x=>!isDemo(col,x))}
   setter(arr);loaded[key]=1;if(loaded.c)render()},()=>{loaded[key]=1;render()})}
-db.collection("etat").onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());if(!Object.keys(o).length&&!seeded.etat){seeded.etat=1;demoEtat().forEach(x=>{const {id,...v}=x;db.collection("etat").doc(id).set(v).catch(()=>{})});return}ETAT=o;if(loaded.c)render()},()=>{});
+db.collection("etat").onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());const live=new Set(CH.map(c=>c.id));Object.keys(o).forEach(k=>{if(k.startsWith("muse~")&&!live.has("muse")){db.collection("etat").doc(k).delete().catch(()=>{});delete o[k]}});ETAT=o;if(loaded.c)render()},()=>{});
 sub("chantiers",a=>CH=a,demo,"c");sub("fil",a=>FIL=a,demoFil,"f");sub("jour",a=>JOUR=a,demoJour,"j");
 
 /* ---------- calculs ---------- */
@@ -575,7 +579,7 @@ function renderBureau(){
   const svg=`<svg viewBox="0 0 ${W} ${Hh+40}" role="img" aria-label="CA restant à facturer par mois">${months.map((m,i)=>{let y=Hh;const parts=act.map((c,j)=>{const v=(out[i]||{})[c.id]||0;if(!v)return "";const h=v/mx*(Hh-26);y-=h;return `<rect x="${i*bw+bw*.18}" y="${y}" width="${bw*.64}" height="${Math.max(0,h-2)}" rx="6" fill="${PAL[j%4]}"><title>${esc(c.client)} : ${eur(v)}</title></rect>`}).join("");const tot=Object.values(out[i]||{}).reduce((a,b)=>a+b,0);
     return parts+(tot?`<text class="val" x="${i*bw+bw/2}" y="${y-6}" text-anchor="middle">${Math.round(tot/1000)} k€</text>`:"")+`<text class="lbl" x="${i*bw+bw/2}" y="${Hh+20}" text-anchor="middle">${m.toLocaleDateString("fr-FR",{month:"short"})}</text>`}).join("")}<line x1="0" x2="${W}" y1="${Hh}" y2="${Hh}" stroke="var(--line)"/></svg>`;
   $("#view").innerHTML=`
-  <section class="hero" style="--acc:var(--c3)"><span class="hic">📈</span><div class="htx"><h1>Suivi de chantier</h1><p>Vendu, consommé, acheté, facturé : où en est chaque chantier, en temps réel.</p></div><div class="hact"><span class="trial">Maquette · Organilog pas encore branché</span></div></section>
+  <section class="hero" style="--acc:var(--c3)"><span class="hic">📈</span><div class="htx"><h1>Suivi de chantier</h1><p>Vendu, consommé, acheté, facturé : où en est chaque chantier, en temps réel.</p></div><div class="hact"><span class="trial">En préparation · Organilog pas encore branché</span></div></section>
   <section class="tiles">
     <div class="tile"><span>Chantiers en cours</span><b>${act.filter(c=>c.statut==="en cours").length}</b><small>+ ${act.filter(c=>c.statut!=="en cours").length} à démarrer</small></div>
     <div class="tile"><span>Heures consommées / vendues</span><b>${H(hc)}</b><small>sur ${H(hv)} vendues · reste ${H(hv-hc)}</small></div>
@@ -586,13 +590,13 @@ function renderBureau(){
     <div class="panel ca"><h2>CA à venir <small>reste à facturer, réparti jusqu'à la fin prévue de chaque chantier</small></h2>${svg}<div class="legend">${act.map((c,j)=>`<span><i style="background:${PAL[j%4]}"></i>${esc(c.client)}</span>`).join("")}</div></div>
     <div class="panel"><h2>Remontées du terrain <small>${open_.length} à traiter</small></h2><div class="feed">${open_.length?open_.map(f=>filHTML(f,true)).join(""):'<p class="hint">Rien à traiter. 👌</p>'}</div></div>
   </div>
-  <div class="panel"><h2>Chantiers <small>cliquez pour ouvrir la fiche</small></h2><div class="grid">${K.map(({c,k})=>`
+  <div class="panel"><h2>Chantiers <small>cliquez pour ouvrir la fiche</small></h2><div class="grid">${K.length?"":`<p class="hint">Aucun chantier pour l'instant.</p>`}${K.map(({c,k})=>`
     <button type="button" class="cc" data-open="${c.id}" style="--pc:${CHG[c.charge]||"var(--c1)"}">
       <div class="h">${ringHTML(k.av,CHG[c.charge])}<div style="min-width:0"><h3>${esc(c.client)}</h3><div class="sub">${esc(c.objet)}</div><div class="sub">${esc(c.charge)} · ${esc(c.ref)} · ${c.statut==="à démarrer"?"démarre le "+fd(c.debut):"fin prévue "+fd(c.fin)}</div></div></div>
       ${heuresGauge(k)}${factGauge(k,c)}
       <div class="ft"><span class="badge">🛒 Achats ${eur(k.achats)} · ${Math.round(k.achats/c.ht*100)} %</span>${FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length?`<span class="badge bad">📣 ${FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length} remontée(s)</span>`:""}${k.proj?`<span class="badge ${k.proj<=k.hv?"go":"bad"}">Projection fin ${H(k.proj)}</span>`:""}</div>
     </button>`).join("")}</div></div>
-  <p class="hint">Maquette : les chiffres sont fictifs. En vrai, les heures viennent des interventions Organilog des techniciens sur le chantier, les achats des commandes du chantier, les situations des factures Organilog, et les heures vendues des lignes main-d'œuvre du devis.</p>`;
+  <p class="hint">Les chantiers arriveront d'Organilog quand le lien sera branché : les heures viennent des interventions Organilog des techniciens sur le chantier, les achats des commandes du chantier, les situations des factures Organilog, et les heures vendues des lignes main-d'œuvre du devis.</p>`;
 }
 function filHTML(f,showCh){const c=CH.find(x=>x.id===f.ch),T={materiel:["📦","Matériel","mat"],question:["❓","Question","q"],photo:["📷","Photo","ph"],info:["💬","Info",""]}[f.type]||["💬","Info",""];
   return `<div class="fi${f.statut==="traite"?" done":""}"><span class="fic">${T[0]}</span><div class="fx"><div><span class="chip ${T[2]}">${T[1]}</span>${f.urg==="demain"?' <span class="chip urg">pour demain</span>':""} ${showCh&&c?`<b>${esc(c.client)}</b>`:""}</div>
@@ -653,7 +657,7 @@ function renderSheet(){
   if(stab==="fil")body=`<div class="panel"><div class="feed" style="max-height:none">${f.map(x=>filHTML(x,false)).join("")||'<p class="hint">Rien pour l\'instant.</p>'}</div></div>`;
   if(stab==="jour")body=`<div class="panel"><h2>Tâches du jour pour l'équipe</h2><div class="form"><div class="row"><input type="text" id="j-t" placeholder="Ex. Finir les tirages étage 3"><select id="j-p"><option value="tous">Toute l'équipe</option>${(c.equipe||TECHS).map(t=>`<option>${esc(t)}</option>`).join("")}</select><input type="date" id="j-d" value="${ymd(new Date())}"><button class="btn primary" type="button" data-jadd>Ajouter</button></div></div>
      <div style="margin-top:10px">${J.map(j=>`<div class="tdi${j.fait?" done":""}"><span>${j.fait?"✅":"⬜"}</span><span>${esc(j.txt)}<small>${fd(j.d)} · ${j.pour==="tous"?"toute l'équipe":esc(j.pour)}${j.fait?" · fait par "+esc(j.faitPar||"")+" "+fdt(j.faitA):""}</small></span></div>`).join("")||'<p class="hint">Aucune tâche.</p>'}</div></div>`;
-  $("#sheet").innerHTML=`<div class="sh-h"><div><div class="eyebrow">${esc(c.ref)} · devis ${esc(c.devisRef)} · ${esc(c.charge)}</div><h2>${esc(c.client)}</h2><div class="hint">${esc(c.objet)} · ${esc(c.commune)} · du ${fd(c.debut)} au ${fd(c.fin)}</div></div><button class="btn" type="button" data-close>Fermer</button></div>
+  $("#sheet").innerHTML=`<div class="sh-h"><div><div class="eyebrow">${esc(c.ref)} · devis ${esc(c.devisRef)} · ${esc(c.charge)}</div><h2>${esc(c.client)}</h2><div class="hint">${esc(c.objet)} · ${esc(c.commune)} · du ${fd(c.debut)} au ${fd(c.fin)}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap">${(window.__me||"")==="d.blin@chassaing-technologies.fr"?`<button class="btn" type="button" data-chdel="${esc(c.id)}">🗑️ Supprimer</button>`:""}<button class="btn" type="button" data-close>Fermer</button></div></div>
    <div class="big3"><div class="k"><span class="t">Avancement réel</span><div style="display:flex;gap:12px;align-items:center">${ringHTML(k.av,CHG[c.charge],70)}<div><div class="v">${eur(k.realise)}</div><div class="hint">réalisés sur ${eur(c.ht)} HT</div></div></div></div>
     <div class="k"><span class="t">Heures · ${k.ecart>=0?"d'avance":"de retard"}</span><div class="v ${k.ecart>=0?"pos":"neg"}">${k.ecart>=0?"+":""}${H(k.ecart)}</div>${heuresGauge(k,1)}<div class="hint">reste ${H(k.reste)} sur ${H(k.hv)} vendues</div></div>
     <div class="k"><span class="t">À facturer maintenant</span><div class="v" style="color:var(--c4)">${eur(Math.max(0,k.aFact))}</div>${factGauge(k,c,1)}<div class="hint">achats ${eur(k.achats)} · ${Math.round(k.achats/c.ht*100)} % du HT</div></div></div>
@@ -668,7 +672,7 @@ function renderTerrain(){
     $("#view").innerHTML=`<div class="hello"><h1>Salut ${esc(me.split(" ")[0]==="Apprenti"?me:me)} 👋</h1><label class="hint">Maquette, je suis <select id="tme">${TECHS.map(t=>`<option${t===me?" selected":""}>${t}</option>`).join("")}</select></label></div>
     <section class="tday"><h2>Aujourd'hui</h2>${J.length?J.map(j=>{const c=CH.find(x=>x.id===j.ch);return `<label class="tdi${j.fait?" done":""}"><input type="checkbox" data-jt="${j.id}"${j.fait?" checked":""}><span>${esc(j.txt)}<small>${esc(c?c.client:"")}${j.pour==="tous"?" · toute l'équipe":""}</small></span></label>`}).join(""):'<p class="hint">Rien de spécial noté par ton responsable. Bonne journée !</p>'}</section>
     <h2 style="font-family:var(--f-display);font-size:24px;margin:6px 0 8px">Mes chantiers</h2>
-    ${mine.map(c=>{const k=calc(c),n=FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length;return `<button type="button" class="tcard" data-topen="${c.id}" style="--pc:${CHG[c.charge]||"var(--c1)"}">${ringHTML(k.av,CHG[c.charge])}<div style="min-width:0"><h3>${esc(c.client)}</h3><div class="sub">${esc(c.objet)}</div><div class="sub">📍 ${esc(c.commune)} · resp. ${esc(c.charge)}${n?` · 📣 ${n}`:""}</div></div></button>`}).join("")||'<p class="hint">Aucun chantier pour toi en ce moment.</p>'}`;
+    ${mine.length?"":`<p class="hint">Aucun chantier pour l'instant.</p>`}${mine.map(c=>{const k=calc(c),n=FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length;return `<button type="button" class="tcard" data-topen="${c.id}" style="--pc:${CHG[c.charge]||"var(--c1)"}">${ringHTML(k.av,CHG[c.charge])}<div style="min-width:0"><h3>${esc(c.client)}</h3><div class="sub">${esc(c.objet)}</div><div class="sub">📍 ${esc(c.commune)} · resp. ${esc(c.charge)}${n?` · 📣 ${n}`:""}</div></div></button>`}).join("")||'<p class="hint">Aucun chantier pour toi en ce moment.</p>'}`;
     return}
   const c=CH.find(x=>x.id===tview),k=calc(c),myH=(c.heures||[]).filter(x=>x.tech===me).reduce((a,x)=>a+(+x.h||0),0);
   let body="";
@@ -693,6 +697,14 @@ function lirePhoto(file){const r=new FileReader();r.onload=()=>{const img=new Im
 async function majChantier(id,patch){try{await db.doc("chantiers/"+id).update(patch)}catch(e){toast("Enregistrement impossible");throw e}}
 document.addEventListener("click",async e=>{
   const o=e.target.closest("[data-open]");if(o){open=o.dataset.open;stab="postes";renderSheet();$("#overlay").hidden=false;return}
+  const cd=e.target.closest("[data-chdel]");if(cd){if(!cd.dataset.armed){cd.dataset.armed=1;cd.textContent="Cliquer encore pour supprimer définitivement";setTimeout(()=>{if(cd.isConnected){delete cd.dataset.armed;cd.textContent="🗑️ Supprimer"}},4000);return}
+    const id=cd.dataset.chdel;$("#overlay").hidden=true;open=null;
+    try{await db.collection("chantiers").doc(id).delete();
+      Object.keys(ETAT).filter(k=>k.startsWith(id+"~")).forEach(k=>db.collection("etat").doc(k).delete().catch(()=>{}));
+      FIL.filter(f=>f.ch===id).forEach(f=>db.collection("fil").doc(f.id).delete().catch(()=>{}));
+      JOUR.filter(j=>j.ch===id).forEach(j=>db.collection("jour").doc(j.id).delete().catch(()=>{}));
+      toast("Chantier supprimé")}catch(err){toast("Suppression impossible : "+(err.message||err))}
+    return}
   if(e.target.id==="overlay"||e.target.closest("[data-close]")){$("#overlay").hidden=true;open=null;return}
   const st=e.target.closest("[data-stab]");if(st){stab=st.dataset.stab;itemOpen=null;renderSheet();return}
   const io=e.target.closest("[data-item]");if(io){if(TERRAIN)titem=io.dataset.item;else itemOpen=io.dataset.item;render();const ib=document.querySelector(".iback");if(ib)ib.scrollIntoView({block:"start"});return}
