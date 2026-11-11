@@ -122,6 +122,11 @@ select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .layer .ln{position:absolute;top:0;bottom:0;width:1px;background:var(--grid)}
 .layer .ln.strong{background:var(--line)}
 .layer .we{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,var(--soft) 0 4px,transparent 4px 8px)}
+.layer .fer{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(228,103,10,.18) 0 5px,transparent 5px 10px);pointer-events:none}
+.layer .fer.six{background:rgba(228,103,10,.45)}
+.layer .fer.trav{background:none;border-left:2px dashed rgba(228,103,10,.6)}
+.hc.ferh{color:#8E2344;font-weight:700;background:rgba(228,103,10,.10)}
+.layer .fer span{position:sticky;top:0;display:block;font-size:11px;font-weight:700;color:#8E2344;padding:2px 4px;white-space:nowrap;overflow:hidden}
 .layer .now{position:absolute;top:0;bottom:0;width:2px;background:var(--today);opacity:.6}
 .trow{position:relative;border-bottom:1px solid var(--soft)}
 .trow.drop{background:var(--orangebg)}
@@ -549,13 +554,29 @@ function addW(d,n){return addD(d,7*n)}
 function wdiff(a,b){return Math.round((monday(b)-monday(a))/(7*864e5))}
 function weekNo(d){const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);const y=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y)/864e5+1)/7)}
 function fd(d){return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"short"})}
+/* jours fériés en France (calculés, aucune mise à jour à faire chaque année) */
+const FERIES=(()=>{const c={};return y=>{if(c[y])return c[y];const a=y%19,b=Math.floor(y/100),cc=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(cc/4),k=cc%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  const P=new Date(y,mo-1,da,12),z=n=>{const x=new Date(P);x.setDate(x.getDate()+n);return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0")};
+  const o={};o[y+"-01-01"]="Jour de l'An";o[z(1)]="Lundi de Pâques";o[y+"-05-01"]="Fête du Travail";o[y+"-05-08"]="Victoire 1945";o[z(39)]="Ascension";o[z(50)]="Lundi de Pentecôte";o[y+"-07-14"]="Fête nationale";o[y+"-08-15"]="Assomption";o[y+"-11-01"]="Toussaint";o[y+"-11-11"]="Armistice 1918";o[y+"-12-25"]="Noël";return c[y]=o}})();
+const ferie=s=>{s=String(s).slice(0,10);return FERIES(+s.slice(0,4))[s]||""};
 const JOURS=["lun","mar","mer","jeu","ven","sam","dim"];
 function isWE(d){return d.getDay()===0||d.getDay()===6}
 function eur(n){return (Number(n)||0).toLocaleString("fr-FR",{maximumFractionDigits:0})+" €"}
 function jours(sl){return (sl/2).toLocaleString("fr-FR")+" j"}
 /* conversions date <-> demi-journée ouvrée */
-function slotOf(dateStr,pm){const d=parse(dateStr);const w=wdiff(REF0,d);const day=Math.min((d.getDay()+6)%7,4);return w*10+day*2+(pm?1:0)}
-function fromSlot(i){const w=Math.floor(i/10),r=((i%10)+10)%10;return {debut:ymd(addD(addW(REF0,w),Math.floor(r/2))),pm:r%2===1}}
+/* jours fériés chômés (en semaine) : retirés des créneaux de travail, comme le week-end.
+   Un férié coché « travaillé » dans les Paramètres redevient un jour normal. */
+let FERS_KEY="",FERS=[];
+function fersList(){const tr=(cfg&&cfg.feriesTravailles)||[],k=tr.join(",");if(k===FERS_KEY&&FERS.length)return FERS;FERS_KEY=k;
+  const out=[];for(let y=REF0.getFullYear();y<=REF0.getFullYear()+30;y++)Object.keys(FERIES(y)).forEach(s=>{const d=parse(s);if(d.getDay()>0&&d.getDay()<6&&!tr.includes(s))out.push(s)});return FERS=out.sort()}
+function isFer(d){const s=typeof d==="string"?d:ymd(d);return !!ferie(s)&&!((cfg&&cfg.feriesTravailles)||[]).includes(s)&&parse(s).getDay()%6!==0}
+function fersBefore(s){const L=fersList();let lo=0,hi=L.length;while(lo<hi){const m=(lo+hi)>>1;if(L[m]<s)lo=m+1;else hi=m}return lo}
+function slotOf0(dateStr,pm){const d=parse(dateStr);const w=wdiff(REF0,d);const day=Math.min((d.getDay()+6)%7,4);return w*10+day*2+(pm?1:0)}
+function slotOf(dateStr,pm){const s=String(dateStr).slice(0,10);return slotOf0(s,pm)-2*fersBefore(s)}
+function fromSlot0(i){const w=Math.floor(i/10),r=((i%10)+10)%10;return {debut:ymd(addD(addW(REF0,w),Math.floor(r/2))),pm:r%2===1}}
+function fromSlot(i){const pm=(((i%2)+2)%2)===1;let d=parse(fromSlot0(i).debut);
+  for(let g=0;g<400;g++){if(isWE(d)||isFer(d)){d=addD(d,1);continue}const s=slotOf(ymd(d),pm);if(s===i)break;d=addD(d,s<i?1:-1)}
+  return {debut:ymd(d),pm}}
 /* jours où un technicien n'est PAS sur le chantier : x.off = {Noah:[1,3]} (index du jour, 0 = 1er jour du chantier) */
 function offDays(x,t){return new Set(((x.off||{})[t])||[])}
 function dayIdx(x,ws){return Math.floor((ws-slotOf(x.debut,x.pm))/2)}
@@ -614,16 +635,16 @@ function buildGrid(){
   else if(zoom==="mois"){start=monday(viewDate);days=35}
   else{start=addW(monday(viewDate),-2);days=26*7}
   const avail=Math.max(320,($("#view").clientWidth||900)-labW()-2);
-  let nW=0,nE=0;for(let i=0;i<days;i++){isWE(addD(start,i))?nE++:nW++}
+  let nW=0,nE=0;for(let i=0;i<days;i++){const d=addD(start,i);(isWE(d)||isFer(d))?nE++:nW++}
   const k=showWE?(zoom==="mois"?0.25:0.3):0;
   const minW={jour:120,semaine:30,deux:16,mois:8,six:1.2}[zoom];
   let ws=Math.max(minW,avail/(nW*2+nE*2*k));
   if(zoom==="jour"&&isWE(start))ws=Math.max(minW,avail/2);
   const cells=[];let x=0;
-  for(let i=0;i<days;i++){const d=addD(start,i),we=isWE(d);
-    if(we&&!showWE&&zoom!=="jour")continue;
-    for(const pm of [false,true]){const w=we&&zoom!=="jour"?ws*k:ws;
-      cells.push({d,pm,we,ws:we?null:slotOf(ymd(d),pm),x,w});x+=w}}
+  for(let i=0;i<days;i++){const d=addD(start,i),fe=!isWE(d)&&isFer(d),we=isWE(d)||fe;
+    if(isWE(d)&&!showWE&&zoom!=="jour")continue;
+    for(const pm of [false,true]){const w=we&&zoom!=="jour"?ws*(fe?Math.max(k,0.3):k):ws;
+      cells.push({d,pm,we,fe,ws:we?null:slotOf(ymd(d),pm),x,w});x+=w}}
   const work=cells.filter(c=>c.ws!==null);
   return {start,days,cells,work,total:x,ws,s0:work.length?work[0].ws:0,s1:work.length?work[work.length-1].ws:-1};
 }
@@ -653,24 +674,27 @@ function headerHTML(g){
       const first=d.getDate()<=7;
       if(first||w===0)top+=`<div class="hc top" style="left:${x}px;width:${Math.max(60,wd*4)}px;border-left-color:var(--line)">${d.toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}</div>`;
       bot+=`<div class="hc bot${cur?" now":""}" style="left:${x}px;width:${wd}px" title="S${weekNo(d)} · ${fd(d)}">${wd>26?weekNo(d):""}</div>`;
-      layer+=`<div class="ln${first?" strong":""}" style="left:${x}px"></div>`}
+      layer+=`<div class="ln${first?" strong":""}" style="left:${x}px"></div>`;
+      cs.forEach(c=>{if(!c.pm&&ferie(ymd(c.d))){const c2=g.cells[g.cells.indexOf(c)+1]||c;layer+=`<div class="fer six${isFer(c.d)?"":" trav"}" style="left:${c.x}px;width:${Math.max(3,c2.x+c2.w-c.x)}px" title="Jour férié : ${ferie(ymd(c.d))}"></div>`}})}
   }else{
     daysSeen.forEach(i=>{
       const c=g.cells[i],c2=g.cells[i+1]||c,x=c.x,wd=c2.x+c2.w-x,d=c.d,cur=ymd(d)===nd,monday1=(d.getDay()===1);
       if(zoom==="jour"){
-        top+=`<div class="hc top${cur?" now":""}" style="left:0;width:${g.total}px">${d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})} · S${weekNo(d)}</div>`;
+        top+=`<div class="hc top${cur?" now":""}" style="left:0;width:${g.total}px">${d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})} · S${weekNo(d)}${ferie(ymd(d))?" · 🎌 "+ferie(ymd(d)):""}</div>`;
         bot+=`<div class="hc bot${cur&&!npm?" now":""}" style="left:${c.x}px;width:${c.w}px">Matin</div><div class="hc bot${cur&&npm?" now":""}" style="left:${c2.x}px;width:${c2.w}px">Après-midi</div>`;
         layer+=`<div class="ln" style="left:${c2.x}px"></div>`;
       }else if(zoom==="semaine"){
-        top+=`<div class="hc top${cur?" now":""}" style="left:${x}px;width:${wd}px">${c.we?JOURS[(d.getDay()+6)%7].slice(0,2):JOURS[(d.getDay()+6)%7]+" "+d.getDate()+" "+d.toLocaleDateString("fr-FR",{month:"short"})}</div>`;
+        top+=`<div class="hc top${cur?" now":""}" style="left:${x}px;width:${wd}px">${c.fe?"🎌":c.we?JOURS[(d.getDay()+6)%7].slice(0,2):JOURS[(d.getDay()+6)%7]+" "+d.getDate()+" "+d.toLocaleDateString("fr-FR",{month:"short"})+(ferie(ymd(d))?" 🎌":"")}</div>`;
+        if(c.fe)bot+=`<div class="hc bot ferh" style="left:${x}px;width:${wd}px" title="${ferie(ymd(d))}">férié</div>`;
         if(!c.we)bot+=`<div class="hc bot${cur&&!npm?" now":""}" style="left:${c.x}px;width:${c.w}px">matin</div><div class="hc bot${cur&&npm?" now":""}" style="left:${c2.x}px;width:${c2.w}px">a.-midi</div>`;
         layer+=`<div class="ln strong" style="left:${x}px"></div>`+(c.we?"":`<div class="ln" style="left:${c2.x}px"></div>`);
       }else{
         if(monday1)top+=`<div class="hc top" style="left:${x}px;width:${wd*5}px">S${weekNo(d)} · ${fd(d)}</div>`;
-        bot+=`<div class="hc bot${cur?" now":""}" style="left:${x}px;width:${wd}px">${c.we?"":zoom==="deux"&&wd>70?JOURS[(d.getDay()+6)%7]+" "+d.getDate():(wd>30?JOURS[(d.getDay()+6)%7].slice(0,2)+" ":"")+d.getDate()}</div>`;
+        {const fe=ferie(ymd(d));bot+=`<div class="hc bot${cur?" now":""}${fe?" ferh":""}" style="left:${x}px;width:${wd}px"${fe?` title="Jour férié : ${fe}"`:""}>${c.fe?"🎌":c.we?"":(zoom==="deux"&&wd>70?JOURS[(d.getDay()+6)%7]+" "+d.getDate():(wd>30?JOURS[(d.getDay()+6)%7].slice(0,2)+" ":"")+d.getDate())+(fe&&wd>40?" 🎌":"")}</div>`}
         layer+=`<div class="ln${monday1?" strong":""}" style="left:${x}px"></div>`;
       }
-      if(c.we&&zoom!=="jour")layer+=`<div class="we" style="left:${x}px;width:${wd}px"></div>`;
+      if(c.we&&!c.fe&&zoom!=="jour")layer+=`<div class="we" style="left:${x}px;width:${wd}px"></div>`;
+      {const fe=ferie(ymd(d));if(fe&&d.getDay()%6!==0)layer+=`<div class="fer${c.fe?"":" trav"}" style="left:${x}px;width:${wd}px" title="${c.fe?"Jour férié (non travaillé)":"Jour férié travaillé"} : ${fe}"></div>`}
     });
   }
   const nc=g.cells.find(c=>ymd(c.d)===nd&&c.pm===npm);
@@ -941,7 +965,12 @@ function bilanBox(x){const b=bilan(x);if(!b.v)return"";
 function paramsHTML(){
   if(!loaded)return `<div class="empty"><strong>Chargement…</strong></div>`;
   const techs=techList(),co=(cfg.couts||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  return `<div class="panel"><h3>Coûts horaires</h3>
+  const y0=new Date().getFullYear(),tr=cfg.feriesTravailles||[],fl=[y0,y0+1].flatMap(y=>Object.entries(FERIES(y))).filter(([s])=>s>=ymd(new Date())&&parse(s).getDay()%6!==0);
+  return `<div class="panel"><h3>🎌 Jours fériés</h3>
+   <p class="hint" style="margin-top:0">Comme le week-end, un jour férié n'est pas travaillé : les chantiers le sautent et finissent un jour plus tard. Si exceptionnellement on bosse un férié, cochez-le : il redevient un jour normal pour tout le planning.</p>
+   <div style="display:flex;flex-wrap:wrap;gap:6px 14px">${fl.map(([s,n])=>`<label style="display:inline-flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" data-fertrav="${s}"${tr.includes(s)?" checked":""}> ${n} <span class="hint">${parse(s).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}</span></label>`).join("")}</div>
+  </div>
+  <div class="panel"><h3>Coûts horaires</h3>
    <p class="hint" style="margin-top:0">Coût horaire chargé de la main d'œuvre, par société. Ajoutez une ligne à chaque mise à jour : un chantier est calculé avec le taux en vigueur à sa date de début, les anciens bilans ne bougent donc pas.</p>
    <div class="ttable" id="r-couts">${(co.length?co:[{date:ymd(new Date()),artik:"",chassaing:""}]).map(coutRow).join("")}</div>
    <div class="actions" style="justify-content:flex-start"><button class="btn small" type="button" id="r-coutadd">+ Nouveau taux</button></div>
@@ -1119,6 +1148,9 @@ function step(dir){
   render();
 }
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{tab=t.dataset.tab;ls("tab",tab);render()}));
+document.addEventListener("change",async e=>{const c=e.target.closest&&e.target.closest("[data-fertrav]");if(!c)return;
+  const set=new Set(cfg.feriesTravailles||[]);c.checked?set.add(c.dataset.fertrav):set.delete(c.dataset.fertrav);cfg.feriesTravailles=[...set].sort();FERS_KEY="~";
+  try{await db.doc("config/reglages").update({feriesTravailles:cfg.feriesTravailles});toast(c.checked?"Férié travaillé : il redevient un jour normal":"Férié non travaillé")}catch(er){toast("Enregistrement impossible",true)}});
 ["#fl-chg","#fl-soc","#fl-term","#fl-wk","#fl-col","#fl-half"].forEach(s=>$(s).addEventListener("change",()=>{ls("f"+s,$(s).type==="checkbox"?($(s).checked?"1":"0"):$(s).value);render()}));
 const PREV=z=>z==="mois"||z==="six";let modeUser="chantiers";
 function applyPrev(){const pv=PREV(zoom);mode=pv?"chantiers":modeUser;
@@ -1142,7 +1174,7 @@ render();
   db=await window.__planDB();
   if(!db){banner("Les données ne sont pas joignables dans cette vue. Ouvrez la page depuis claude.ai.");$("#btn-new").disabled=true;loaded=true;render();return}
   const timer=setTimeout(()=>{if(!loaded)banner("Les chantiers ne répondent pas encore. La page se mettra à jour toute seule.")},10000);
-  db.doc("config/reglages").onSnapshot(s=>{if(s.exists){const d=s.data();cfg={charges:d.charges&&d.charges.length?d.charges:DEF.charges,capacite:d.capacite||DEF.capacite,techniciens:d.techniciens||[],equipes:d.equipes||[],journee:Number(d.journee)||8,couts:d.couts||[],devisIgnores:d.devisIgnores||[]}}fillChg();if($("#overlay").hidden&&!drag)render()},()=>{});
+  db.doc("config/reglages").onSnapshot(s=>{if(s.exists){const d=s.data();cfg={charges:d.charges&&d.charges.length?d.charges:DEF.charges,capacite:d.capacite||DEF.capacite,techniciens:d.techniciens||[],equipes:d.equipes||[],journee:Number(d.journee)||8,couts:d.couts||[],devisIgnores:d.devisIgnores||[],feriesTravailles:d.feriesTravailles||[]}}fillChg();if($("#overlay").hidden&&!drag)render()},()=>{});
   db.collection("chantiers").onSnapshot(s=>{
     items=s.docs.map(d=>({id:d.id,...d.data()}));
     if(!s.metadata.fromCache){clearTimeout(timer);banner("")}
