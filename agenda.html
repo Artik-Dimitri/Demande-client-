@@ -105,6 +105,25 @@ select,input,textarea{font:inherit;font-size:15px;color:var(--ink);background:va
 .wk{--hpx:40px}.wk.z2{--hpx:30px}
 .wk .ev:not(.allday){height:max(24px,calc(var(--dh,1) * var(--hpx)));box-sizing:border-box;overflow:hidden;flex:none}
 .ev .et{min-width:0;overflow:hidden}
+/* semaine : frise horaire matin | midi | après-midi, et jauge du temps restant */
+.wk .cell.tlc{padding:4px 4px 6px;gap:3px;min-height:0}
+.tl{position:relative;flex:none;border-radius:6px}
+.tl .hr{position:absolute;left:0;right:0;border-top:1px dashed var(--grid);pointer-events:none}
+.tl .hr span{position:absolute;left:1px;top:-1px;font-size:9px;line-height:1;color:var(--muted);opacity:.7}
+.tl .midi{position:absolute;left:-4px;right:-4px;background:repeating-linear-gradient(90deg,var(--line) 0 4px,transparent 4px 8px);opacity:.9;pointer-events:none;display:flex;align-items:center;justify-content:flex-end}
+.tl .midi span{font-size:9px;font-weight:700;color:var(--muted);background:var(--surface);padding:0 3px;border-radius:3px;line-height:1.1;margin-right:4px}
+.tl .ev{position:absolute;margin:0;padding:2px 5px 2px 4px;font-size:12px;line-height:1.15;border-radius:5px;height:auto;overflow:hidden;box-sizing:border-box;z-index:1}
+.tl .ev .ei{font-size:11px}.tl .ev small{display:block;font-size:10.5px;opacity:.9}
+.tl .ev.tiny small,.tl .ev.tiny .avec,.tl .ev.tiny .rappel{display:none}
+.tl .nowl{position:absolute;left:-4px;right:-4px;border-top:2px solid var(--today);z-index:2;pointer-events:none}
+.tl .nowl::before{content:"";position:absolute;left:0;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--today)}
+.jg{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.jg .bar{height:6px;border-radius:3px;background:var(--grid);overflow:hidden;display:flex}
+.jg .bar i{display:block;height:100%;background:var(--ok,#2E8B57);border-radius:3px}
+.jg.mid .bar i{background:#C98A0B}.jg.full .bar i{background:var(--muted)}.jg.over .bar i{background:#C5372C}
+.jg small{font-size:11px;font-weight:700;color:var(--muted);line-height:1.1}
+.jg.over small{color:#C5372C}.jg.mid small{color:#A87308}
+.wk .pl small{display:block;font-size:11px;font-weight:500;color:var(--muted)}
 .ev .et b{font-weight:700}
 .ev .et small{display:block;opacity:.88;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ev.allday{font-weight:600}
@@ -357,7 +376,7 @@ html.tmode .bt{font-size:16px;padding:7px 6px}
 .panel h3{font-size:24px;margin-bottom:4px}
 .hint{font-size:13px;color:var(--muted)}
 .prow{display:grid;grid-template-columns:minmax(0,1.4fr) 70px minmax(0,1fr) auto auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--soft)}
-.prow.pq{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr) auto auto auto}
+.prow.pq{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr) auto auto auto auto}
 .prow .sw{width:22px;height:22px;border-radius:6px;background:var(--c);display:inline-block;vertical-align:middle;margin-right:6px}
 @media (max-width:640px){.now{grid-template-columns:1fr 1fr;gap:8px}.ncard{grid-template-columns:1fr;padding:10px;gap:2px}.ncard .av{display:none}.ncard .st{white-space:normal;font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.ncard b{font-size:15px}.ncard .pill{margin-left:4px}.prow{grid-template-columns:1fr 70px}.prow.pq{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}h1{font-size:34px}}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ok);color:#fff;border-radius:8px;padding:10px 16px;font-weight:600;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.2)}
@@ -669,6 +688,7 @@ const ICONS=["🎯","🧮","🤝","🏗️","💬","🚗","🎓","🌴","😴","
 const DEF={
   personnes:[{nom:"Dimitri",couleur:"orange",email:"d.blin@chassaing-technologies.fr",role:"resp",admin:true},{nom:"Karim",couleur:"ocre",email:"k.kerfah@chassaing-technologies.fr",role:"resp"},{nom:"Alexis",couleur:"bordeaux",email:"",role:"charge"},{nom:"Guilhem",couleur:"blue",email:"",role:"charge"}],
   lecteurs:"",
+  horaires:{deb:"07:30",fin:"19:00",midiDeb:"12:00",midiFin:"14:00",jour:8},
   categories:[
     {nom:"Prospection",icone:"🎯",couleur:"vert",jour:false},
     {nom:"Chiffrage bureau",icone:"🧮",couleur:"ardoise",jour:false},
@@ -762,15 +782,41 @@ function evHTML(o,row){
   const dur=e.allDay?0:Math.max(.25,(hm(e.fin)-hm(e.debut))/60);
   return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}${dur?`;--dh:${dur.toFixed(2)}`:""}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${withHTML(oth)}${rappel(e)}</span></div>`;
 }
+const HOR=()=>Object.assign({},DEF.horaires,cfg.horaires||{});
+/* frise de la semaine : la pause de midi est réduite à une fine bande, le reste est à l'échelle */
+function tlScale(occ){const H=HOR(),hpx=zoom==="deux"?15:20,band=zoom==="deux"?8:10,mD=hm(H.midiDeb),mF=Math.max(hm(H.midiFin),mD);
+  let a=hm(H.deb),b=hm(H.fin);occ.forEach(o=>{if(o.e.allDay)return;a=Math.min(a,hm(o.e.debut));b=Math.max(b,hm(o.e.fin))});
+  a=Math.floor(a/60)*60;b=Math.ceil(b/60)*60;
+  const cl=(m,x,z)=>Math.max(x,Math.min(z,m)),s1=cl(mD,a,b),l0=cl(mD,a,b),l1=cl(mF,a,b),s2=cl(mF,a,b),lw=l1>l0?band:0;
+  const y=m=>(cl(m,a,s1)-a)/60*hpx+(l1>l0?(cl(m,l0,l1)-l0)/(l1-l0)*lw:0)+(cl(m,s2,b)-s2)/60*hpx;
+  const inv=px=>{for(let m=a;m<=b;m+=5)if(y(m)>=px)return m;return b};
+  return {a,b,mD,mF,hpx,band,y,inv,H:y(b)}}
+function wkLanes(list){const L=list.slice().sort((p,q)=>hm(p.e.debut)-hm(q.e.debut)||hm(q.e.fin)-hm(p.e.fin));let ends=[],grp=[],gEnd=-1;const out=[];
+  const flush=()=>{grp.forEach(x=>x.n=ends.length);ends=[];grp=[]};
+  L.forEach(o=>{const s0=hm(o.e.debut),e0=Math.max(hm(o.e.fin),s0+15);if(s0>=gEnd&&grp.length)flush();let k=ends.findIndex(t=>t<=s0);if(k<0){k=ends.length;ends.push(e0)}else ends[k]=e0;o.k=k;grp.push(o);out.push(o);gEnd=Math.max(gEnd,e0)});flush();return out}
+function busyMin(list){const iv=list.filter(o=>!o.e.allDay).map(o=>[hm(o.e.debut),hm(o.e.fin)]).filter(x=>x[1]>x[0]).sort((p,q)=>p[0]-q[0]);let t=0,cs=-1,ce=-1;
+  iv.forEach(([s0,e0])=>{if(s0>ce){if(ce>cs)t+=ce-cs;cs=s0;ce=e0}else ce=Math.max(ce,e0)});if(ce>cs)t+=ce-cs;return t}
+const hTxt=m=>{m=Math.round(m);const h=Math.floor(m/60),mm=m%60;return h?(h+" h"+(mm?" "+String(mm).padStart(2,"0"):"")):mm+" min"};
+function jaugeHTML(p,list,d){const we=d.getDay()===0||d.getDay()===6,s=ymd(d);if((we||ferie(s))&&!list.length)return "";
+  const cap=(+p.hj||+HOR().jour||8)*60;if(list.some(o=>o.e.allDay))return `<div class="jg full" title="Journée prise"><div class="bar"><i style="width:100%"></i></div><small>journée prise</small></div>`;
+  const b=busyMin(list),r=cap-b,cls=r<0?"over":r<120?"mid":"";
+  return `<div class="jg ${cls}" title="${hTxt(b)} de rendez-vous sur ${hTxt(cap)} de journée"><div class="bar"><i style="width:${Math.min(100,b/cap*100)}%"></i></div><small>${r<0?"⚠️ "+hTxt(-r)+" de trop":r===cap?"journée libre · "+hTxt(cap):"reste "+hTxt(r)}</small></div>`}
 function weekHTML(){
   const ds=days(),ppl=cfg.personnes.filter(p=>!hidden.has(p.nom)),t=ymd(new Date());
-  const occ=occurrences(ymd(ds[0]),ymd(ds[ds.length-1]));
+  const occ=occurrences(ymd(ds[0]),ymd(ds[ds.length-1])),S=tlScale(occ),now=new Date(),nm=now.getHours()*60+now.getMinutes();
   let h=`<div class="gridwrap"><div class="wk${zoom==="deux"?" z2":""}" style="grid-template-columns:120px repeat(${ds.length},minmax(${zoom==="deux"?90:130}px,1fr))"><div class="hd"></div>`;
   ds.forEach(d=>{const fe=ferie(ymd(d));h+=`<div class="hd${ymd(d)===t?" today":""}${fe?" fer":""}"${fe?` title="Jour férié : ${fe}"`:""}>${JOURS[(d.getDay()+6)%7].slice(0,zoom==="deux"?3:9)}<b>${d.getDate()}</b>${fe?`<span class="ferl">🎌 ${zoom==="deux"?"Férié":fe}</span>`:""}</div>`});
+  const grid=[];for(let m=S.a;m<=S.b;m+=60){if(m>=S.mD&&m<S.mF)continue;grid.push(`<div class="hr" style="top:${S.y(m).toFixed(1)}px">${zoom==="deux"?"":`<span>${m/60}h</span>`}</div>`)}
+  const midi=S.mF>S.mD&&S.mD>S.a&&S.mF<S.b?`<div class="midi" style="top:${S.y(S.mD).toFixed(1)}px;height:${S.band}px"><span>midi</span></div>`:"";
   ppl.forEach(p=>{
-    h+=`<div class="pl" style="--pc:${col(p.couleur)}"><i></i>${esc(p.nom)}</div>`;
-    ds.forEach(d=>{const s=ymd(d),we=d.getDay()===0||d.getDay()===6;
-      h+=`<div class="cell${we?" we":""}${ferie(s)?" fer":""}${s===t?" today":""}${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}">${occ.filter(o=>o.d===s&&who(o.e).includes(p.nom)).map(o=>evHTML(o,p.nom)).join("")}<span class="plus" aria-hidden="true">+</span></div>`});
+    h+=`<div class="pl" style="--pc:${col(p.couleur)}"><i></i><span>${esc(p.nom)}<small>${+p.hj||+HOR().jour||8} h / jour</small></span></div>`;
+    ds.forEach(d=>{const s=ymd(d),we=d.getDay()===0||d.getDay()===6,mine=occ.filter(o=>o.d===s&&who(o.e).includes(p.nom));
+      const ad=mine.filter(o=>o.e.allDay),tm=wkLanes(mine.filter(o=>!o.e.allDay));
+      const evs=tm.map(o=>{const top=S.y(hm(o.e.debut)),bot=S.y(Math.max(hm(o.e.fin),hm(o.e.debut)+15)),ht=Math.max(15,bot-top-1);
+        const html=evHTML(o,p.nom),st=`top:${top.toFixed(1)}px;height:${ht.toFixed(1)}px;left:calc(${(o.k/o.n*100).toFixed(2)}% + 1px);width:calc(${(100/o.n).toFixed(2)}% - 2px)`;
+        return html.replace('class="ev','class="ev'+(ht<26?" tiny":"")).replace('style="','title="'+esc((o.e.debut||"")+"–"+(o.e.fin||"")+" "+(o.e.titre||catOf(o.e.cat).nom))+'" style="'+st+';')}).join("");
+      h+=`<div class="cell tlc${we?" we":""}${ferie(s)?" fer":""}${s===t?" today":""}${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}">${ad.map(o=>evHTML(o,p.nom)).join("")}
+        <div class="tl" style="height:${S.H.toFixed(0)}px">${grid.join("")}${midi}${evs}${s===t&&nm>=S.a&&nm<=S.b?`<div class="nowl" style="top:${S.y(nm).toFixed(1)}px"></div>`:""}</div>${jaugeHTML(p,mine,d)}</div>`});
   });
   if(!ppl.length)h+=`<div class="empty" style="grid-column:1/-1">Aucune personne affichée.</div>`;
   return h+`</div></div>`+legendHTML();
@@ -954,6 +1000,11 @@ function paramsHTML(){
   return `<div class="panel"><h3>Personnes</h3><p class="hint">Les chargés d'affaires qui partagent l'agenda. <b>Ses RDV seulement</b> ou <b>ses RDV + ceux des autres</b>. La case <b>Paramètres</b> donne accès à cet onglet. L'adresse est celle de connexion Microsoft.</p>
     <div id="pp">${cfg.personnes.map(p=>ppRow(p,colSel)).join("")}</div>
     <button class="btn small" type="button" id="pp-add" style="margin-top:8px">+ Ajouter une personne</button>
+    <div class="field" style="margin-top:14px"><span>Journée de travail (vue Semaine)</span><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label>de <input type="time" id="h-deb" value="${esc(HOR().deb)}"></label><label>à <input type="time" id="h-fin" value="${esc(HOR().fin)}"></label>
+      <label>· pause de midi de <input type="time" id="h-md" value="${esc(HOR().midiDeb)}"></label><label>à <input type="time" id="h-mf" value="${esc(HOR().midiFin)}"></label>
+      <label>· temps de travail par défaut <input type="number" id="h-j" min="1" max="14" step="0.5" value="${esc(HOR().jour)}" style="width:64px"> h/jour</label></div>
+      <p class="hint" style="margin:4px 0 0">La jauge sous chaque journée compare les rendez-vous au temps de travail de la personne (colonne « h/jour » ci-dessus, sinon la valeur par défaut).</p></div>
     <label class="field" style="margin-top:14px"><span>Consultation seule (assistantes…) : adresses séparées par des virgules</span><input id="lect" value="${esc(cfg.lecteurs||"")}" placeholder="beatrice@…, patricia@…, contact@artikfrigoriste.fr"></label></div>
   <div class="panel"><h3>Catégories</h3><p class="hint">« Pour » : une catégorie peut être réservée à une seule personne (les autres ne la proposent pas). « Journée entière » : se pose par défaut sur des journées complètes (congés, récup, formation).</p>
     <div id="cc">${cfg.categories.map(c=>catRow(c,colSel)).join("")}</div>
@@ -961,7 +1012,7 @@ function paramsHTML(){
   <div style="display:flex;justify-content:flex-end"><button class="btn primary" type="button" id="par-save">Enregistrer les paramètres</button></div>`;
 }
 function ppRow(p,colSel){colSel=colSel||((v,attr)=>`<select ${attr}>${COLORS.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("")}</select>`);
-  return `<div class="prow pq"><input value="${esc(p.nom)}" data-pn aria-label="Nom" placeholder="Prénom"><input type="email" value="${esc(p.email||"")}" data-pe aria-label="Adresse Microsoft" placeholder="adresse@…"><div><span class="sw" style="--c:${col(p.couleur)}"></span>${colSel(p.couleur,"data-pc aria-label='Couleur'")}</div><select data-pr aria-label="Droits sur l'agenda"><option value="charge"${p.role!=="resp"?" selected":""}>Ses RDV seulement</option><option value="resp"${p.role==="resp"?" selected":""}>Ses RDV + ceux des autres</option></select><label class="switch" style="font-weight:500;font-size:14px"><input type="checkbox" data-pa${p.admin?" checked":""}> Paramètres</label><button class="btn small danger" type="button" data-del>Retirer</button></div>`}
+  return `<div class="prow pq"><input value="${esc(p.nom)}" data-pn aria-label="Nom" placeholder="Prénom"><input type="email" value="${esc(p.email||"")}" data-pe aria-label="Adresse Microsoft" placeholder="adresse@…"><div><span class="sw" style="--c:${col(p.couleur)}"></span>${colSel(p.couleur,"data-pc aria-label='Couleur'")}</div><select data-pr aria-label="Droits sur l'agenda"><option value="charge"${p.role!=="resp"?" selected":""}>Ses RDV seulement</option><option value="resp"${p.role==="resp"?" selected":""}>Ses RDV + ceux des autres</option></select><label class="switch" style="font-weight:500;font-size:14px"><input type="checkbox" data-pa${p.admin?" checked":""}> Paramètres</label><label class="switch" style="font-weight:500;font-size:14px" title="Temps de travail sur une journée"><input type="number" data-ph min="1" max="14" step="0.5" value="${esc(p.hj||"")}" placeholder="${HOR().jour}" style="width:58px"> h/jour</label><button class="btn small danger" type="button" data-del>Retirer</button></div>`}
 function catRow(c,colSel){colSel=colSel||((v,attr)=>`<select ${attr}>${COLORS.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("")}</select>`);
   return `<div class="prow"><input value="${esc(c.nom)}" data-cn aria-label="Nom de la catégorie"><select data-ci aria-label="Icône">${ICONS.concat(ICONS.includes(c.icone)?[]:[c.icone]).map(i=>`<option${i===c.icone?" selected":""}>${i}</option>`).join("")}</select><div><span class="sw" style="--c:${col(c.couleur)}"></span>${colSel(c.couleur,"data-cc aria-label='Couleur'")}</div><select data-cf aria-label="Pour qui"><option value="">Pour tous</option>${cfg.personnes.map(p=>`<option value="${esc(p.nom)}"${c.pour===p.nom?" selected":""}>Pour ${esc(p.nom)}</option>`).join("")}</select><label class="switch" style="font-weight:500;font-size:14px"><input type="checkbox" data-cj${c.jour?" checked":""}> Journée entière</label><button class="btn small danger" type="button" data-del>Retirer</button></div>`}
 function bindParams(){
@@ -971,11 +1022,11 @@ function bindParams(){
   $("#pp-add").addEventListener("click",()=>{$("#pp").insertAdjacentHTML("beforeend",ppRow({nom:"",email:"",couleur:"vert",role:"charge"}));$("#pp .prow:last-child input").focus()});
   $("#cc-add").addEventListener("click",()=>{$("#cc").insertAdjacentHTML("beforeend",catRow({nom:"",icone:"⭐",couleur:"gris",jour:false}));$("#cc .prow:last-child input").focus()});
   $("#par-save").addEventListener("click",async()=>{
-    const personnes=[...document.querySelectorAll("#pp .prow")].map(r=>({nom:r.querySelector("[data-pn]").value.trim(),email:r.querySelector("[data-pe]").value.trim().toLowerCase(),couleur:r.querySelector("[data-pc]").value,role:r.querySelector("[data-pr]").value,admin:r.querySelector("[data-pa]").checked})).filter(p=>p.nom);
+    const personnes=[...document.querySelectorAll("#pp .prow")].map(r=>({nom:r.querySelector("[data-pn]").value.trim(),email:r.querySelector("[data-pe]").value.trim().toLowerCase(),couleur:r.querySelector("[data-pc]").value,role:r.querySelector("[data-pr]").value,admin:r.querySelector("[data-pa]").checked,hj:Number(r.querySelector("[data-ph]").value)||null})).filter(p=>p.nom);
     if(!personnes.some(p=>p.admin)){toast("Gardez au moins une personne qui gère les paramètres",true);return}
     const categories=[...document.querySelectorAll("#cc .prow")].map(r=>({nom:r.querySelector("[data-cn]").value.trim(),icone:r.querySelector("[data-ci]").value,couleur:r.querySelector("[data-cc]").value,jour:r.querySelector("[data-cj]").checked,pour:r.querySelector("[data-cf]").value})).filter(c=>c.nom);
     if(!personnes.length||!categories.length){toast("Il faut au moins une personne et une catégorie",true);return}
-    try{await db.doc("config/agenda").set({personnes,categories,lecteurs:$("#lect").value.trim()});toast("Paramètres enregistrés")}catch(e){toast("Enregistrement impossible ("+(e.code||e.message)+")",true)}
+    try{await db.doc("config/agenda").set({personnes,categories,lecteurs:$("#lect").value.trim(),horaires:{deb:$("#h-deb").value||DEF.horaires.deb,fin:$("#h-fin").value||DEF.horaires.fin,midiDeb:$("#h-md").value||DEF.horaires.midiDeb,midiFin:$("#h-mf").value||DEF.horaires.midiFin,jour:Number($("#h-j").value)||DEF.horaires.jour}});toast("Paramètres enregistrés")}catch(e){toast("Enregistrement impossible ("+(e.code||e.message)+")",true)}
   });
 }
 
@@ -1275,7 +1326,9 @@ $("#view").addEventListener("click",e=>{
   const li=e.target.closest(".ditem");if(li&&db){openSheet(li.dataset.ev,{},li.dataset.d);return}
   if(tab!=="agenda"||!db||e.target.closest(".ev,.dev"))return;
   if(e.target.closest(".ro"))return;
-  const cell=e.target.closest(".cell");if(cell){openSheet(null,{personne:cell.dataset.p,date:cell.dataset.d});return}
+  const cell=e.target.closest(".cell");if(cell){const tl=e.target.closest(".tl");if(tl){const S=tlScale(occurrences(cell.dataset.d,cell.dataset.d)),r=tl.getBoundingClientRect();
+      let m=Math.round(S.inv(e.clientY-r.top)/30)*30;if(m>=S.mD&&m<S.mF)m=S.mF;m=Math.max(S.a,Math.min(S.b-60,m));openSheet(null,{personne:cell.dataset.p,date:cell.dataset.d,debut:toHM(m),fin:toHM(m+60)});return}
+    openSheet(null,{personne:cell.dataset.p,date:cell.dataset.d});return}
   const hl=e.target.closest(".hl");if(hl){const c=hl.closest(".dcol"),h=Number(hl.dataset.h);openSheet(null,{personne:c.dataset.p,date:c.dataset.d,debut:p2(h)+":00",fin:p2(h+1)+":00"});return}
   const ad=e.target.closest(".adlist");if(ad){const c=ad.closest(".dcol");openSheet(null,{personne:c.dataset.p,date:c.dataset.d,cat:(cfg.categories.find(z=>z.jour)||cfg.categories[0]).nom})}
 });
@@ -1376,7 +1429,7 @@ render();
   db=window.__planDB?await window.__planDB():(window.claude&&window.claude.use?await window.claude.use("db"):null);
   if(!db){banner("L'agenda n'est pas joignable dans cette vue.");$("#btn-new").disabled=true;loaded=true;render();return}
   const timer=setTimeout(()=>{if(!loaded)banner("L'agenda ne répond pas encore. La page se mettra à jour toute seule.")},10000);
-  db.doc("config/agenda").onSnapshot(s=>{if(s.exists){const d=s.data();cfg={personnes:d.personnes&&d.personnes.length?d.personnes:DEF.personnes,categories:d.categories&&d.categories.length?d.categories:DEF.categories,lecteurs:d.lecteurs||""}}if($("#overlay").hidden&&!drag&&tab!=="params")render();else renderNow()},()=>{});
+  db.doc("config/agenda").onSnapshot(s=>{if(s.exists){const d=s.data();cfg={personnes:d.personnes&&d.personnes.length?d.personnes:DEF.personnes,categories:d.categories&&d.categories.length?d.categories:DEF.categories,lecteurs:d.lecteurs||"",horaires:Object.assign({},DEF.horaires,d.horaires||{})}}if($("#overlay").hidden&&!drag&&tab!=="params")render();else renderNow()},()=>{});
   db.collection("routines").onSnapshot(s=>{routines=s.docs.map(d=>({id:d.id,...d.data()}));if(loaded&&TMODE&&$("#overlay").hidden)render();setTimeout(routinesDuJour,300)},()=>{});
   db.collection("suites").onSnapshot(s=>{suites=s.docs.map(d=>({id:d.id,...d.data()}));if(loaded)renderDoss()},()=>{});
   db.collection("taches").onSnapshot(s=>{taches=s.docs.map(d=>({id:d.id,...d.data()}));if(!autoTaches.done){autoTaches.done=1;setTimeout(autoTaches,300);setTimeout(routinesDuJour,500)}if(loaded&&$("#overlay").hidden&&!drag&&tab!=="params"&&!document.activeElement.matches("[data-addt],#rt-t,#rt-jm"))render()},()=>{});
