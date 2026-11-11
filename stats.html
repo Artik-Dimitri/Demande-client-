@@ -166,7 +166,7 @@ const eur=n=>Math.round(+n||0).toLocaleString("fr-FR")+" €";
 const keur=n=>{n=+n||0;return Math.abs(n)>=1000?(Math.round(n/100)/10).toLocaleString("fr-FR")+" k€":Math.round(n)+" €"};
 const MOIS=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 let app,account,siteId,DATA=null;
-let per=(()=>{try{return localStorage.getItem("st-per")||"12m"}catch(e){return "12m"}})(),soc="toutes",tab="commercial";
+let per=(()=>{try{return localStorage.getItem("st-per")||"12m"}catch(e){return "12m"}})(),soc="toutes",tab="objectifs";
 function gate(t,x,btn,fn){$("#gate").innerHTML=`<div class="gatecard"><h2>${esc(t)}</h2><p>${x}</p>${btn?`<button class="btn" id="gb" type="button">${esc(btn)}</button>`:""}</div>`;$("#gate").hidden=false;if(btn)$("#gb").onclick=fn}
 async function tok(){try{return (await app.acquireTokenSilent({scopes:SCOPES,account})).accessToken}catch(e){await app.acquireTokenRedirect({scopes:SCOPES,account});throw new Error("redirect")}}
 async function gx(path){const t=await tok();const r=await fetch(path.startsWith("http")?path:"https://graph.microsoft.com/v1.0"+path,{headers:{Authorization:"Bearer "+t}});const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error((j.error&&j.error.message)||"Erreur "+r.status);e.status=r.status;throw e}return j}
@@ -281,13 +281,29 @@ function garantiesDemo(){const R=range(),hM=R.months.map((m,i)=>[6,9,4,12,8,5,14
   <div class="card"><h2>Par marque</h2><div class="sub">heures passées sous garantie</div>${hbars([{k:"Mitsubishi",v:48},{k:"Daikin",v:22},{k:"Carrier",v:14},{k:"Autres",v:9}],{fmt:v=>v+" h",color:"var(--b3)"})}</div></div>`}
 
 /* ---------- page ---------- */
-function render(){const T=[["commercial","📋 Commercial","var(--b1)"],["chantiers","🏗️ Chantiers","var(--b4)"],["heures","⏱️ Heures & SAV","var(--b2)"],["garanties","🛡️ Garanties","var(--b3)"]];
+/* ---------- objectifs communs et CA facturé (liste « Chiffres mensuels ») ---------- */
+function objectifs(){const C=DATA.chif;if(!C||!Object.keys(C.mois).length)return `<div class="card"><h2>🎯 Objectifs communs</h2><p class="sub">Rien encore : ouvre l'onglet Chiffres mensuels une première fois pour reprendre l'historique et fixer les objectifs.</p></div>`;
+  const now=new Date(),Y=String(per==="an-1"?now.getFullYear()-1:now.getFullYear()),SS=soc==="toutes"?["artik","chassaing"]:[soc],A=[["chantier","Chantier","var(--b1)"],["sav","SAV","var(--b2)"],["maint","Maintenance","var(--b3)"]];
+  const n=v=>+String(v??"").replace(",",".")||0,cell=(m,s)=>((C.mois[Y+"-"+String(m+1).padStart(2,"0")]||{})[s])||{};
+  const done=m=>SS.every(s=>A.some(([k])=>cell(m,s)[k]!==undefined&&cell(m,s)[k]!==""));let L=-1;for(let m=0;m<12;m++)if(done(m))L=m;
+  const ca=(m,k)=>SS.reduce((t,s)=>t+(k?n(cell(m,s)[k]):A.reduce((b,[kk])=>b+n(cell(m,s)[kk]),0)),0);
+  const obj=k=>SS.reduce((t,s)=>{const o=((C.obj[Y]||{})[s])||{};return t+(k?n(o[k]):A.reduce((b,[kk])=>b+n(o[kk]),0))},0);
+  const sai=(C.saison[Y]&&C.saison[Y].length===12)?C.saison[Y]:Array(12).fill(100/12),sC=sai.slice(0,L+1).reduce((a,b)=>a+b,0)/100;
+  const cum=[...Array(L+1)].reduce((t,_,m)=>t+ca(m),0),O=obj(),oD=O*sC,MO=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+  const g=(v,o,t,c)=>`<div style="position:relative;height:12px;border-radius:6px;background:var(--soft,#eee);overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(100,o?v/o*100:0)}%;background:${c};border-radius:6px"></i>${o?`<u style="position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);left:${Math.min(99.5,t*100)}%"></u>`:""}</div>`;
+  return `<div class="tiles">${[["var(--b1)",keur(cum),"CA facturé "+Y+(L>=0?" à fin "+MO[L]:"")],["var(--b2)",O?keur(O):"—","objectif annuel"],["var(--b4)",O?Math.round(cum/O*100)+" %":"—","de l'objectif atteint"],["var(--b3)",O?(cum>=oD?"+":"−")+keur(Math.abs(cum-oD)):"—",O?(cum>=oD?"d'avance sur le rythme":"de retard sur le rythme"):"objectif à fixer"],["var(--b1)",sC>0?keur(cum/sC):"—","si le rythme continue"]].map(([c,v,l])=>`<div class="tile" style="--tc:${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("")}</div>
+   <div class="card"><h2>🎯 Objectifs communs ${Y} par activité</h2><div class="sub">cumul à fin ${L>=0?MO[L]:"—"} · trait = où on devrait en être</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">${A.map(([k,l,c])=>{const v=[...Array(L+1)].reduce((t,_,m)=>t+ca(m,k),0),o=obj(k);return `<div style="display:grid;grid-template-columns:120px 1fr 220px;gap:10px;align-items:center"><b>${l}</b>${g(v,o,sC,c)}<span style="text-align:right">${keur(v)}${o?" / "+keur(o)+" · "+Math.round(v/o*100)+" %":" · pas d'objectif"}</span></div>`}).join("")}</div></div>
+   <div class="card"><h2>CA facturé par mois ${Y}</h2><div class="sub">mois saisis pour les deux sociétés</div>${vbars([...Array(12)].map((_,m)=>Y+"-"+String(m+1).padStart(2,"0")),[...Array(12)].map((_,m)=>done(m)?ca(m):0),{color:"var(--b1)",label:"CA facturé"})}
+    <p class="sub" style="margin-top:8px">Le détail, la saisie et les objectifs sont dans l'onglet <button type="button" class="btn small" data-gochif>📈 Chiffres mensuels</button></p></div>`}
+function render(){const T=[["objectifs","🎯 Objectifs & CA","var(--b4)"],["commercial","📋 Commercial","var(--b1)"],["chantiers","🏗️ Chantiers","var(--b4)"],["heures","⏱️ Heures & SAV","var(--b2)"],["garanties","🛡️ Garanties","var(--b3)"]];
   $("#app").innerHTML=`<section class="hero"><div class="line4" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="in"><div class="ic">📊</div><div class="t"><h1>Statistiques</h1><p>Tout ce qui se fait chez Artik &amp; Chassaing, en chiffres.</p></div><span class="lock">🔒 Karim et Dimitri seulement</span></div></section>
   <div class="bar"><div class="seg" role="group" aria-label="Période">${[["12m","12 derniers mois"],["annee","Cette année"],["an-1","Année dernière"]].map(([k,l])=>`<button type="button" data-per="${k}" aria-pressed="${per===k}">${l}</button>`).join("")}</div>
    <div class="seg" role="group" aria-label="Société">${[["toutes","Les deux"],["artik","Artik"],["chassaing","Chassaing"]].map(([k,l])=>`<button type="button" data-soc="${k}" aria-pressed="${soc===k}">${l}</button>`).join("")}</div></div>
   <nav class="tabs" role="tablist">${T.map(([k,l,c])=>`<button type="button" role="tab" data-tab="${k}" aria-selected="${tab===k}" style="--tc:${c}">${l}</button>`).join("")}</nav>
-  <div style="display:flex;flex-direction:column;gap:14px">${tab==="commercial"?commercial():tab==="chantiers"?chantiers():tab==="heures"?heures():garanties()}</div>`;
+  <div style="display:flex;flex-direction:column;gap:14px">${tab==="objectifs"?objectifs():tab==="commercial"?commercial():tab==="chantiers"?chantiers():tab==="heures"?heures():garanties()}</div>`;
   $("#app").hidden=false;$("#gate").hidden=true}
+document.addEventListener("click",e=>{if(e.target.closest("[data-gochif]")){if(EMBED&&window.parent!==window)window.parent.postMessage({go:"chiffres"},"*");else location.href="chiffres.html";return}});
 document.addEventListener("click",e=>{const p=e.target.closest("[data-per]"),s=e.target.closest("[data-soc]"),t=e.target.closest("[data-tab]");
   if(p){per=p.dataset.per;try{localStorage.setItem("st-per",per)}catch(x){}render()}else if(s){soc=s.dataset.soc;render()}else if(t){tab=t.dataset.tab;render()}});
 const tip=$("#tip");
@@ -304,14 +320,15 @@ document.addEventListener("mouseleave",()=>tip.hidden=true);
   if(!CFG.autorises.includes(String(account.username||"").toLowerCase())){gate("Accès réservé","Les statistiques sont réservées à Dimitri et Karim.");return}
   try{
     siteId=(await gx("/sites/root?$select=id")).id;
-    const [devis,planning,portail]=await Promise.all([
+    const [devis,planning,portail,chif]=await Promise.all([
       items(CFG.devis,"Title,Reference,Societe,Statut,Chiffreur,Metier,Origine,MontantHT,DateDemande,DateEnvoi,DateRelance,DateCloture,MotifPerte,Created"),
-      kv(CFG.planning),kv("Portail acces")]);
+      kv(CFG.planning),kv("Portail acces"),kv("Chiffres mensuels")]);
     const cfgP=planning["config/reglages"]||{};
     DATA={devis:devis.map(f=>({client:f.Title||"",societe:f.Societe||"",statut:f.Statut||"",chiffreur:f.Chiffreur||"",metier:f.Metier||"",origine:f.Origine||"",montant:+f.MontantHT||0,
         cree:String(f.DateDemande||f.Created||"").slice(0,10),envoi:String(f.DateEnvoi||"").slice(0,10),relance:String(f.DateRelance||"").slice(0,10),clos:String(f.DateCloture||"").slice(0,10),motif:f.MotifPerte||""})),
       chantiers:Object.entries(planning).filter(([k])=>k.startsWith("chantiers/")).map(([k,v])=>v),couts:cfgP.couts,
-      relJ:+((((portail.reglages||{}).devis)||{}).relanceJ)||10};
+      relJ:+((((portail.reglages||{}).devis)||{}).relanceJ)||10,
+      chif:{mois:Object.fromEntries(Object.entries(chif).filter(([k])=>k.startsWith("mois/")).map(([k,v])=>[k.slice(5),v])),obj:(chif["config/objectifs"]||{}).obj||{},saison:(chif["config/objectifs"]||{}).saison||{}}};
     render();
   }catch(e){if(e.message==="redirect")return;gate("Lecture impossible",esc(e.message),"Réessayer",()=>location.reload())}
 })();
