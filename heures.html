@@ -317,7 +317,8 @@ const CODES=[
   {code:"ZZZ ASTREINTE",k:"perm",label:"Astreinte"},
   {code:"ZZZ ECOLE",k:"ecole",label:"École / CFA"},
   {code:"ZZZ RECUPERATION D'HEURES",k:"recup",label:"Récupération"},
-  {code:"ZZZ CONGES PAYES",k:"conges",label:"Congés payés"}
+  {code:"ZZZ CONGES PAYES",k:"conges",label:"Congés payés"},
+  {code:"ZZZ MALADIE",k:"maladie",label:"Maladie / arrêt"}
 ];
 const DEF_TECHS=[{nom:"Tech 1",org:"U-101",type:"tech",contrat:35},{nom:"Tech 2",org:"U-102",type:"tech",contrat:39},{nom:"Tech 3",org:"U-103",type:"tech",contrat:35},{nom:"Tech 4",org:"U-104",type:"tech",contrat:40},{nom:"Tech 5",org:"U-105",type:"tech",contrat:35},{nom:"Apprenti 1",org:"U-106",type:"apprenti",contrat:35,mineur:true}];
 let TECHS=DEF_TECHS.map(t=>({...t}));try{const st=JSON.parse(localStorage.getItem("hx-techs")||"null");if(Array.isArray(st)&&st.length)TECHS=st}catch(e){}
@@ -369,7 +370,7 @@ let DATA=genData(),SOURCE=null;
 /* ----- Import d'un fichier Organilog (script PowerShell) ----- */
 /* type d'absence Organilog -> congés / récup / non compté (réglable dans l'onglet Règles) */
 function absKind(tid,title){const m=(R.absTypes||{})[tid];if(m)return m;const n=String(title||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-  if(/recup/.test(n))return "recup";if(/maladie|arret|accident|sans solde|formation|ecole|cfa/.test(n))return "ignore";return "conges"}
+  if(/recup/.test(n))return "recup";if(/maladie|arret|accident/.test(n))return "maladie";if(/sans solde|formation|ecole|cfa/.test(n))return "ignore";return "conges"}
 function fromOrganilog(j){
   const users=(j.users&&j.users.results)||j.users||[],inter=(j.interventions&&j.interventions.results)||j.interventions||[],cl=j.clients||[];
   const cname={};(Array.isArray(cl)?cl:cl.results||[]).forEach(c=>cname[String(c.id)]=c.title||c.nom||c.name||("Client "+c.id));
@@ -390,7 +391,7 @@ function fromOrganilog(j){
     if(String(a.is_actif)==="0")return;
     const st=String(a.status==null||a.status===""?"2":a.status);if(st!=="2"){if(st!=="3")absPend++;return}
     const kind=absKind(tid,ti);if(kind==="ignore")return;
-    const code=kind==="recup"?"ZZZ RECUPERATION D'HEURES":"ZZZ CONGES PAYES";
+    const code=kind==="recup"?"ZZZ RECUPERATION D'HEURES":kind==="maladie"?"ZZZ MALADIE":"ZZZ CONGES PAYES";
     const nom=uname[String(a.fk_user_id)]||("Utilisateur "+a.fk_user_id),u=users.find(x=>String(x.id)===String(a.fk_user_id))||{};
     const dayM=Math.round((Number(u.week_working_hours)>0?Number(u.week_working_hours):35)/5*60),half=Math.round(dayM/2);
     const d0=String(a.date_start||"").slice(0,10),d1=String(a.date_end||a.date_start||"").slice(0,10);if(!okDate(d0)||!okDate(d1)||d1<d0)return;
@@ -426,11 +427,11 @@ const norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").repl
 function codeOf(c){const n=norm(c);return CODES.find(x=>n===norm(x.code)||n.startsWith(norm(x.code)+" "))}
 function ov(a0,a1,b0,b1){return Math.max(0,Math.min(a1,b1)-Math.max(a0,b0))}
 function isTrajet(e){const c=codeOf(e.client);return !!c&&c.k==="trajet"}
-const ZERO={atelier:0,restoEC:0,ecole:0,nuitLegal:0,travail:0,inter:0,trajet:0,trajetND:0,depot:0,fourn:0,pause:0,hors:0,nuit:0,sam:0,dim:0,fer:0,panier:0,resto:0,recup:0,congesJ:0,perm:0};
+const ZERO={atelier:0,restoEC:0,ecole:0,nuitLegal:0,travail:0,inter:0,trajet:0,trajetND:0,depot:0,fourn:0,pause:0,hors:0,nuit:0,sam:0,dim:0,fer:0,panier:0,resto:0,recup:0,congesJ:0,maladieJ:0,perm:0};
 function computeDay(tech,date){
   const es=DATA.filter(e=>e.tech===tech&&e.date===date).map(e=>({...e})).sort((a,b)=>a.deb.localeCompare(b.deb));
   const wd=new Date(date+"T12:00").getDay();
-  const r={...ZERO,es,conges:0,deb:null,fin:null};
+  const r={...ZERO,es,conges:0,maladie:0,deb:null,fin:null};
   const p0=toM(R.plageDeb),p1=toM(R.plageFin),n0=toM(R.nuitDeb),n1=toM(R.nuitFin);
   /* trajets : aller = avant le premier travail, retour = après le dernier, le reste = entre chantiers */
   const work=es.filter(e=>{const c=codeOf(e.client);return (!c||c.k==="depot"||c.k==="atelier"||c.k==="fourn"||c.k==="ecole")&&toM(e.fin)>toM(e.deb)});
@@ -469,6 +470,7 @@ function computeDay(tech,date){
     else if(c.k==="perm"){r.perm=1}
     else if(c.k==="recup"){r.recup+=dur}
     else if(c.k==="conges"){r.conges+=dur}
+    else if(c.k==="maladie"){r.maladie+=dur}
     e.maj=false;e.compte=travail;
     if(travail&&dur){
       r.travail+=dur;
@@ -482,8 +484,11 @@ function computeDay(tech,date){
     }
   });
   r.congesJ=r.conges?(r.conges/60<=R.demiCP?0.5:1):0;
+  r.maladieJ=r.maladie?(r.maladie/60<=R.demiCP?0.5:1):0;
   return r;
 }
+function absCell(x){const a=x.congesJ?x.congesJ+" j":"",m=x.maladieJ?`<small style="display:block;color:var(--ko,#C5372C)">maladie ${x.maladieJ} j</small>`:"";return a||m?(a||"–")+m:'<span class="z">–</span>'}
+function pdfAbs(x){return [x.congesJ?x.congesJ+" j":"",x.maladieJ?"mal. "+x.maladieJ+" j":""].filter(Boolean).join(" + ")||"-"}
 function sum(days){const t={...ZERO};days.forEach(d=>{for(const k in t)t[k]+=d[k]||0});return t}
 function weekHS(trav){const h=trav/60,b=R.base;return {hs25:Math.max(0,Math.min(h-b,8)),hs50:Math.max(0,h-b-8)}}
 function weekOf(tech,mon){const dd=Array.from({length:7},(_,i)=>({date:addD(mon,i),...computeDay(tech,ymd(addD(mon,i)))}));const s=sum(dd);return {mon,days:dd,s,...weekHS(s.travail)}}
@@ -588,7 +593,7 @@ function techView(){
     <div class="tile${maj?" hi":""}"><span>Heures majorées</span><b>${H(maj)}</b><small>hors plage ${H(t.hors)} · nuit ${H(t.nuit)}<br>sam. ${H(t.sam)} · dim. ${H(t.dim)}${t.fer?` · férié ${H(t.fer)}`:""}</small></div>
     <div class="tile"><span>Trajets payés</span><b>${H(t.trajet)}</b><small>${t.trajetND?H(t.trajetND)+" non dû (aller ou retour)":"aucun trajet écarté"}</small></div>
     <div class="tile"><span>Repas</span><b>${t.panier} · ${t.resto} · ${t.restoEC}</b><small>paniers · resto sans compte · en compte<br>à verser : ${P.repasEur?eur2(P.repasEur):"–"}${P.restoJustif?` + ${P.restoJustif} resto sur justif.`:""}</small></div>
-    <div class="tile${t.perm?" hi":""}"><span>Astreinte · absences</span><b>${P.permW} j</b><small>prime ${eur(P.prime)} brut<br>récup ${H(t.recup)} · CP ${t.congesJ||0} j</small></div>
+    <div class="tile${t.perm?" hi":""}"><span>Astreinte · absences</span><b>${P.permW} j</b><small>prime ${eur(P.prime)} brut<br>récup ${H(t.recup)} · CP ${t.congesJ||0} j${t.maladieJ?" · maladie "+t.maladieJ+" j":""}</small></div>
     ${(()=>{const k=mkey(ref),v=primeMois(tech,k),lab=ref.toLocaleDateString("fr-FR",{month:"long"});
       return `<div class="tile prime${v?" set":""}"><span>Prime mensuelle brute · ${lab}</span><label class="pinput"><input type="number" class="pmt" data-k="${k}" min="0" step="1" value="${v||""}" placeholder="aucune" aria-label="Prime mensuelle de ${esc(tech)} en ${lab}"><em>€ brut</em></label><small>${v?"incluse dans le récap et le PDF du mois":"facultative · laisser vide si pas de prime"}</small></div>`})()}
   </section>
@@ -600,7 +605,7 @@ function techView(){
       <div class="dh">Jour</div><div class="dh" style="flex-direction:column;align-items:stretch">${axisHead()}</div>
       <div class="dh num">Début–fin</div><div class="dh num">Interv.</div><div class="dh num">Trajet</div><div class="dh num">Dépôt / atelier / fourn.</div><div class="dh num">Total</div><div class="dh num">Majorées</div><div class="dh">Repas · absences</div>`;
     P.days.forEach(d=>{const we=d.date.getDay()%6===0,cls=we?" we":"",mj=d.hors+d.nuit+d.sam+d.dim+(d.fer||0);
-      const ab=[d.perm?'<span class="pill o">Astreinte</span>':"",d.panier?'<span class="pill">Panier</span>':"",d.resto?'<span class="pill">Resto s/c</span>':"",d.restoEC?'<span class="pill">Resto en compte</span>':"",d.recup?`<span class="pill o">Récup ${H(d.recup)}</span>`:"",d.congesJ?`<span class="pill">CP ${d.congesJ} j</span>`:""].join("");
+      const ab=[d.perm?'<span class="pill o">Astreinte</span>':"",d.panier?'<span class="pill">Panier</span>':"",d.resto?'<span class="pill">Resto s/c</span>':"",d.restoEC?'<span class="pill">Resto en compte</span>':"",d.recup?`<span class="pill o">Récup ${H(d.recup)}</span>`:"",d.congesJ?`<span class="pill">CP ${d.congesJ} j</span>`:"",d.maladieJ?`<span class="pill o">Maladie ${d.maladieJ} j</span>`:""].join("");
       h+=`<div class="dc day${cls}" data-day="${ymd(d.date)}" style="cursor:pointer"><b>${JOURS[d.date.getDay()]}</b><small>${d.date.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</small>${ferie(ymd(d.date))?`<span class="pill fer" title="Jour férié">🎌 ${ferie(ymd(d.date))}</span>`:""}</div>
         <div class="dc${cls}" data-day="${ymd(d.date)}" style="cursor:pointer">${axisHTML(d)}</div>
         <div class="dc num${cls}">${d.deb!==null?hm(d.deb)+"–"+hm(d.fin):'<span class="z">–</span>'}</div>
@@ -614,8 +619,8 @@ function techView(){
       return `<tr><td>${e.deb}</td><td>${e.fin}</td><td class="num">${dur?H(dur):"–"}</td><td class="num${e.decl&&toM(e.decl)!==dur?" hot":""}" title="${e.decl&&toM(e.decl)!==dur?"Temps déclaré différent des horaires":""}">${e.decl?H(toM(e.decl)):"–"}</td><td class="${c?"codes":""}">${esc(e.client)}${e.nom&&!c?`<small class="just">${esc(e.nom)}</small>`:""}</td><td>${cls}${e.maj?' <span class="pill o">majorée</span>':""}${e.chev?` <span class="pill o" title="Chevauche la saisie précédente : ${e.chev} min non comptées en double">chevauchement ${H(e.chev)}</span>`:""}${e.pded?` <span class="pill" title="La pause saisie pendant cette intervention est retirée du temps de travail">− ${H(e.pded)} de pause</span>`:""}</td><td>${eff}</td></tr>`}).join("")||'<tr><td colspan="7" class="hint">Aucune saisie ce jour-là.</td></tr>'}</tbody></table></div></div>`;
     else h+=`<p class="hint">Cliquez sur un jour pour voir le détail des saisies Organilog.</p>`;
   }else{
-    h+=`<div class="panel"><h3>Semaines du mois</h3><div class="tblwrap"><table><thead><tr><th>Semaine</th><th class="num">Travaillé</th><th class="num">Contrat</th><th class="num">HS 25 %</th><th class="num">HS 50 %</th><th class="num">Majorées</th><th class="num">Trajet</th><th class="num">Pause</th><th class="num">Paniers</th><th class="num">Resto s/c</th><th class="num">Astr.</th><th class="num">Récup</th><th class="num">CP</th></tr></thead><tbody>${P.weeks.map(w=>{const s=w.s,mj=s.hors+s.nuit+s.sam+s.dim+(s.fer||0);
-      return `<tr class="click" data-week="${ymd(w.mon)}"><td>S${isoW(w.mon)} · du ${w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</td><td class="num"><b>${H(s.travail)}</b></td><td class="num">${P.contrat} h</td><td class="num${w.hs25?" hot":""}">${Hh(w.hs25)}</td><td class="num${w.hs50?" hot":""}">${Hh(w.hs50)}</td><td class="num${mj?" hot":""}">${H(mj)}</td><td class="num">${H(s.trajet)}</td><td class="num">${H(s.pause)}</td><td class="num">${s.panier||'<span class="z">–</span>'}</td><td class="num">${s.resto||'<span class="z">–</span>'}</td><td class="num">${s.perm?s.perm+" j":'<span class="z">–</span>'}</td><td class="num">${H(s.recup)}</td><td class="num">${s.congesJ?s.congesJ+" j":'<span class="z">–</span>'}</td></tr>`}).join("")}</tbody></table></div><p class="hint">Cliquez sur une semaine pour l'ouvrir jour par jour. Le mois regroupe les semaines qui commencent dans le mois.</p></div>`;
+    h+=`<div class="panel"><h3>Semaines du mois</h3><div class="tblwrap"><table><thead><tr><th>Semaine</th><th class="num">Travaillé</th><th class="num">Contrat</th><th class="num">HS 25 %</th><th class="num">HS 50 %</th><th class="num">Majorées</th><th class="num">Trajet</th><th class="num">Pause</th><th class="num">Paniers</th><th class="num">Resto s/c</th><th class="num">Astr.</th><th class="num">Récup</th><th class="num">CP · maladie</th></tr></thead><tbody>${P.weeks.map(w=>{const s=w.s,mj=s.hors+s.nuit+s.sam+s.dim+(s.fer||0);
+      return `<tr class="click" data-week="${ymd(w.mon)}"><td>S${isoW(w.mon)} · du ${w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</td><td class="num"><b>${H(s.travail)}</b></td><td class="num">${P.contrat} h</td><td class="num${w.hs25?" hot":""}">${Hh(w.hs25)}</td><td class="num${w.hs50?" hot":""}">${Hh(w.hs50)}</td><td class="num${mj?" hot":""}">${H(mj)}</td><td class="num">${H(s.trajet)}</td><td class="num">${H(s.pause)}</td><td class="num">${s.panier||'<span class="z">–</span>'}</td><td class="num">${s.resto||'<span class="z">–</span>'}</td><td class="num">${s.perm?s.perm+" j":'<span class="z">–</span>'}</td><td class="num">${H(s.recup)}</td><td class="num">${absCell(s)}</td></tr>`}).join("")}</tbody></table></div><p class="hint">Cliquez sur une semaine pour l'ouvrir jour par jour. Le mois regroupe les semaines qui commencent dans le mois.</p></div>`;
   }
   return h;
 }
@@ -635,9 +640,9 @@ function equipeView(){
   const rp=repartition(T);
   return `<div class="note">Vue paie : tout ce dont la paie a besoin pour la période, technicien par technicien. Les restaurants en compte sont réglés directement par ${window.__SOCN} ; seuls les paniers et les restaurants sans compte sont à verser au technicien. Cliquez sur une ligne pour ouvrir la fiche, ou téléchargez le PDF de l'équipe (une page par technicien).</div>
   <div class="panel"><h3>Récap ${per==="semaine"?"de la semaine":"du mois"}</h3><div class="tblwrap"><table>
-   <thead><tr><th>Technicien</th><th class="num">Contrat</th><th class="num">Travaillé</th><th class="num">HS 25 %</th><th class="num">HS 50 %</th><th class="num">HS payées</th><th class="num">Compteur HS</th><th class="num">Hors plage +${R.tHors} %</th><th class="num">Nuit +${R.tNuit} %</th><th class="num">Sam. +${R.tSam} %</th><th class="num">Dim. +${R.tDim} %</th><th class="num">Paniers</th><th class="num">Resto s/c</th><th class="num">Astr.</th><th class="num">Prime astr. (brut)</th><th class="num">Repas à verser</th>${showPM?'<th class="num">Prime mensuelle (brut)</th>':""}<th class="num">Récup prise</th><th class="num">CP</th></tr></thead>
-   <tbody>${rows.map(r=>{const t=r.t;return `<tr class="click" data-tech="${esc(r.tech)}"><td><b>${esc(r.tech)}</b>${r.type==="apprenti"?' <span class="pill">Apprenti</span>':""}${r.alerts.length?` <span class="pill o" title="${esc(r.alerts.join(" · "))}">${r.alerts.length} alerte${r.alerts.length>1?"s":""}</span>`:""}</td><td class="num">${r.contratP} h</td><td class="num"><b>${H(t.travail)}</b></td><td class="num${r.hs25?" hot":""}">${Hh(r.hs25)}</td><td class="num${r.hs50?" hot":""}">${Hh(r.hs50)}</td><td class="num">${r.payeesP?fmt(r.payeesP*60):'<span class="z">–</span>'}</td><td class="num">${fmt(r.s1*60)}</td><td class="num">${H(t.hors)}</td><td class="num">${H(t.nuit)}</td><td class="num">${H(t.sam)}</td><td class="num">${H(t.dim)}</td><td class="num">${t.panier||'<span class="z">–</span>'}</td><td class="num">${t.resto||'<span class="z">–</span>'}</td><td class="num">${r.permW?r.permW+" j":'<span class="z">–</span>'}</td><td class="num">${r.prime?eur(r.prime)+" brut":'<span class="z">–</span>'}</td><td class="num">${r.repasEur||r.restoJustif?(r.repasEur?eur2(r.repasEur):'')+(r.restoJustif?`<small class="just">${r.repasEur?' + ':''}${r.restoJustif} resto sur justif.</small>`:''):'<span class="z">–</span>'}</td>${showPM?`<td class="num">${r.primeM?eur(r.primeM)+" brut":'<span class="z">–</span>'}</td>`:''}<td class="num">${H(t.recup)}</td><td class="num">${t.congesJ?t.congesJ+" j":'<span class="z">–</span>'}</td></tr>`}).join("")}</tbody>
-   <tfoot><tr><td>Équipe</td><td></td><td class="num">${H(T.travail)}</td><td class="num">${Hh(hs25)}</td><td class="num">${Hh(hs50)}</td><td></td><td></td><td class="num">${H(T.hors)}</td><td class="num">${H(T.nuit)}</td><td class="num">${H(T.sam)}</td><td class="num">${H(T.dim)}</td><td class="num">${T.panier}</td><td class="num">${T.resto}</td><td class="num">${rows.reduce((a,r)=>a+r.permW,0)} j</td><td class="num">${eur(prime)} brut</td><td class="num">${eur2(rows.reduce((a,r)=>a+r.repasEur,0))}</td>${showPM?`<td class="num">${eur(rows.reduce((a,r)=>a+r.primeM,0))} brut</td>`:""}<td class="num">${H(T.recup)}</td><td class="num">${T.congesJ?T.congesJ+" j":"–"}</td></tr></tfoot>
+   <thead><tr><th>Technicien</th><th class="num">Contrat</th><th class="num">Travaillé</th><th class="num">HS 25 %</th><th class="num">HS 50 %</th><th class="num">HS payées</th><th class="num">Compteur HS</th><th class="num">Hors plage +${R.tHors} %</th><th class="num">Nuit +${R.tNuit} %</th><th class="num">Sam. +${R.tSam} %</th><th class="num">Dim. +${R.tDim} %</th><th class="num">Paniers</th><th class="num">Resto s/c</th><th class="num">Astr.</th><th class="num">Prime astr. (brut)</th><th class="num">Repas à verser</th>${showPM?'<th class="num">Prime mensuelle (brut)</th>':""}<th class="num">Récup prise</th><th class="num">CP · maladie</th></tr></thead>
+   <tbody>${rows.map(r=>{const t=r.t;return `<tr class="click" data-tech="${esc(r.tech)}"><td><b>${esc(r.tech)}</b>${r.type==="apprenti"?' <span class="pill">Apprenti</span>':""}${r.alerts.length?` <span class="pill o" title="${esc(r.alerts.join(" · "))}">${r.alerts.length} alerte${r.alerts.length>1?"s":""}</span>`:""}</td><td class="num">${r.contratP} h</td><td class="num"><b>${H(t.travail)}</b></td><td class="num${r.hs25?" hot":""}">${Hh(r.hs25)}</td><td class="num${r.hs50?" hot":""}">${Hh(r.hs50)}</td><td class="num">${r.payeesP?fmt(r.payeesP*60):'<span class="z">–</span>'}</td><td class="num">${fmt(r.s1*60)}</td><td class="num">${H(t.hors)}</td><td class="num">${H(t.nuit)}</td><td class="num">${H(t.sam)}</td><td class="num">${H(t.dim)}</td><td class="num">${t.panier||'<span class="z">–</span>'}</td><td class="num">${t.resto||'<span class="z">–</span>'}</td><td class="num">${r.permW?r.permW+" j":'<span class="z">–</span>'}</td><td class="num">${r.prime?eur(r.prime)+" brut":'<span class="z">–</span>'}</td><td class="num">${r.repasEur||r.restoJustif?(r.repasEur?eur2(r.repasEur):'')+(r.restoJustif?`<small class="just">${r.repasEur?' + ':''}${r.restoJustif} resto sur justif.</small>`:''):'<span class="z">–</span>'}</td>${showPM?`<td class="num">${r.primeM?eur(r.primeM)+" brut":'<span class="z">–</span>'}</td>`:''}<td class="num">${H(t.recup)}</td><td class="num">${absCell(t)}</td></tr>`}).join("")}</tbody>
+   <tfoot><tr><td>Équipe</td><td></td><td class="num">${H(T.travail)}</td><td class="num">${Hh(hs25)}</td><td class="num">${Hh(hs50)}</td><td></td><td></td><td class="num">${H(T.hors)}</td><td class="num">${H(T.nuit)}</td><td class="num">${H(T.sam)}</td><td class="num">${H(T.dim)}</td><td class="num">${T.panier}</td><td class="num">${T.resto}</td><td class="num">${rows.reduce((a,r)=>a+r.permW,0)} j</td><td class="num">${eur(prime)} brut</td><td class="num">${eur2(rows.reduce((a,r)=>a+r.repasEur,0))}</td>${showPM?`<td class="num">${eur(rows.reduce((a,r)=>a+r.primeM,0))} brut</td>`:""}<td class="num">${H(T.recup)}</td><td class="num">${absCell(T)}</td></tr></tfoot>
   </table></div></div>
   <div class="panel rep"><h3>Où passe le temps de travail de l'équipe <small>${rp.prod} % chez le client, hors pauses</small></h3><div class="stack">${rp.bar}</div><div class="replegend">${rp.leg}</div>
    <div class="tblwrap" style="margin-top:14px"><table class="mini"><tbody>${rows.map(r=>{const x=repartition(r.t);return `<tr><td style="width:90px"><b>${esc(r.tech)}</b></td><td><div class="stack sm">${x.bar}</div></td><td class="num" style="width:70px">${x.prod} %</td></tr>`}).join("")}</tbody></table></div></div>`;
@@ -673,10 +678,10 @@ function techRow(t){return `<tr><td><input type="text" data-f="nom" value="${esc
   <td><button class="btn" type="button" data-del="1">Retirer</button></td></tr>`}
 function absPanel(){const S=window.__absSeen||{},ids=Object.keys(S),pend=window.__absPend||0;
   const opt=(tid,v,l)=>`<option value="${v}"${absKind(tid,S[tid].title)===v?" selected":""}>${l}</option>`;
-  return `<div class="panel"><h3>🏖️ Absences Organilog</h3><p class="hint" style="margin:0 0 10px">Les congés se posent dans le module <b>Absences</b> d'Organilog, du premier au dernier jour, en une seule fois. La page compte chaque jour ouvré (lundi au vendredi, hors fériés) : 1 jour, ou ½ jour quand l'absence commence l'après-midi ou s'arrête le midi. Seules les absences <b>validées</b> comptent${pend?` (${pend} en attente de validation sur la période chargée)`:""}.</p>
-   ${ids.length?`<div class="tblwrap"><table><thead><tr><th>Type d'absence Organilog</th><th>Nb</th><th>Compté comme</th></tr></thead><tbody>${ids.map(tid=>`<tr><td>${esc(S[tid].title||"Type n° "+tid)}</td><td class="num">${S[tid].n}</td><td><select data-abs="${esc(tid)}" aria-label="Compté comme">${opt(tid,"conges","Congés payés")}${opt(tid,"recup","Récupération (déduite du compteur)")}${opt(tid,"ignore","Non compté (maladie, autre…)")}</select></td></tr>`).join("")}</tbody></table></div>`:`<p class="hint" style="margin:0">Aucune absence trouvée sur la période chargée${window.__absErr?` (Organilog a répondu : ${esc(window.__absErr)})`:""}.</p>`}</div>`}
+  return `<div class="panel"><h3>🏖️ Absences Organilog</h3><p class="hint" style="margin:0 0 10px">Les congés et les arrêts maladie se posent dans le module <b>Absences</b> d'Organilog, du premier au dernier jour, en une seule fois. La page compte chaque jour ouvré (lundi au vendredi, hors fériés) : 1 jour, ou ½ jour quand l'absence commence l'après-midi ou s'arrête le midi. Seules les absences <b>validées</b> comptent${pend?` (${pend} en attente de validation sur la période chargée)`:""}.</p>
+   ${ids.length?`<div class="tblwrap"><table><thead><tr><th>Type d'absence Organilog</th><th>Nb</th><th>Compté comme</th></tr></thead><tbody>${ids.map(tid=>`<tr><td>${esc(S[tid].title||"Type n° "+tid)}</td><td class="num">${S[tid].n}</td><td><select data-abs="${esc(tid)}" aria-label="Compté comme">${opt(tid,"conges","Congés payés")}${opt(tid,"maladie","Maladie / arrêt")}${opt(tid,"recup","Récupération (déduite du compteur)")}${opt(tid,"ignore","Non compté")}</select></td></tr>`).join("")}</tbody></table></div>`:`<p class="hint" style="margin:0">Aucune absence trouvée sur la période chargée${window.__absErr?` (Organilog a répondu : ${esc(window.__absErr)})`:""}.</p>`}</div>`}
 function reglesView(){
-  const eff={atelier:"temps de travail · stat atelier",ecole:"temps de travail (formation), non majoré",depot:"temps de travail · stat dépôt",trajet:"un trajet dû par jour selon la règle ci-dessous ; les trajets entre chantiers comptent toujours",fourn:"temps de travail · stat fournisseur",perm:"jour d'astreinte (saisie sans durée possible) : chaque jour saisi compte pour une prime (week-end, jour férié…)",recup:"heures déduites du compteur d'heures sup.",conges:"jour ou demi-journée de congés payés"};
+  const eff={atelier:"temps de travail · stat atelier",ecole:"temps de travail (formation), non majoré",depot:"temps de travail · stat dépôt",trajet:"un trajet dû par jour selon la règle ci-dessous ; les trajets entre chantiers comptent toujours",fourn:"temps de travail · stat fournisseur",perm:"jour d'astreinte (saisie sans durée possible) : chaque jour saisi compte pour une prime (week-end, jour férié…)",recup:"heures déduites du compteur d'heures sup.",conges:"jour ou demi-journée de congés payés",maladie:"jour ou demi-journée d'absence maladie (non travaillée)"};
   return `<div class="panel"><h3>Codes Organilog</h3><p class="hint" style="margin:0 0 10px">Chaque saisie Organilog est classée selon le nom du client. Tout client réel compte comme intervention.</p><div class="tblwrap"><table><thead><tr><th>Client Organilog</th><th>Classé en</th><th>Effet</th></tr></thead><tbody>
    ${CODES.map(c=>`<tr><td class="codes">${c.code}</td><td>${c.label}</td><td>${c.k==="repas"?"pause non comptée · 1 "+c.label.toLowerCase()+" par jour":eff[c.k]}</td></tr>`).join("")}
    <tr><td><i>tout autre client</i></td><td>Intervention</td><td>temps de travail, au temps saisi par le technicien</td></tr></tbody></table></div></div>
@@ -721,12 +726,12 @@ function pdfTech(doc,P,p,r){
   let head,body;
   if(p==="semaine"){
     head=[["Jour","Début","Fin","Interv.","Trajet","Dépôt/Atel.","Fourn.","Pause","Total","Majorées","Repas / absences"]];
-    body=P.days.map(d=>[pdfTxt(JOURS[d.date.getDay()]+" "+d.date.getDate()+(ferie(ymd(d.date))?" (férié)":"")),d.deb!==null?hm(d.deb):"-",d.fin!==null?hm(d.fin):"-",fm(d.inter),fm(d.trajet),fm(d.depot+d.atelier),fm(d.fourn),fm(d.pause),fm(d.travail),fm(d.hors+d.nuit+d.sam+d.dim+(d.fer||0)),pdfTxt([d.perm?"Astreinte":"",d.panier?"Panier":"",d.resto?"Resto s/c":"",d.restoEC?"Resto en compte":"",d.recup?"Récup "+fmt(d.recup):"",d.congesJ?"CP "+d.congesJ+" j":""].filter(Boolean).join(", ")||"-")]);
+    body=P.days.map(d=>[pdfTxt(JOURS[d.date.getDay()]+" "+d.date.getDate()+(ferie(ymd(d.date))?" (férié)":"")),d.deb!==null?hm(d.deb):"-",d.fin!==null?hm(d.fin):"-",fm(d.inter),fm(d.trajet),fm(d.depot+d.atelier),fm(d.fourn),fm(d.pause),fm(d.travail),fm(d.hors+d.nuit+d.sam+d.dim+(d.fer||0)),pdfTxt([d.perm?"Astreinte":"",d.panier?"Panier":"",d.resto?"Resto s/c":"",d.restoEC?"Resto en compte":"",d.recup?"Récup "+fmt(d.recup):"",d.congesJ?"CP "+d.congesJ+" j":"",d.maladieJ?"Maladie "+d.maladieJ+" j":""].filter(Boolean).join(", ")||"-")]);
     body.push(["Total","","",fm(t.inter),fm(t.trajet),fm(t.depot+t.atelier),fm(t.fourn),fm(t.pause),fm(t.travail),fm(maj),""]);
   }else{
-    head=[["Semaine","Travaillé","HS 25 %","HS 50 %","Majorées","Trajet","Pause","Paniers","Resto s/c","Astr.","Récup","CP"]];
-    body=P.weeks.map(w=>{const s=w.s;return [pdfTxt("S"+isoW(w.mon)+" - du "+w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})),fm(s.travail),w.hs25?fmt(w.hs25*60):"-",w.hs50?fmt(w.hs50*60):"-",fm(s.hors+s.nuit+s.sam+s.dim+(s.fer||0)),fm(s.trajet),fm(s.pause),String(s.panier||"-"),String(s.resto||"-"),s.perm?s.perm+" j":"-",fm(s.recup),s.congesJ?s.congesJ+" j":"-"]});
-    body.push(["Total",fm(t.travail),P.hs25?fmt(P.hs25*60):"-",P.hs50?fmt(P.hs50*60):"-",fm(maj),fm(t.trajet),fm(t.pause),String(t.panier),String(t.resto),P.permW+" j",fm(t.recup),(t.congesJ||0)+" j"]);
+    head=[["Semaine","Travaillé","HS 25 %","HS 50 %","Majorées","Trajet","Pause","Paniers","Resto s/c","Astr.","Récup","CP / maladie"]];
+    body=P.weeks.map(w=>{const s=w.s;return [pdfTxt("S"+isoW(w.mon)+" - du "+w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})),fm(s.travail),w.hs25?fmt(w.hs25*60):"-",w.hs50?fmt(w.hs50*60):"-",fm(s.hors+s.nuit+s.sam+s.dim+(s.fer||0)),fm(s.trajet),fm(s.pause),String(s.panier||"-"),String(s.resto||"-"),s.perm?s.perm+" j":"-",fm(s.recup),pdfAbs(s)]});
+    body.push(["Total",fm(t.travail),P.hs25?fmt(P.hs25*60):"-",P.hs50?fmt(P.hs50*60):"-",fm(maj),fm(t.trajet),fm(t.pause),String(t.panier),String(t.resto),P.permW+" j",fm(t.recup),pdfAbs(t)||"0 j"]);
   }
   doc.autoTable({startY:43,head,body,theme:"grid",styles:{font:"helvetica",fontSize:8.5,cellPadding:1.8,lineColor:[222,220,216],lineWidth:.2,textColor:[34,33,31]},
     headStyles:{fillColor:[255,255,255],textColor:O,fontStyle:"bold",lineWidth:{bottom:.6},lineColor:O},
@@ -745,7 +750,7 @@ function pdfTech(doc,P,p,r){
   const h4=box(14+cw+8,y,cw,"Répartition du temps de travail",REP.map(([k,l])=>[l,fm(t[k])+"  ("+Math.round(t[k]/rpT*100)+" %)"]).concat(HORS.map(([k,l])=>[l+" (non compté)",fm(t[k])])));
   y+=Math.max(h3,h4)+8;
   doc.setFontSize(9);doc.setTextColor(...G);
-  doc.text(pdfTxt("Récup prise : "+fm(t.recup)+"    Congés payés : "+(t.congesJ||0)+" j"+(P.type==="apprenti"?"    École / CFA : "+fm(t.ecole):"")),14,y);y+=6;
+  doc.text(pdfTxt("Récup prise : "+fm(t.recup)+"    Congés payés : "+(t.congesJ||0)+" j    Maladie / arrêt : "+(t.maladieJ||0)+" j"+(P.type==="apprenti"?"    École / CFA : "+fm(t.ecole):"")),14,y);y+=6;
   if(P.alerts.length){doc.setTextColor(168,79,14);P.alerts.slice(0,6).forEach(a=>{doc.text(pdfTxt("! "+a),14,y);y+=4.6});doc.setTextColor(...G)}
   y+=6;
   doc.setDrawColor(...L);doc.line(14,y,90,y);doc.line(W-90,y,W-14,y);
