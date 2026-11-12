@@ -32,14 +32,33 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);fo
 .btn.primary{background:var(--c-orange);border-color:var(--c-orange);color:#fff}
 .btn.danger{color:var(--alert);border-color:var(--alert)}
 .shell{flex:1;display:flex;min-height:0}
-.tabs{flex:none;width:228px;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:3px;padding:14px 10px calc(14px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));overflow-y:auto}
-.tab{font:inherit;font-family:var(--f-display);font-size:19px;font-weight:600;background:none;border:0;border-left:4px solid transparent;border-radius:8px;color:var(--muted);padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;line-height:1.1}
+.tabs{flex:none;width:264px;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;padding:10px 8px calc(12px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));overflow-y:auto;transition:width .18s}
+.grp{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
+.gh{display:flex;align-items:center;gap:8px;border:0;background:none;font:700 11px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:8px 10px 4px;cursor:pointer;text-align:left;border-radius:6px}
+.gh:hover{color:var(--ink)}.gh .chev{margin-left:auto;transition:transform .15s;font-size:10px}.gh .cnt{display:none;letter-spacing:0;text-transform:none;font-weight:600}
+.grp.closed .chev{transform:rotate(-90deg)}.grp.closed .items{display:none}.grp.closed .gh .cnt{display:inline}
+.items{display:flex;flex-direction:column;gap:2px}
+.tab{font:inherit;font-family:var(--f-display);font-size:18px;font-weight:600;background:none;border:0;border-left:4px solid transparent;border-radius:8px;color:var(--muted);padding:8px 10px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;line-height:1.1;white-space:nowrap}
 .tab:hover{background:var(--soft);color:var(--ink)}
 .tab[aria-selected=true]{color:var(--ink);background:var(--soft);border-left-color:var(--tc,var(--c-orange))}
-.tab .ic{font-size:20px;width:26px;text-align:center;flex:none}
+.tab .ic{font-size:19px;width:24px;text-align:center;flex:none}
+.tab .lb{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .tab .sh{display:none}
-.tab.params{margin-top:auto}
-.tabs .sep2{height:1px;background:var(--line);margin:8px 6px}
+.bottomtools{margin-top:auto;display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:8px}
+/* menu réduit : icônes seulement */
+.tabs.mini{width:64px}
+.tabs.mini .gh .gl,.tabs.mini .gh .chev,.tabs.mini .gh .cnt,.tabs.mini .gh .gi,.tabs.mini .tab .lb{display:none}
+.tabs.mini .gh{justify-content:center;padding:6px 0 2px;cursor:default}.tabs.mini .gh::after{content:"";display:block;width:24px;height:1px;background:var(--line)}
+.tabs.mini .tab{justify-content:center;padding:9px 0;border-left-width:3px}
+.tabs.mini .grp.closed .items{display:flex}
+/* téléphone : barre du bas + feuille « Plus » */
+.bbar{display:none}
+.sheet{position:fixed;inset:0;background:rgba(10,12,14,.45);z-index:40;display:flex;align-items:flex-end}
+.sheet .in{background:var(--surface);width:100%;max-height:80vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px}
+.sheet h3{margin:6px 0 2px;font:700 12px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sgrid button{border:1px solid var(--line);background:var(--surface);border-top:4px solid var(--tc,var(--c-orange));border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font:600 13px var(--f-body);color:var(--ink);cursor:pointer;text-align:center}
+.sgrid button .ic{font-size:22px}.sgrid button[aria-selected=true]{background:var(--soft)}
 main{flex:1;position:relative;min-height:0;min-width:0}
 main iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
 .panel{position:absolute;inset:0;overflow:auto;padding:20px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
@@ -60,11 +79,13 @@ td input[type=checkbox]{width:20px;height:20px;accent-color:var(--c-orange);curs
 .gatecard .logos{justify-self:start}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ok);color:#fff;border-radius:8px;padding:10px 16px;font-weight:600;z-index:50}
 .toast.bad{background:var(--alert)}
-@media (max-width:1000px){.tabs{width:84px;padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:6px}.tab{flex-direction:column;gap:3px;font-family:var(--f-body);font-size:11.5px;padding:8px 2px;text-align:center;border-left:0;border-bottom:3px solid transparent}.tab[aria-selected=true]{border-bottom-color:var(--tc,var(--c-orange))}.tab .ic{font-size:22px;width:auto}.tab .lb{display:none}.tab .sh{display:block}}
+@media (max-width:1000px){.tabs{width:64px}.tabs .gh .gl,.tabs .gh .chev,.tabs .gh .cnt,.tabs .gh .gi,.tabs .tab .lb,#mini{display:none}.tabs .gh{justify-content:center;padding:6px 0 2px;cursor:default}.tabs .gh::after{content:"";display:block;width:24px;height:1px;background:var(--line)}.tabs .tab{justify-content:center;padding:9px 0;border-left-width:3px}.tabs .grp.closed .items{display:flex}}
 @media (max-width:700px){.logos img{height:26px}.logos{gap:8px;padding:2px 4px}.title{display:none}.row1{flex-wrap:nowrap;gap:8px}.user #who{display:none}.user .btn{padding:4px 10px;min-height:32px}.head{padding-top:6px;padding-bottom:6px}
-  .shell{flex-direction:column-reverse}
-  .tabs{width:auto;flex-direction:row;border-right:0;border-top:1px solid var(--line);padding:4px max(4px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px));overflow-x:auto;overflow-y:hidden;gap:2px}
-  .tab{flex:1 0 64px;padding:6px 2px}.tab.params{margin-top:0}.tabs .sep2{display:none}}
+  .tabs{display:none}
+  .shell{padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))}
+  .bbar:not([hidden]){display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:4px max(6px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px));z-index:30}
+  .bbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 2px;font:600 11px var(--f-body);color:var(--muted);cursor:pointer;border-radius:10px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bbar button .ic{font-size:21px}.bbar button[aria-selected=true]{color:var(--ink);background:var(--soft)}}
 .rgmod{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px}
 .rgmod h3{margin:0 0 8px;font-family:var(--f-display);font-size:20px}
 .rgmod.muted{background:var(--soft)}
@@ -118,6 +139,7 @@ td input[type=checkbox]{width:20px;height:20px;accent-color:var(--c-orange);curs
   </div>
 </header>
 <div class="shell"><nav class="tabs" id="tabs" role="tablist" aria-orientation="vertical" hidden></nav><main id="main"></main></div>
+<nav class="bbar" id="bbar" aria-label="Onglets" hidden></nav><div id="sheetwrap"></div>
 <div id="toast" class="toast" hidden></div>
 <script>
 /* Microsoft MSAL.js 2.38.3 (MIT) */
@@ -199,22 +221,24 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
    ===================================================================== */
 const CONFIG={tenantId:"14b03bce-aec8-408e-9686-c43ea4a503d8",clientId:"f66f2711-d9e4-4fd3-be11-57367c333c87",site:"root",liste:"Portail acces"};
 const OWNER="d.blin@chassaing-technologies.fr";   // seul à gérer les paramètres
-const BUILD_V="202611111716"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
+const BUILD_V="202611120551"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
 const MODULES=[
-  {k:"accueil",ic:"🏠",lab:"Accueil",sh:"Accueil",url:"accueil.html?embed=1",tc:"var(--c-blue)",tous:true},
-  {k:"agenda",ic:"📅",lab:"Agenda",sh:"Agenda",url:"agenda.html?embed=1",tc:"var(--c-orange)"},
-  {k:"taches",ic:"✅",lab:"Mes tâches",sh:"Tâches",url:"agenda.html?embed=1&mode=taches",tc:"var(--c-blue)",tous:true},
-  {k:"devis",ic:"📋",lab:"Demandes de devis",sh:"Devis",url:"index.html?embed=1",tc:"var(--c-bordeaux)"},
-  {k:"planning",ic:"🏗️",lab:"Planning chantiers",sh:"Chantiers",url:"planning.html?embed=1",tc:"var(--c-ocre)"},
-  {k:"suivi",ic:"📈",lab:"Suivi de chantier",sh:"Suivi",url:"suivi.html?embed=1",tc:"var(--c-orange)"},
-  {k:"terrain",ic:"👷",lab:"Mes chantiers (techs)",sh:"Terrain",url:"suivi.html?embed=1&mode=terrain",tc:"var(--c-blue)"},
-  {k:"stats",ic:"📊",lab:"Statistiques",sh:"Stats",url:"stats.html?embed=1",tc:"var(--c-blue)"},
-  {k:"chiffres",ic:"📈",lab:"Chiffres mensuels",sh:"Chiffres",url:"chiffres.html?embed=1",tc:"var(--c-blue)"},
-  {k:"evts",ic:"🎪",lab:"Événements",sh:"Événements",url:"evenements.html?embed=1",tc:"var(--c-bordeaux)"},
-  {k:"renta",ic:"💰",lab:"Rentabilité devis",sh:"Rentabilité",url:"rentabilite.html?embed=1",tc:"var(--c-ocre)"},
-  {k:"maint",ic:"🧮",lab:"Contrats maintenance",sh:"Maintenance",url:"maintenance.html?embed=1",tc:"var(--c-orange)"},
-  {k:"heures",ic:"⏱️",lab:"Heures Artik",sh:"Heures Artik",url:"heures.html?embed=1",tc:"var(--c-bordeaux)"},
-  {k:"heures-ch",ic:"⏱️",lab:"Heures Chassaing",sh:"Heures Chass.",url:"heures.html?embed=1&soc=chassaing",tc:"var(--c-ocre)"}];
+  {k:"accueil",ic:"🏠",lab:"Accueil",sh:"Accueil",url:"accueil.html?embed=1",tc:"var(--c-blue)",tous:true,g:"quot"},
+  {k:"agenda",ic:"📅",lab:"Agenda",sh:"Agenda",url:"agenda.html?embed=1",tc:"var(--c-orange)",g:"quot"},
+  {k:"taches",ic:"✅",lab:"Mes tâches",sh:"Tâches",url:"agenda.html?embed=1&mode=taches",tc:"var(--c-blue)",tous:true,g:"quot"},
+  {k:"devis",ic:"📋",lab:"Demandes de devis",sh:"Devis",url:"index.html?embed=1",tc:"var(--c-bordeaux)",g:"com"},
+  {k:"renta",ic:"💰",lab:"Rentabilité devis",sh:"Rentabilité",url:"rentabilite.html?embed=1",tc:"var(--c-ocre)",g:"com"},
+  {k:"maint",ic:"🧮",lab:"Contrats maintenance",sh:"Maintenance",url:"maintenance.html?embed=1",tc:"var(--c-orange)",g:"com"},
+  {k:"evts",ic:"🎪",lab:"Événements",sh:"Événements",url:"evenements.html?embed=1",tc:"var(--c-bordeaux)",g:"com"},
+  {k:"planning",ic:"🏗️",lab:"Planning chantiers",sh:"Chantiers",url:"planning.html?embed=1",tc:"var(--c-ocre)",g:"chan"},
+  {k:"suivi",ic:"📈",lab:"Suivi de chantier",sh:"Suivi",url:"suivi.html?embed=1",tc:"var(--c-orange)",g:"chan"},
+  {k:"terrain",ic:"👷",lab:"Mes chantiers (techs)",sh:"Terrain",url:"suivi.html?embed=1&mode=terrain",tc:"var(--c-blue)",g:"chan"},
+  {k:"heures",ic:"⏱️",lab:"Heures Artik",sh:"Heures Artik",url:"heures.html?embed=1",tc:"var(--c-bordeaux)",g:"gest"},
+  {k:"heures-ch",ic:"⏱️",lab:"Heures Chassaing",sh:"Heures Chass.",url:"heures.html?embed=1&soc=chassaing",tc:"var(--c-ocre)",g:"gest"},
+  {k:"chiffres",ic:"📈",lab:"Chiffres mensuels",sh:"Chiffres",url:"chiffres.html?embed=1",tc:"var(--c-blue)",g:"gest"},
+  {k:"stats",ic:"📊",lab:"Statistiques",sh:"Stats",url:"stats.html?embed=1",tc:"var(--c-blue)",g:"gest"}];
+/* les familles du menu (dans cet ordre) */
+const GROUPS=[{"k": "quot", "ic": "🏠", "n": "Mon quotidien"}, {"k": "com", "ic": "💼", "n": "Commercial"}, {"k": "chan", "ic": "🏗️", "n": "Chantiers"}, {"k": "gest", "ic": "📊", "n": "Gestion"}];
 const NIVS=["🔴 Urgent","🟠 Important","⚪ Normal","☕ À temps perdu"],NIVC=["#C5372C","#E4670A","#8A9099","#1F7FC4"],NIVD=["À faire en premier, dès le matin","Dans la journée, avant le reste","Quand l'urgent et l'important sont faits","Quand tout le reste est bouclé"];
 const DEF_REGLAGES={accueil:{objectifMois:150000,defi:{libelle:"RDV de prospection",cat:"Prospection",cible:10}},devis:{relanceJ:10,relanceNiv:2,autoRelance:{"Dimitri":true}},taches:{"admin": {"1": ["Facturation", "Relance factures impayées", "Préparer la paie", "Déclaration TVA / charges"], "2": ["Traiter les mails", "Saisir les factures fournisseurs", "Valider les heures", "Relance devis en attente", "Rapprochement bancaire"], "3": ["Saisir les achats", "Commandes fournisseurs", "Planifier les visites d'entretien", "Mettre à jour les fiches clients", "Commander fournitures"], "4": ["Classer / scanner", "Archiver", "Mettre à jour les tableaux de suivi", "Trier la boîte mail"]}, "affaires": {"1": ["Envoyer un devis promis", "Urgence chantier", "Facturer (situation / fin de chantier)", "Commander le matériel (chantier imminent)"], "2": ["Faire le chiffrage", "Relancer", "Visite technique", "Préparer le dossier chantier", "Planifier les équipes", "PV de réception"], "3": ["Appeler le client", "Appeler le fournisseur", "Commander le matériel", "Point chantiers", "Mettre à jour le planning"], "4": ["Veille produits / catalogues", "Mettre à jour les tarifs", "Photos et références chantiers", "Classer les dossiers terminés"]}}};
 let reglages=JSON.parse(JSON.stringify(DEF_REGLAGES)),regId=null;
@@ -234,7 +258,7 @@ const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem("portail-"+k);
 const SC=["User.Read","Sites.ReadWrite.All"],SCA=["Sites.Manage.All"];
 let app,account,siteId,listId,itemId=null,acces=null,tab=null;const frames={};
 function toast(t,bad){const el=$("#toast");el.textContent=t;el.className="toast"+(bad?" bad":"");el.hidden=false;clearTimeout(el._t);el._t=setTimeout(()=>el.hidden=true,2600)}
-function gate(title,text,btn,fn){$("#head").hidden=true;$("#tabs").hidden=true;$("#main").innerHTML=`<div class="gate"><div class="gatecard"><div class="logos"><img src="${document.querySelector('.logos img').src}" alt="Artik" style="height:34px"><span class="sep"></span><img src="${document.querySelectorAll('.logos img')[1].src}" alt="Chassaing" style="height:34px"></div><h2>${esc(title)}</h2><p>${text}</p>${btn?`<button class="btn primary" id="gb" type="button">${esc(btn)}</button>`:""}</div></div>`;if(btn)$("#gb").onclick=fn}
+function gate(title,text,btn,fn){$("#head").hidden=true;$("#tabs").hidden=true;$("#bbar").hidden=true;$("#sheetwrap").innerHTML="";$("#main").innerHTML=`<div class="gate"><div class="gatecard"><div class="logos"><img src="${document.querySelector('.logos img').src}" alt="Artik" style="height:34px"><span class="sep"></span><img src="${document.querySelectorAll('.logos img')[1].src}" alt="Chassaing" style="height:34px"></div><h2>${esc(title)}</h2><p>${text}</p>${btn?`<button class="btn primary" id="gb" type="button">${esc(btn)}</button>`:""}</div></div>`;if(btn)$("#gb").onclick=fn}
 async function token(sc){try{return (await app.acquireTokenSilent({scopes:sc,account})).accessToken}catch(e){await app.acquireTokenRedirect({scopes:sc,account});throw new Error("redirect")}}
 async function gx(m,path,body,sc){const t=await token(sc||SC);const r=await fetch(path.startsWith("http")?path:"https://graph.microsoft.com/v1.0"+path,{method:m,headers:{Authorization:"Bearer "+t,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
   if(r.status===204)return null;const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error((j.error&&j.error.message)||"Erreur "+r.status);e.status=r.status;throw e}return j}
@@ -263,9 +287,27 @@ async function saveAcces(){const fields={Valeur:JSON.stringify(acces)};
   if(itemId)await gx("PATCH",`/sites/${siteId}/lists/${listId}/items/${itemId}/fields`,fields);
   else{const r=await gx("POST",`/sites/${siteId}/lists/${listId}/items`,{fields:{Title:"acces",...fields}});itemId=r.id}}
 
+const navLS=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem("portail-nav-"+k)||"null");localStorage.setItem("portail-nav-"+k,JSON.stringify(v))}catch(e){return null}};
+let navClosed=new Set(navLS("closed")||[]),navMini=!!navLS("mini"),sheetOpen=false;
+const FAVS=["accueil","agenda","taches","devis","planning","terrain","heures","heures-ch","chiffres","stats"];
 function renderTabs(){
   const ok=mine(),list=MODULES.filter(m=>ok.includes(m.k));
-  $("#tabs").innerHTML=list.map(m=>`<button class="tab" role="tab" type="button" data-t="${m.k}" style="--tc:${m.tc}" aria-selected="${m.k===tab}" title="${m.lab}"><span class="ic">${m.ic}</span><span class="lb">${m.lab}</span><span class="sh">${m.sh||m.lab}</span></button>`).join("")+(isOwner()?`<button class="tab params" role="tab" type="button" data-t="params" aria-selected="${tab==="params"}" title="Paramètres"><span class="ic">⚙️</span><span class="lb">Paramètres</span><span class="sh">Réglages</span></button>`:"");
+  const groups=GROUPS.map(g=>({...g,tabs:list.filter(m=>m.g===g.k)})).filter(g=>g.tabs.length),single=groups.length<2;
+  const btn=m=>`<button class="tab" role="tab" type="button" data-t="${m.k}" style="--tc:${m.tc}" aria-selected="${m.k===tab}" title="${esc(m.lab)}"><span class="ic">${m.ic}</span><span class="lb">${esc(m.lab)}</span></button>`;
+  const nav=$("#tabs");nav.classList.toggle("mini",navMini);
+  nav.innerHTML=groups.map(g=>single?`<div class="grp"><div class="items">${g.tabs.map(btn).join("")}</div></div>`
+    :`<div class="grp${navClosed.has(g.k)&&!g.tabs.some(m=>m.k===tab)?" closed":""}"><button type="button" class="gh" data-g="${g.k}" aria-expanded="${!navClosed.has(g.k)}" title="${esc(g.n)}"><span class="gi">${g.ic}</span><span class="gl">${esc(g.n)}</span><span class="cnt">(${g.tabs.length})</span><span class="chev">▼</span></button><div class="items">${g.tabs.map(btn).join("")}</div></div>`).join("")
+    +`<div class="bottomtools">${isOwner()?`<button class="tab params" role="tab" type="button" data-t="params" style="--tc:var(--muted)" aria-selected="${tab==="params"}" title="Paramètres"><span class="ic">⚙️</span><span class="lb">Paramètres</span></button>`:""}<button type="button" class="tab" id="mini" title="${navMini?"Agrandir le menu":"Réduire le menu"}"><span class="ic">${navMini?"»":"«"}</span><span class="lb">Réduire le menu</span></button></div>`;
+  /* téléphone : 4 favoris + « Plus » */
+  const all=list.concat(isOwner()?[{k:"params",ic:"⚙️",lab:"Paramètres",sh:"Réglages",tc:"var(--muted)",g:"gest"}]:[]);
+  const fav=FAVS.filter(k=>all.some(m=>m.k===k)).slice(0,all.length>5?4:5),more=all.length>fav.length;
+  const short=m=>esc(m.sh||m.lab);
+  $("#bbar").style.gridTemplateColumns=`repeat(${fav.length+(more?1:0)},1fr)`;
+  $("#bbar").innerHTML=fav.map(k=>{const m=all.find(x=>x.k===k);return `<button type="button" data-t="${k}" aria-selected="${tab===k}"><span class="ic">${m.ic}</span>${short(m)}</button>`}).join("")
+    +(more?`<button type="button" id="plus" aria-selected="${!fav.includes(tab)}"><span class="ic">☰</span>Plus</button>`:"");
+  const gs=GROUPS.map(g=>({...g,tabs:all.filter(m=>m.g===g.k)})).filter(g=>g.tabs.length);
+  $("#sheetwrap").innerHTML=sheetOpen?`<div class="sheet" id="sheet"><div class="in"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font:700 22px var(--f-display)">Tous mes onglets</b><button type="button" class="btn" id="shx">Fermer</button></div>
+    ${gs.map(g=>`<h3>${g.ic} ${esc(g.n)}</h3><div class="sgrid">${g.tabs.map(m=>`<button type="button" data-t="${m.k}" aria-selected="${tab===m.k}" style="--tc:${m.tc}"><span class="ic">${m.ic}</span>${esc(m.lab)}</button>`).join("")}</div>`).join("")}</div></div>`:"";
 }
 function show(k){
   const ok=mine();if(k!=="params"&&!ok.includes(k))k=ok[0]||(isOwner()?"params":null);
@@ -347,7 +389,13 @@ function renderParams(p){
 }
 const rowHTML=p=>`<tr><td><input type="text" data-n value="${esc(p.nom)}" placeholder="Prénom"></td><td><input type="email" data-e value="${esc(p.email)}" placeholder="adresse@…"></td>${MODULES.filter(m=>!m.tous).map(m=>`<td class="c"><input type="checkbox" data-k="${m.k}"${(p.onglets||[]).includes(m.k)?" checked":""} aria-label="${m.lab}"></td>`).join("")}<td><button class="btn danger" type="button" data-del>Retirer</button></td></tr>`;
 
-$("#tabs").addEventListener("click",e=>{const t=e.target.closest("[data-t]");if(t)show(t.dataset.t)});
+$("#tabs").addEventListener("click",e=>{const g=e.target.closest("[data-g]");
+  if(g){if(navMini||matchMedia("(max-width:1000px)").matches)return;const k=g.dataset.g;navClosed.has(k)?navClosed.delete(k):navClosed.add(k);navLS("closed",[...navClosed]);renderTabs();return}
+  if(e.target.closest("#mini")){navMini=!navMini;navLS("mini",navMini);renderTabs();return}
+  const t=e.target.closest("[data-t]");if(t)show(t.dataset.t)});
+$("#bbar").addEventListener("click",e=>{if(e.target.closest("#plus")){sheetOpen=true;renderTabs();return}const t=e.target.closest("[data-t]");if(t){sheetOpen=false;show(t.dataset.t)}});
+$("#sheetwrap").addEventListener("click",e=>{const t=e.target.closest("[data-t]");if(t){sheetOpen=false;show(t.dataset.t);return}
+  if(e.target.id==="sheet"||e.target.closest("#shx")){sheetOpen=false;renderTabs()}});
 window.addEventListener("message",e=>{const d=e.data;if(d&&typeof d.go==="string"&&MODULES.some(m=>m.k===d.go))show(d.go)});
 $("#out").addEventListener("click",()=>app.logoutRedirect({account}));
 
@@ -361,7 +409,7 @@ $("#out").addEventListener("click",()=>app.logoutRedirect({account}));
   try{await loadAcces()}catch(e){if(e.message==="redirect")return;gate("Accès illisibles",esc(e.message),"Réessayer",()=>location.reload());return}
   if(!acces){gate("Espace pas encore prêt","Dimitri doit d'abord ouvrir l'espace une première fois.");return}
   if(!isOwner()&&!(reglages&&reglages.ouvert)){gate("Bientôt disponible","Le nouvel Espace équipe est en cours de rodage. En attendant, continuez avec les pages habituelles : rien ne change pour vous.");return}
-  $("#main").innerHTML="";$("#head").hidden=false;$("#tabs").hidden=false;$("#who").textContent=account.name||account.username;
+  $("#main").innerHTML="";$("#head").hidden=false;$("#tabs").hidden=false;$("#bbar").hidden=false;$("#who").textContent=account.name||account.username;
   show((location.hash||"").slice(1)||"accueil");
 })();
 })();
