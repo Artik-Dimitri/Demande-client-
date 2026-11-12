@@ -367,6 +367,9 @@ function genData(){
 }
 let DATA=genData(),SOURCE=null;
 /* ----- Import d'un fichier Organilog (script PowerShell) ----- */
+/* type d'absence Organilog -> congés / récup / non compté (réglable dans l'onglet Règles) */
+function absKind(tid,title){const m=(R.absTypes||{})[tid];if(m)return m;const n=String(title||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  if(/recup/.test(n))return "recup";if(/maladie|arret|accident|sans solde|formation|ecole|cfa/.test(n))return "ignore";return "conges"}
 function fromOrganilog(j){
   const users=(j.users&&j.users.results)||j.users||[],inter=(j.interventions&&j.interventions.results)||j.interventions||[],cl=j.clients||[];
   const cname={};(Array.isArray(cl)?cl:cl.results||[]).forEach(c=>cname[String(c.id)]=c.title||c.nom||c.name||("Client "+c.id));
@@ -379,6 +382,26 @@ function fromOrganilog(j){
     if(toM(fin)<toM(deb))fin="23:59";
     out.push({tech:uname[String(i.fk_user_id)]||("Utilisateur "+i.fk_user_id),date:i.done_date,deb,fin,client:cname[String(i.fk_client_id)]||("Client "+i.fk_client_id),decl:okH(i.done_hour)?i.done_hour.slice(0,5):"",nom:i.nom||""});
   });
+  /* Absences Organilog (module Absences) : une absence sur plusieurs jours devient une entrée par jour ouvré (lun-ven, hors fériés) */
+  const abs=(j.absences&&j.absences.results)||j.absences||[],seen={};let absPend=0;window.__absErr=j.absences_error||"";
+  let isFer=()=>"";try{ferie("2000-01-01");isFer=ferie}catch(e){} /* au tout premier chargement les fériés ne sont pas encore prêts */
+  const absTitle=a=>a.disponibilite_title||a.disponibilite_name||a.disponibilite||a.type_title||a.type||a.title||a.label||"";
+  abs.forEach(a=>{const tid=String(a.fk_disponibilite_id||"0"),ti=absTitle(a);const T=seen[tid]||(seen[tid]={title:ti,n:0});T.n++;if(!T.title&&ti)T.title=ti;
+    if(String(a.is_actif)==="0")return;
+    const st=String(a.status==null||a.status===""?"2":a.status);if(st!=="2"){if(st!=="3")absPend++;return}
+    const kind=absKind(tid,ti);if(kind==="ignore")return;
+    const code=kind==="recup"?"ZZZ RECUPERATION D'HEURES":"ZZZ CONGES PAYES";
+    const nom=uname[String(a.fk_user_id)]||("Utilisateur "+a.fk_user_id),u=users.find(x=>String(x.id)===String(a.fk_user_id))||{};
+    const dayM=Math.round((Number(u.week_working_hours)>0?Number(u.week_working_hours):35)/5*60),half=Math.round(dayM/2);
+    const d0=String(a.date_start||"").slice(0,10),d1=String(a.date_end||a.date_start||"").slice(0,10);if(!okDate(d0)||!okDate(d1)||d1<d0)return;
+    const hm2=m=>p2(Math.floor(m/60))+":"+p2(m%60),push=(date,deb,fin)=>out.push({tech:nom,date,deb,fin,client:code,decl:"",nom:"Absence Organilog",abs:true});
+    for(let d=new Date(d0+"T12:00"),n=0;ymd(d)<=d1&&n<400;d=addD(d,1),n++){const ds=ymd(d),wd=d.getDay();if(wd===0||wd===6||isFer(ds))continue;
+      if(String(a.in_hour)==="1"){if(okH(a.hour_start)&&okH(a.hour_end))push(ds,a.hour_start.slice(0,5),a.hour_end.slice(0,5));continue}
+      /* demi-journées : date_start_type "1" = le premier jour inclut le matin (sinon il commence l'après-midi) ; date_end_type "1" = le dernier jour s'arrête après le matin */
+      let part="j";if(ds===d0&&String(a.date_start_type)==="0")part="pm";if(ds===d1&&String(a.date_end_type)==="1")part=part==="pm"?"j":"am";
+      if(part==="am")push(ds,"08:00",hm2(480+half));else if(part==="pm")push(ds,"13:30",hm2(810+half));else{push(ds,"08:00","12:00");push(ds,"13:00",hm2(780+Math.max(0,dayM-240)))}}
+  });
+  window.__absSeen=seen;window.__absPend=absPend;
   const withData=new Set(out.map(e=>e.tech));
   const prev={};TECHS.forEach(t=>prev[t.org||t.nom]=t);
   const techs=users.filter(u=>String(u.is_actif)!=="0").map(u=>{const nom=uname[String(u.id)],p=prev[String(u.id)]||prev[nom]||{};
@@ -648,11 +671,16 @@ function techRow(t){return `<tr><td><input type="text" data-f="nom" value="${esc
   <td><input type="number" data-f="solde" step="0.25" value="${t.soldeInit||""}" placeholder="0" aria-label="Solde d'heures sup. au début du suivi" style="width:90px;text-align:right"></td>
   <td><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-f="mineur"${t.mineur?" checked":""}> moins de 18 ans</label></td>
   <td><button class="btn" type="button" data-del="1">Retirer</button></td></tr>`}
+function absPanel(){const S=window.__absSeen||{},ids=Object.keys(S),pend=window.__absPend||0;
+  const opt=(tid,v,l)=>`<option value="${v}"${absKind(tid,S[tid].title)===v?" selected":""}>${l}</option>`;
+  return `<div class="panel"><h3>🏖️ Absences Organilog</h3><p class="hint" style="margin:0 0 10px">Les congés se posent dans le module <b>Absences</b> d'Organilog, du premier au dernier jour, en une seule fois. La page compte chaque jour ouvré (lundi au vendredi, hors fériés) : 1 jour, ou ½ jour quand l'absence commence l'après-midi ou s'arrête le midi. Seules les absences <b>validées</b> comptent${pend?` (${pend} en attente de validation sur la période chargée)`:""}.</p>
+   ${ids.length?`<div class="tblwrap"><table><thead><tr><th>Type d'absence Organilog</th><th>Nb</th><th>Compté comme</th></tr></thead><tbody>${ids.map(tid=>`<tr><td>${esc(S[tid].title||"Type n° "+tid)}</td><td class="num">${S[tid].n}</td><td><select data-abs="${esc(tid)}" aria-label="Compté comme">${opt(tid,"conges","Congés payés")}${opt(tid,"recup","Récupération (déduite du compteur)")}${opt(tid,"ignore","Non compté (maladie, autre…)")}</select></td></tr>`).join("")}</tbody></table></div>`:`<p class="hint" style="margin:0">Aucune absence trouvée sur la période chargée${window.__absErr?` (Organilog a répondu : ${esc(window.__absErr)})`:""}.</p>`}</div>`}
 function reglesView(){
   const eff={atelier:"temps de travail · stat atelier",ecole:"temps de travail (formation), non majoré",depot:"temps de travail · stat dépôt",trajet:"un trajet dû par jour selon la règle ci-dessous ; les trajets entre chantiers comptent toujours",fourn:"temps de travail · stat fournisseur",perm:"jour d'astreinte (saisie sans durée possible) : chaque jour saisi compte pour une prime (week-end, jour férié…)",recup:"heures déduites du compteur d'heures sup.",conges:"jour ou demi-journée de congés payés"};
   return `<div class="panel"><h3>Codes Organilog</h3><p class="hint" style="margin:0 0 10px">Chaque saisie Organilog est classée selon le nom du client. Tout client réel compte comme intervention.</p><div class="tblwrap"><table><thead><tr><th>Client Organilog</th><th>Classé en</th><th>Effet</th></tr></thead><tbody>
    ${CODES.map(c=>`<tr><td class="codes">${c.code}</td><td>${c.label}</td><td>${c.k==="repas"?"pause non comptée · 1 "+c.label.toLowerCase()+" par jour":eff[c.k]}</td></tr>`).join("")}
    <tr><td><i>tout autre client</i></td><td>Intervention</td><td>temps de travail, au temps saisi par le technicien</td></tr></tbody></table></div></div>
+  ${absPanel()}
   <div class="panel"><h3>Plages et majorations</h3><p class="hint" style="margin:0 0 10px">Les montants (panier, astreinte, restaurant) et les primes mensuelles se saisissent dans l'onglet Montants &amp; primes.</p><div class="form">
     <label class="field"><span>Plage normale, début</span><input type="time" id="r-pd" value="${R.plageDeb}"></label>
     <label class="field"><span>Plage normale, fin</span><input type="time" id="r-pf" value="${R.plageFin}"></label>
@@ -783,8 +811,9 @@ function render(){
     $("#t-reset").addEventListener("click",()=>{TECHS=DEF_TECHS.map(t=>({...t}));persist("techs",null);fillTech();render()});
   }
   if(tab==="regles"){
-    $("#r-save").addEventListener("click",()=>{R={plageDeb:$("#r-pd").value,plageFin:$("#r-pf").value,nuitDeb:$("#r-nd").value,nuitFin:$("#r-nf").value,tHors:+$("#r-th").value,tNuit:+$("#r-tn").value,tSam:+$("#r-ts").value,tDim:+$("#r-td").value,tFer:+$("#r-tf").value,base:+$("#r-base").value||35,demiCP:+$("#r-cp").value||4,trajetMode:$("#r-tm").value,trajetChoix:$("#r-tc").value,debutSuivi:$("#r-ds")?$("#r-ds").value:R.debutSuivi};persist("regles",R);toast("Règles appliquées");render()});
-    $("#r-reset").addEventListener("click",()=>{R={...DEF,debutSuivi:R.debutSuivi};persist("regles",R);render()});
+    document.querySelectorAll("[data-abs]").forEach(sel=>sel.addEventListener("change",()=>{R={...R,absTypes:{...(R.absTypes||{}),[sel.dataset.abs]:sel.value}};persist("regles",R);if(window.__rawOrg)applyImport(window.__rawOrg,false);toast("Type d'absence enregistré");render()}));
+    $("#r-save").addEventListener("click",()=>{R={...R,plageDeb:$("#r-pd").value,plageFin:$("#r-pf").value,nuitDeb:$("#r-nd").value,nuitFin:$("#r-nf").value,tHors:+$("#r-th").value,tNuit:+$("#r-tn").value,tSam:+$("#r-ts").value,tDim:+$("#r-td").value,tFer:+$("#r-tf").value,base:+$("#r-base").value||35,demiCP:+$("#r-cp").value||4,trajetMode:$("#r-tm").value,trajetChoix:$("#r-tc").value,debutSuivi:$("#r-ds")?$("#r-ds").value:R.debutSuivi};persist("regles",R);toast("Règles appliquées");render()});
+    $("#r-reset").addEventListener("click",()=>{R={...DEF,debutSuivi:R.debutSuivi,absTypes:R.absTypes};persist("regles",R);render()});
   }
 }
 function fillTech(){if(!TECHS.some(t=>t.nom===tech))tech=TECHS[0].nom;$("#tech").innerHTML=TECHS.map(t=>`<option${t.nom===tech?" selected":""}>${esc(t.nom)}</option>`).join("")}
@@ -910,17 +939,18 @@ async function loadData(full){
   try{
     const R=H.get().R,start=R.debutSuivi&&/^\d{4}-\d{2}-\d{2}$/.test(R.debutSuivi)?new Date(R.debutSuivi+"T12:00"):new Date(new Date().getFullYear(),new Date().getMonth(),1);
     const months=monthsFrom(start),now=new Date(),limit=new Date(now.getFullYear(),now.getMonth()-1,1);
-    const merged={users:[],clients:[],interventions:[],date_from:ym(months[0])+"-01",date_to:""};const seen={};
+    const merged={users:[],clients:[],interventions:[],absences:[],date_from:ym(months[0])+"-01",date_to:""};const seen={},absSeen={};
     for(const m of months){
       const key="hx-m-"+ym(m);let j=null;
-      if(!full&&m<limit){try{j=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}}
+      if(!full&&m<limit){try{j=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}if(j&&!("absences" in j))j=null /* mois mis en cache avant la lecture des absences */}
       if(!j){j=await fetchMonth(m);if(m<limit){try{localStorage.setItem(key,JSON.stringify(j))}catch(e){}}}
       if(j.users&&j.users.length)merged.users=j.users;
       merged.clients=merged.clients.concat(j.clients||[]);if(j.clients_debug)merged.clients_debug=j.clients_debug;
       (j.interventions||[]).forEach(i=>{seen[i.id]=i});
+      (j.absences||[]).forEach(a=>{absSeen[a.id]=a});if(j.absences_error)merged.absences_error=j.absences_error;
       merged.date_to=j.date_to||merged.date_to;
     }
-    merged.interventions=Object.values(seen);
+    merged.interventions=Object.values(seen);merged.absences=Object.values(absSeen);
     window.__rawOrg=merged;
     H.applyImport(merged,false);H.fillTech();H.sourceBadge();["#imp-btn","#imp-reset"].forEach(s=>{const x=$(s);if(x)x.hidden=true});
     const b=$("#src");if(b)b.textContent+=" · à jour à "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
@@ -999,14 +1029,27 @@ const short=v=>{v=typeof v==="object"?JSON.stringify(v):String(v);return v.lengt
 function scan(list){const k={};list.forEach(o=>{Object.entries(o||{}).forEach(([key,v])=>{const e=k[key]||(k[key]={n:0,vals:new Map()});if(v!==null&&v!==""&&v!=="0"&&v!==0&&!(Array.isArray(v)&&!v.length)){e.n++;const sv=short(v);e.vals.set(sv,(e.vals.get(sv)||0)+1)}})});
  return Object.keys(k).sort().map(key=>{const e=k[key],vs=[...e.vals.entries()].sort((a,b)=>b[1]-a[1]);return {key,n:e.n,tot:list.length,distinct:vs.length,ex:vs.slice(0,vs.length<=15?15:4)}})}
 function txt(){const r=window.__rawOrg;if(!r)return "";let out="CHAMPS ORGANILOG – "+(r.date_from||"")+" → "+(r.date_to||"")+"\n";if(r.clients_debug)out+="\nREPONSE CLIENTS BRUTE : "+r.clients_debug+"\n";
- [["INTERVENTIONS",r.interventions||[]],["UTILISATEURS",r.users||[]],["CLIENTS",r.clients||[]]].forEach(([t,l])=>{out+="\n== "+t+" ("+l.length+") ==\n";scan(l).forEach(f=>{out+=f.key+"  ["+f.n+"/"+f.tot+(f.distinct<=15?", "+f.distinct+" valeurs":"")+"]  "+f.ex.map(([v,c])=>v+(f.distinct<=15?" ×"+c:"")).join(" | ")+"\n"})});return out}
+ [["INTERVENTIONS",r.interventions||[]],["ABSENCES",r.absences||[]],["UTILISATEURS",r.users||[]],["CLIENTS",r.clients||[]]].forEach(([t,l])=>{out+="\n== "+t+" ("+l.length+") ==\n";scan(l).forEach(f=>{out+=f.key+"  ["+f.n+"/"+f.tot+(f.distinct<=15?", "+f.distinct+" valeurs":"")+"]  "+f.ex.map(([v,c])=>v+(f.distinct<=15?" ×"+c:"")).join(" | ")+"\n"})});return out}
 b.onclick=()=>{const r=window.__rawOrg;const old=document.getElementById("chx");if(old)old.remove();const d=document.createElement("div");d.id="chx";
  if(!r){d.innerHTML='<header><b>Champs Organilog</b><button data-x>Fermer</button></header><div class="bd"><p>Les interventions ne sont pas encore chargées. Attendez la fin du chargement ou cliquez sur « Actualiser », puis rouvrez.</p></div>'}
  else{const sec=(t,l)=>`<h3>${t} <span class="m">(${l.length})</span></h3><table><tr><th>Champ</th><th>Rempli</th><th>Exemples de valeurs</th></tr>${scan(l).map(f=>`<tr><td>${f.key}</td><td>${f.n}/${f.tot}</td><td>${f.ex.map(([v,c])=>v.replace(/</g,"&lt;")+(f.distinct<=15?` <span class="m">×${c}</span>`:"")).join(" · ")}</td></tr>`).join("")}</table>`;
-  d.innerHTML=`<header><b>Champs Organilog</b><span class="m">${r.date_from||""} → ${r.date_to||""}</span><button class="p" data-c>Copier le tout</button><button data-x>Fermer</button></header><div class="bd"><p class="m">Copiez le tout et collez-le à Claude : il verra quels champs existent (type d'intervention, chantier, coche garantie…). Le token Organilog n'apparaît jamais ici.</p>${sec("Interventions",r.interventions||[])}${sec("Utilisateurs",r.users||[])}${sec("Clients",r.clients||[])}<textarea id="chx-t" style="position:absolute;left:-9999px"></textarea></div>`}
+  d.innerHTML=`<header><b>Champs Organilog</b><span class="m">${r.date_from||""} → ${r.date_to||""}</span><button class="p" data-c>Copier le tout</button><button data-x>Fermer</button></header><div class="bd"><p class="m">Copiez le tout et collez-le à Claude : il verra quels champs existent (type d'intervention, chantier, coche garantie…). Le token Organilog n'apparaît jamais ici.</p>${sec("Interventions",r.interventions||[])}${sec("Absences",r.absences||[])}${sec("Utilisateurs",r.users||[])}${sec("Clients",r.clients||[])}<textarea id="chx-t" style="position:absolute;left:-9999px"></textarea></div>`}
  document.body.appendChild(d);
  d.addEventListener("click",async e=>{if(e.target.closest("[data-x]"))d.remove();if(e.target.closest("[data-c]")){const t=txt(),btn=e.target.closest("[data-c]");try{await navigator.clipboard.writeText(t);btn.textContent="Copié ✓"}catch(er){const ta=document.getElementById("chx-t");ta.value=t;ta.style.position="static";ta.style.width="100%";ta.style.height="200px";ta.select();btn.textContent="Sélectionné : Ctrl+C"}}})};
 })();</script><!--/CHAMPS-->
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
