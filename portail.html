@@ -221,16 +221,16 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
    ===================================================================== */
 const CONFIG={tenantId:"14b03bce-aec8-408e-9686-c43ea4a503d8",clientId:"f66f2711-d9e4-4fd3-be11-57367c333c87",site:"root",liste:"Portail acces"};
 const OWNER="d.blin@chassaing-technologies.fr";   // seul à gérer les paramètres
-const BUILD_V="202611140635"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
+const BUILD_V="202611140808"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
 const MODULES=[
   {k:"accueil",ic:"🏠",lab:"Accueil",sh:"Accueil",url:"accueil.html?embed=1",tc:"var(--c-blue)",tous:true,g:"quot"},
   {k:"agenda",ic:"📅",lab:"Agenda",sh:"Agenda",url:"agenda.html?embed=1",tc:"var(--c-orange)",g:"quot"},
   {k:"taches",ic:"✅",lab:"Mes tâches",sh:"Tâches",url:"agenda.html?embed=1&mode=taches",tc:"var(--c-blue)",tous:true,g:"quot"},
   {k:"devis",ic:"📋",lab:"Demandes de devis",sh:"Devis",url:"index.html?embed=1",tc:"var(--c-bordeaux)",g:"com"},
   {k:"renta",ic:"💰",lab:"Rentabilité devis",sh:"Rentabilité",url:"rentabilite.html?embed=1",tc:"var(--c-ocre)",g:"com"},
-  {k:"maint",ic:"🧮",lab:"Contrats maintenance",sh:"Maintenance",url:"maintenance.html?embed=1",tc:"var(--c-orange)",g:"com"},
-  {k:"clim",ic:"❄️",lab:"Calcul puissance clim",sh:"Calcul clim",url:"clim.html?embed=1",tc:"var(--c-blue)",g:"com"},
-  {k:"calculs",ic:"📐",lab:"Outils de calcul",sh:"Calculs",url:"calculs.html?embed=1",tc:"var(--c-ocre)",g:"com"},
+  {k:"chiffrage",ic:"📐",lab:"Calculs et chiffrage",sh:"Chiffrage",url:"chiffrage.html?embed=1",tc:"var(--c-orange)",g:"com"},
+  
+  
   {k:"evts",ic:"🎪",lab:"Événements",sh:"Événements",url:"evenements.html?embed=1",tc:"var(--c-bordeaux)",g:"com"},
   {k:"planning",ic:"🏗️",lab:"Planning chantiers",sh:"Chantiers",url:"planning.html?embed=1",tc:"var(--c-ocre)",g:"chan"},
   {k:"suivi",ic:"📈",lab:"Suivi de chantier",sh:"Suivi",url:"suivi.html?embed=1",tc:"var(--c-orange)",g:"chan"},
@@ -266,7 +266,7 @@ async function gx(m,path,body,sc){const t=await token(sc||SC);const r=await fetc
   if(r.status===204)return null;const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error((j.error&&j.error.message)||"Erreur "+r.status);e.status=r.status;throw e}return j}
 const isOwner=()=>(account.username||"").toLowerCase()===OWNER;
 const BIENTOT=["suivi","terrain"]; /* à rouvrir quand les chantiers Organilog seront branchés */
-function mine(){const em=(account.username||"").toLowerCase();if(isOwner())return MODULES.map(m=>m.k); /* Dimitri voit aussi les onglets en préparation */const p=(acces.personnes||[]).find(z=>(z.email||"").toLowerCase()===em);return p?MODULES.filter(m=>(m.tous||(p.onglets||[]).includes(m.k))&&!BIENTOT.includes(m.k)).map(m=>m.k):[]}
+function mine(){const em=(account.username||"").toLowerCase();if(isOwner())return MODULES.map(m=>m.k); /* Dimitri voit aussi les onglets en préparation */const p=(acces.personnes||[]).find(z=>(z.email||"").toLowerCase()===em);const O=p?(p.onglets||[]):[],has=k=>O.includes(k)||(k==="chiffrage"&&O.some(x=>["maint","clim","calculs"].includes(x)));return p?MODULES.filter(m=>(m.tous||has(m.k))&&!BIENTOT.includes(m.k)).map(m=>m.k):[]}
 
 async function loadAcces(){
   const s=await gx("GET","/sites/root?$select=id");siteId=s.id;

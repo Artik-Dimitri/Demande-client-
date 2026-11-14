@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Calculs et chiffrage – Artik &amp; Chassaing</title>
+<meta name="robots" content="noindex,nofollow">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#F3F4F6;--surface:#FFFFFF;--ink:#1F2328;--muted:#5D6670;--line:#E2E5E9;--soft:#EEF0F3;
+  --c1:#E4670A;--c2:#1F7FC4;--c3:#8E2344;--c4:#B8901A;--f-d:"Barlow Condensed","Arial Narrow",Arial,sans-serif;--f-b:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181C;--surface:#1E2228;--ink:#ECEFF2;--muted:#A3ACB6;--line:#323840;--soft:#262B32;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15181C;--surface:#1E2228;--ink:#ECEFF2;--muted:#A3ACB6;--line:#323840;--soft:#262B32;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-b)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px}
+.line4{display:grid;grid-template-columns:repeat(4,1fr);height:4px;border-radius:4px;overflow:hidden}.line4 i:nth-child(1){background:var(--c1)}.line4 i:nth-child(2){background:var(--c2)}.line4 i:nth-child(3){background:var(--c3)}.line4 i:nth-child(4){background:var(--c4)}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+h1{font:700 40px/1 var(--f-d);margin:4px 0 6px;text-wrap:balance}
+.lead{color:var(--muted);margin:0;max-width:62ch}
+#groups{display:grid;gap:24px}
+.grp{display:grid;gap:10px}
+.grp h2{font:700 22px/1.1 var(--f-d);margin:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.grp h2 small{font:500 14px var(--f-b);color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--tc);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start;transition:transform .12s,box-shadow .12s}
+.tile:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}.tile:focus-visible{outline:3px solid var(--tc);outline-offset:2px}
+.tile .ic{font-size:30px;line-height:1;grid-row:span 2}.tile b{font:700 19px/1.15 var(--f-d)}.tile span{font-size:13.5px;color:var(--muted);min-width:0}
+.tile .last{grid-column:2;font-size:12px;font-weight:700;color:var(--tc)}
+/* vue outil */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;padding-block:8px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+.bar button{font:600 14px var(--f-b);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:7px 12px;cursor:pointer}
+.bar .t{font:700 20px/1 var(--f-d);display:flex;gap:8px;align-items:center;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bar .sw{margin-left:auto;display:flex;gap:6px;overflow-x:auto;max-width:60%}.bar .sw button{white-space:nowrap;padding:6px 9px}.bar .sw button[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+@media (max-width:700px){.bar .sw{display:none}}
+#frames{position:relative}
+#frames iframe{display:block;width:100%;border:0;height:calc(100dvh - 54px);background:var(--bg)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.note{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+</style>
+<div id="home" class="wrap">
+  <div class="line4" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <header><div class="eyebrow">Artik &amp; Chassaing · bureau d'études</div><h1>Calculs et chiffrage</h1><p class="lead">Tous les outils au même endroit. Choisis ce que tu dois faire, l'outil s'ouvre. Pour un client avec plusieurs installations, commence par un dossier projet.</p></header>
+  <div id="groups"></div>
+  <p class="note">Les données saisies restent dans ce navigateur, outil par outil. Le bouton « ← Tous les outils » revient ici sans rien perdre.</p>
+</div>
+<div id="tool" hidden><div class="bar"><button type="button" id="back">← Tous les outils</button><div class="t" id="tname"></div><div class="sw" id="sw"></div></div><div id="frames"></div></div>
+<script>
+const G=[
+ {t:"📁 Projets",s:"plusieurs installations pour un même client",items:[
+  {k:"projet",src:"calc",tool:"projet",ic:"📁",c:"#1F2328",n:"Dossier projet",d:"Regrouper chambres froides, blocage, clim, CHR, boulangerie… et calculer la centrale frigorifique."}]},
+ {t:"📄 Contrats",s:"proposer un entretien",items:[
+  {k:"maint",src:"maint",ic:"🛠️",c:"#E4670A",n:"Contrat d'entretien",d:"Prix d'un contrat de maintenance selon le matériel, les visites et le client."}]},
+ {t:"❄️ Froid",s:"on choisit le produit, le reste suit",items:[
+  {k:"cf",src:"calc",tool:"cf",cat:1,ic:"🧊",c:"#2E8B57",n:"Chambres froides",d:"Viandes, poissons, fruits et légumes, crèmerie, boissons, négatif… plus de 40 produits, local déchets compris."},
+  {k:"process",src:"calc",tool:"process",cat:1,ic:"🏭",c:"#7A4E2D",n:"Salles de process",d:"Charcuterie (salage, étuvage, séchage), fromagerie (haloir, séchoir, caves), surgélation et refroidissement rapide."},
+  {k:"blocage",src:"calc",tool:"blocage",cat:1,ic:"🥖",c:"#A88F62",n:"Blocage et pousse",d:"Boulangerie : blocage-pousse par produit, froid, chauffage, humidité, programme de nuit."}]},
+ {t:"🌡️ Clim et ventilation",s:"puissances, débits, matériel",items:[
+  {k:"puiss",src:"clim",ic:"🔥",c:"#1F7FC4",n:"Puissance clim",d:"Bilan thermique pièce par pièce, résultat en kW et fiche PDF pour le devis."},
+  {k:"mitsu",src:"calc",tool:"clim",ic:"❄️",c:"#1F7FC4",n:"Clim Mitsubishi",d:"Monos, multis, gainables et tout le matériel à commander."},
+  {k:"drv",src:"calc",tool:"drv",ic:"🏨",c:"#8E2344",n:"DRV gros projets",d:"Hôtels, bureaux, plusieurs groupes."},
+  {k:"cuivre",src:"calc",tool:"cuivre",ic:"🔧",c:"#B8901A",n:"Cuivre DRV",d:"Métré tronçon par tronçon, récap par diamètre."},
+  {k:"vmc",src:"calc",tool:"vmc",ic:"💨",c:"#6A4FB3",n:"Ventilation VMC",d:"Débits réglementaires, diamètres, bruit, métré."},
+  {k:"gaines",src:"calc",tool:"gaines",ic:"🌀",c:"#2C7A8C",n:"Gaines gainable",d:"Débits, diamètres, bouches de soufflage et reprise."}]},
+ {t:"🛒 Matériel",s:"équiper un établissement",items:[
+  {k:"chr",src:"calc",tool:"cuisine",ic:"🍽️",c:"#C5372C",n:"Matériel CHR",d:"Cuisine pro et bar : appareils, électricité, gaz, hotte et prix."},
+  {k:"boul",src:"calc",tool:"boul",ic:"🥐",c:"#A88F62",n:"Matériel boulangerie",d:"Fournil : pétrin, four, pousse contrôlée, froid, électricité et buées."}]}];
+const ALL=G.flatMap(g=>g.items),$=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem("hub-"+k);localStorage.setItem("hub-"+k,v)}catch(e){return null}};
+const URLS={maint:"maintenance.html?embed=1",clim:"clim.html?embed=1",calc:"calculs.html?embed=1"},V=(new URLSearchParams(location.search)).get("v")||"";
+const frames={};
+function frame(src){if(frames[src])return frames[src];const f=document.createElement("iframe");f.title=src;f.allow="geolocation; camera";f.src=URLS[src]+(V?"&v="+V:"");
+  if(src==="calc")f.addEventListener("load",()=>{try{const st=f.contentDocument.createElement("style");st.textContent="nav.tools{display:none!important}";f.contentDocument.head.appendChild(st)}catch(e){}});
+  $("#frames").appendChild(f);frames[src]=f;return f}
+function pickTool(f,tool,tries,cat){if(!tool)return;try{const doc=f.contentDocument,b=doc&&doc.querySelector(`[data-tool="${tool}"]`);if(b){if(b.getAttribute("aria-pressed")!=="true")b.click();
+    if(cat)setTimeout(()=>{const c=doc.querySelector('[data-act="cat"]');if(c)c.click()},30);return}}catch(e){}
+  if((tries||0)<120)setTimeout(()=>pickTool(f,tool,(tries||0)+1,cat),250)}
+/* l'outil de calcul dit quel outil est affiché (navigation depuis un projet) */
+addEventListener("message",e=>{const m=e.data||{};if(!m.ocTool||$("#tool").hidden)return;const it=ALL.find(x=>x.src==="calc"&&x.tool===m.ocTool);if(!it)return;
+  $("#tname").innerHTML=`<span>${it.ic}</span>${esc(it.n)}`;document.querySelectorAll("#sw button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.open===it.k));LS("last",it.k);if(location.hash!=="#"+it.k)history.replaceState(null,"","#"+it.k)});
+function open(k){const it=ALL.find(x=>x.k===k);if(!it)return home();LS("last",k);
+  $("#home").hidden=true;$("#tool").hidden=false;$("#tname").innerHTML=`<span>${it.ic}</span>${esc(it.n)}`;
+  $("#sw").innerHTML=ALL.map(x=>`<button type="button" data-open="${x.k}" aria-pressed="${x.k===k}" title="${esc(x.n)}">${x.ic} ${esc(x.n)}</button>`).join("");
+  const f=frame(it.src);Object.values(frames).forEach(x=>x.hidden=x!==f);
+  pickTool(f,it.tool,0,it.cat);
+  scrollTo(0,0);if(location.hash!=="#"+k)history.replaceState(null,"","#"+k)}
+function home(){$("#tool").hidden=true;$("#home").hidden=false;if(location.hash)history.replaceState(null,"",location.pathname+location.search);renderHome()}
+function renderHome(){const last=LS("last");
+  $("#groups").innerHTML=G.map(g=>`<section class="grp"><h2>${g.t} <small>${esc(g.s)}</small></h2><div class="tiles">${g.items.map(x=>`<button type="button" class="tile" data-open="${x.k}" style="--tc:${x.c}"><span class="ic" aria-hidden="true">${x.ic}</span><b>${esc(x.n)}</b><span>${esc(x.d)}</span>${x.k===last?'<span class="last">↺ dernier utilisé</span>':""}</button>`).join("")}</div></section>`).join("")}
+document.addEventListener("click",e=>{const o=e.target.closest("[data-open]");if(o){open(o.dataset.open);return}if(e.target.closest("#back"))home()});
+addEventListener("hashchange",()=>{const k=location.hash.slice(1);k?open(k):home()});
+renderHome();{const k=location.hash.slice(1);if(k)open(k)}
+</script>
+
+</body>
+</html>
