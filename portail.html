@@ -221,7 +221,7 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
    ===================================================================== */
 const CONFIG={tenantId:"14b03bce-aec8-408e-9686-c43ea4a503d8",clientId:"f66f2711-d9e4-4fd3-be11-57367c333c87",site:"root",liste:"Portail acces"};
 const OWNER="d.blin@chassaing-technologies.fr";   // seul à gérer les paramètres
-const BUILD_V="202611130130"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
+const BUILD_V="202611132103"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
 const MODULES=[
   {k:"accueil",ic:"🏠",lab:"Accueil",sh:"Accueil",url:"accueil.html?embed=1",tc:"var(--c-blue)",tous:true,g:"quot"},
   {k:"agenda",ic:"📅",lab:"Agenda",sh:"Agenda",url:"agenda.html?embed=1",tc:"var(--c-orange)",g:"quot"},
@@ -317,7 +317,7 @@ function show(k){
   const main=$("#main");main.querySelectorAll("iframe,.panel").forEach(el=>el.hidden=true);
   if(!k){main.insertAdjacentHTML("beforeend",`<div class="panel"><div class="card"><h2>Pas encore d'accès</h2><p class="hint">Votre compte (${esc(account.username)}) n'a encore aucun onglet ouvert. Demandez à Dimitri.</p></div></div>`);return}
   if(k==="params"){let p=main.querySelector(".panel.params");if(!p){p=document.createElement("div");p.className="panel params";main.appendChild(p)}p.hidden=false;renderParams(p);return}
-  if(!frames[k]){const m=MODULES.find(z=>z.k===k);const f=document.createElement("iframe");f.src=m.url+(m.url.includes("?")?"&":"?")+"v="+BUILD_V;f.title=m.lab;main.appendChild(f);frames[k]=f}
+  if(!frames[k]){const m=MODULES.find(z=>z.k===k);const f=document.createElement("iframe");f.src=m.url+(m.url.includes("?")?"&":"?")+"v="+BUILD_V;f.title=m.lab;f.allow="geolocation; camera";main.appendChild(f);frames[k]=f}
   frames[k].hidden=false;
 }
 let ptab="acces",tedit=null,tlist="admin",tdirty=false;
