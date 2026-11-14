@@ -380,6 +380,15 @@ html.tmode .bt{font-size:16px;padding:7px 6px}
 .chips button[aria-pressed=true]{background:var(--c);border-color:var(--c);color:#fff}
 .chips button[aria-pressed=true] i{background:#fff}
 .switch{display:inline-flex;gap:8px;align-items:center;font-weight:600;cursor:pointer}
+.rangeb{border:1px dashed transparent;background:none;cursor:pointer;color:inherit;padding:2px 6px;border-radius:8px}.rangeb:hover{border-color:var(--line);background:var(--surface)}
+.gotod{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:10px;padding:2px 4px 2px 8px;background:var(--surface);cursor:pointer;font-size:15px}
+.gotod input{border:0;background:none;padding:4px 2px;width:auto;min-height:0;font:inherit;font-size:13px;color:var(--ink)}
+.albell{font-style:normal;font-size:11px;margin-right:2px}
+.alrow{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;min-height:40px}.alv{display:inline-flex;gap:6px;align-items:center}
+.alv input{width:64px}.alv select{width:auto}
+.rapb.on{border-color:var(--ok);color:var(--ok)}.rapb.on::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;margin-left:6px;vertical-align:middle}
+@media (max-width:600px){.rapl{display:none}}
+.rpb{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}.rpb.ok{border-color:var(--ok);background:var(--okbg)}.rpb.warn{border-color:#E4670A;background:color-mix(in srgb,#E4670A 8%,var(--surface))}.rpb ol{margin:6px 0 0;padding-left:20px;display:grid;gap:4px}
 .switch input{width:18px;height:18px;min-height:0}
 .ro-v{display:grid;gap:10px}.ro-v div{display:flex;flex-direction:column;gap:2px}.ro-v span{font-size:13px;color:var(--muted);font-weight:600}.ro-v b{font-size:16px}
 .bilan{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:8px;background:var(--soft)}
@@ -434,7 +443,7 @@ html.embed header.top{margin-bottom:8px;min-height:0}
       <div class="eyebrow">Artik &amp; Chassaing · Chargés d'affaires</div>
       <h1>Agenda commun</h1>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="switch" id="asw" style="font-weight:500;font-size:14px;min-width:0">Essai, voir comme <select id="as" style="max-width:min(62vw,320px)"></select></label><button class="btn rbtn" type="button" id="btn-ratt" hidden>🔁 À rattraper<span class="nb" id="ratt-n"></span></button><button class="btn primary" type="button" id="btn-new">+ Nouveau</button></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="switch" id="asw" style="font-weight:500;font-size:14px;min-width:0">Essai, voir comme <select id="as" style="max-width:min(62vw,320px)"></select></label><button class="btn rbtn" type="button" id="btn-ratt" hidden>🔁 À rattraper<span class="nb" id="ratt-n"></span></button><button class="btn rapb" type="button" id="btn-rap" hidden title="Rappels sur le téléphone">🔔<span class="rapl"> Rappels</span></button><button class="btn primary" type="button" id="btn-new">+ Nouveau</button></div>
   </header>
   <div id="banner" class="banner" hidden></div>
   <section class="now" id="now" aria-label="En ce moment"></section>
@@ -447,9 +456,10 @@ html.embed header.top{margin-bottom:8px;min-height:0}
   <div class="bar" id="ctl">
     <div class="seg" id="zoom"><button type="button" data-z="liste">Ma journée</button><button type="button" data-z="jour">Jour</button><button type="button" data-z="semaine">Semaine</button><button type="button" data-z="deux">2 semaines</button></div>
     <button class="btn small" type="button" id="prev" aria-label="Période précédente">←</button>
-    <span class="range" id="range"></span>
+    <button type="button" class="range rangeb" id="range" title="Choisir une date"></button>
     <button class="btn small" type="button" id="next" aria-label="Période suivante">→</button>
     <button class="btn small" type="button" id="today">Aujourd'hui</button>
+    <label class="gotod" title="Aller à une date">📅<input type="date" id="goto" aria-label="Aller à une date"></label>
     <span class="spacer"></span>
     <div class="who-f" id="whof" aria-label="Personnes affichées"></div>
     <select id="colmode" aria-label="Couleur"><option value="cat">Couleur : catégorie</option><option value="pers">Couleur : personne</option></select>
@@ -652,6 +662,8 @@ const db={
 /* ---------- démarrage ---------- */
 let ready=null;
 window.__planDB=()=>ready;
+window.__idToken=async()=>{const exp=t=>{try{return JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).exp*1000<Date.now()+120e3}catch(e){return true}};
+  let r=await msalApp.acquireTokenSilent({scopes:["User.Read"],account});if(!r.idToken||exp(r.idToken))r=await msalApp.acquireTokenSilent({scopes:["User.Read"],account,forceRefresh:true});return r.idToken};
 ready=(async()=>{
   if(!window.msal){showGate("Connexion impossible","Le module de connexion Microsoft n'a pas pu se charger. Rechargez la page.");return new Promise(()=>{})}
   msalApp=new msal.PublicClientApplication({auth:{clientId:ACONFIG.clientId,authority:"https://login.microsoftonline.com/"+ACONFIG.tenantId,redirectUri:location.origin+location.pathname},cache:{cacheLocation:"localStorage"}});
@@ -804,7 +816,7 @@ function evHTML(o,row){
   const time=e.allDay?(e.dateFin&&e.dateFin>e.date?(o.first?"dès aujourd'hui":o.last?"dernier jour":"toute la journée"):"journée"):`${esc(e.debut)}–${esc(e.fin)}`;
   const dur=e.allDay?0:Math.max(.25,(hm(e.fin)-hm(e.debut))/60);
   const fait_=isDone(e,o.d);
-  return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${fait_?" fait":prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}${dur?`;--dh:${dur.toFixed(2)}`:""}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${withHTML(oth)}${rappel(e)}</span></div>`;
+  return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${fait_?" fait":prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}${dur?`;--dh:${dur.toFixed(2)}`:""}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${e.alerte&&e.alerte.n?'<i class="albell" title="Rappel '+alerteLib(e.alerte)+' avant">🔔</i>':""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${withHTML(oth)}${rappel(e)}</span></div>`;
 }
 const HOR=()=>Object.assign({},DEF.horaires,cfg.horaires||{});
 /* frise de la semaine : la pause de midi est réduite à une fine bande, le reste est à l'échelle */
@@ -933,6 +945,62 @@ function taskHTML(t,s){const rep=!t.fait&&t.date&&t.date<s;
 function midiJoin(list,fn){const H=HOR(),md=hm(H.midiDeb),txt=`<div class="mididiv" role="separator">🍽 Pause de midi · ${esc(H.midiDeb)} – ${esc(H.midiFin)}</div>`;
   if(!list.some(o=>!o.e.allDay))return list.map(fn).join("");let out="",put=false;
   list.forEach(o=>{if(!put&&!o.e.allDay&&hm(o.e.debut)>=md){out+=txt;put=true}out+=fn(o)});return out+(put?"":txt)}
+/* ---------- rappels sur le téléphone / l'ordinateur (notifications, même site fermé) ---------- */
+var RAPPELS_ON=false; /* passer à true quand le relais Cloudflare « rappels-agenda » est en place */
+var RAPPEL_URL=RAPPELS_ON?"https://rappels-agenda.d-blin.workers.dev":"";
+var ALU={m:["minute","minutes",6e4],h:["heure","heures",36e5],j:["jour","jours",864e5]};
+function alerteLib(a,pref){if(!a||!a.n)return "";const u=ALU[a.u]||ALU.m;return (pref||"")+a.n+" "+(a.n>1?u[1]:u[0])}
+function quandLib(st,e){const j=st.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"short"});return j.charAt(0).toUpperCase()+j.slice(1)+(e.allDay?" · toute la journée":" · "+(e.debut||"")+(e.fin?"–"+e.fin:""))}
+function rappelItems(){const now=Date.now(),a=ymd(new Date(now-864e5)),b=ymd(new Date(now+45*864e5)),out=[];
+  occurrences(a,b).forEach(o=>{const e=o.e,al=e.alerte;if(!al||!(+al.n>0))return;if(e.allDay&&o.first===false)return;if(isDone(e,o.d)||(e.lache||[]).includes(o.d))return;
+    const st=parse(o.d),hm_=String(e.allDay?"08:00":(e.debut||"08:00")).split(":");st.setHours(+hm_[0]||0,+hm_[1]||0,0,0);
+    const at=st.getTime()-al.n*(ALU[al.u]||ALU.m)[2];if(at<now-6e4)return;
+    const to=[...new Set(who(e).map(n=>String(pers(n).email||"").toLowerCase()).filter(Boolean))];if(!to.length)return;
+    const c=catOf(e.cat);out.push({id:(e.id+"|"+o.d+"|"+al.n+al.u).slice(0,120),at,to,t:"🔔 "+(c.icone?c.icone+" ":"")+(e.titre||c.nom||"Rendez-vous"),
+      b:alerteLib(al,"Dans ")+" · "+quandLib(st,e)+(e.lieu?" · "+e.lieu:"")})});
+  return out}
+var rsT=null;
+function rappelSync(){if(!window.__idToken||!RAPPEL_URL)return;clearTimeout(rsT);rsT=setTimeout(async()=>{try{
+  const items=rappelItems(),h=JSON.stringify(items),day=ymd(new Date());let last=null;try{last=JSON.parse(localStorage.getItem("ag-rsync")||"null")}catch(e){}
+  if(last&&last.h===h.length+":"+hashS(h)&&last.day===day)return;
+  const r=await fetch(RAPPEL_URL+"/sync",{method:"POST",headers:{Authorization:"Bearer "+await window.__idToken(),"Content-Type":"application/json"},body:JSON.stringify({items})});
+  if(r.ok)try{localStorage.setItem("ag-rsync",JSON.stringify({h:h.length+":"+hashS(h),day}))}catch(e){}}catch(e){}},2500)}
+function hashS(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return h}
+/* l'abonnement se fait au niveau de la page principale (portail) quand c'est possible : c'est elle que l'iPhone installe */
+function topW(){try{if(window.top&&window.top.navigator&&window.top.location.origin===location.origin)return window.top}catch(e){}return window}
+function pushOK(){const W=topW();return !!(W.navigator.serviceWorker&&W.PushManager&&W.Notification)}
+function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+function isStandalone(){const W=topW();return !!(W.navigator.standalone||(W.matchMedia&&W.matchMedia("(display-mode: standalone)").matches))}
+function appareil(){const u=navigator.userAgent;return /iPhone/.test(u)?"iPhone":/iPad/.test(u)?"iPad":/Android/.test(u)?"Android":/Windows/.test(u)?"PC Windows":/Mac/.test(u)?"Mac":"Appareil"}
+async function swReg(){const W=topW();const base=new URL("./",location.href).href;let r=await W.navigator.serviceWorker.getRegistration(base);if(!r)r=await W.navigator.serviceWorker.register(base+"sw.js",{scope:base});await W.navigator.serviceWorker.ready;return r}
+async function curSub(){try{if(!pushOK())return null;const W=topW(),r=await W.navigator.serviceWorker.getRegistration(new URL("./",location.href).href);return r?await r.pushManager.getSubscription():null}catch(e){return null}}
+function u8(b64){b64=b64.replace(/-/g,"+").replace(/_/g,"/");while(b64.length%4)b64+="=";return Uint8Array.from(atob(b64),c=>c.charCodeAt(0))}
+async function rCall(p,body){const r=await fetch(RAPPEL_URL+p,{method:"POST",headers:{Authorization:"Bearer "+await window.__idToken(),"Content-Type":"application/json"},body:JSON.stringify(body||{})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||("Erreur "+r.status));return j}
+async function activerRappels(){const W=topW();
+  const perm=await W.Notification.requestPermission();if(perm!=="granted")throw new Error("Notifications refusées sur cet appareil. Autorisez-les dans les réglages du navigateur.");
+  const reg=await swReg(),k=await (await fetch(RAPPEL_URL+"/vapid")).json();
+  let s=await reg.pushManager.getSubscription();if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(k.key)});
+  await rCall("/sub",{sub:s.toJSON(),appareil:appareil()});try{localStorage.removeItem("ag-rsync")}catch(e){}rappelSync();return s}
+async function couperRappels(){const s=await curSub();if(s){await rCall("/unsub",{endpoint:s.endpoint}).catch(()=>{});await s.unsubscribe()}}
+async function rappelsHTML(){const s=await curSub(),W=topW(),perm=pushOK()?W.Notification.permission:"";const ios=isIOS(),sa=isStandalone();
+  let etat="";if(!window.__idToken)etat='<p class="hint">Disponible sur la version en ligne (connexion Microsoft).</p>';
+  else if(ios&&!sa)etat=`<div class="rpb warn"><b>📱 Sur iPhone, une étape d'abord :</b><ol><li>Ouvrez l'Espace équipe dans <b>Safari</b>.</li><li>Touchez <b>Partager</b> <span aria-hidden="true">⬆️</span> puis <b>« Sur l'écran d'accueil »</b>.</li><li>Ouvrez l'Espace équipe <b>depuis la nouvelle icône 🔔</b>, revenez ici et activez.</li></ol></div>`;
+  else if(!pushOK())etat='<div class="rpb warn">Ce navigateur ne sait pas recevoir de notifications. Essayez Chrome, Edge ou Safari à jour.</div>';
+  else if(perm==="denied")etat='<div class="rpb warn">Les notifications sont bloquées pour ce site sur cet appareil. Débloquez-les dans les réglages du navigateur (icône 🔒 à gauche de l\'adresse), puis revenez ici.</div>';
+  else etat=s?`<div class="rpb ok">✅ <b>Activé sur cet appareil (${esc(appareil())}).</b> Les rappels arrivent même quand le site est fermé.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" id="rp-test">Envoyer une notification de test</button><button class="btn" type="button" id="rp-off">Désactiver sur cet appareil</button></div>`
+    :`<div class="rpb">Pas encore activé sur cet appareil (${esc(appareil())}). À faire une fois sur chaque téléphone et ordinateur où vous voulez être prévenu.</div><div><button class="btn primary" type="button" id="rp-on">🔔 Activer les rappels sur cet appareil</button></div>`;
+  return `<div class="rappels" style="display:flex;flex-direction:column;gap:14px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="eyebrow">Ne plus rien rater</div><h2>🔔 Rappels</h2></div><button class="btn small" type="button" data-close>Fermer</button></div>
+    ${etat}<p class="err" id="rp-err" hidden></p>
+    <div class="hint">Le rappel se choisit sur chaque rendez-vous : « 🔔 Me prévenir », combien de temps avant (minutes, heures ou jours). Toutes les personnes du rendez-vous sont prévenues, sur les appareils où elles ont activé les rappels. Pour un rendez-vous sur la journée, le décompte part de 8 h.</div></div>`}
+async function openRappels(){$("#sheet").innerHTML=await rappelsHTML();$("#overlay").hidden=false;
+  const err=m=>{const e=$("#rp-err");if(e){e.textContent=m;e.hidden=!m}},again=async()=>{if(!$("#overlay").hidden&&$("#sheet .rappels")){$("#sheet").innerHTML=await rappelsHTML();wire()}};
+  const wire=()=>{const on=$("#rp-on"),off=$("#rp-off"),te=$("#rp-test");
+    if(on)on.onclick=async()=>{on.disabled=true;on.textContent="Activation…";try{await activerRappels();toast("Rappels activés ✓");await again()}catch(e){err(e.message);on.disabled=false;on.textContent="🔔 Activer les rappels sur cet appareil"}};
+    if(off)off.onclick=async()=>{off.disabled=true;try{await couperRappels();toast("Rappels coupés sur cet appareil");await again()}catch(e){err(e.message);off.disabled=false}};
+    if(te)te.onclick=async()=>{te.disabled=true;try{const s=await curSub();const j=await rCall("/test",{endpoint:s&&s.endpoint});toast(j.envoyes?"Test envoyé : regardez vos notifications":"Pas arrivé : réactivez les rappels");if(!j.envoyes)await couperRappels().then(again)}catch(e){err(e.message)}te.disabled=false}};
+  wire();rappelDot()}
+async function rappelDot(){const b=$("#btn-rap");if(!b)return;b.hidden=!window.__idToken||!RAPPELS_ON;if(b.hidden)return;const s=await curSub();b.classList.toggle("on",!!s)}
 /* ---------- « À rattraper » : ce qui n'a pas été fait les jours passés, à faire ou à replanifier ---------- */
 const RATT_J=14;let rattOpen=false;
 function rattRefresh(){if(!loaded)return;rattCount();if(rattOpen){const sc=$("#sheet").scrollTop;$("#sheet").innerHTML=rattHTML();$("#sheet").scrollTop=sc}}
@@ -1061,9 +1129,10 @@ function legendHTML(){
 }
 function rangeLabel(){
   const ds=days();if(!ds.length)return"";
-  if(zoom==="jour"||zoom==="liste")return (ymd(ds[0])===ymd(new Date())?"Aujourd'hui · ":"")+fmtD(ds[0]);
+  const yr=d=>d.getFullYear()!==new Date().getFullYear()?" "+d.getFullYear():"";
+  if(zoom==="jour"||zoom==="liste")return (ymd(ds[0])===ymd(new Date())?"Aujourd'hui · ":"")+fmtD(ds[0])+yr(ds[0]);
   const a=monday(view),b=addD(a,zoom==="deux"?13:6),wk=w=>{const t=new Date(Date.UTC(w.getFullYear(),w.getMonth(),w.getDate()));const dn=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-dn);const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y0)/864e5+1)/7)};
-  return `S${wk(a)}${zoom==="deux"?"–"+wk(b):""} · ${a.getDate()} ${MOIS[a.getMonth()]} – ${b.getDate()} ${MOIS[b.getMonth()]}`;
+  return `S${wk(a)}${zoom==="deux"?"–"+wk(b):""} · ${a.getDate()} ${MOIS[a.getMonth()]} – ${b.getDate()} ${MOIS[b.getMonth()]}${yr(b)}`;
 }
 
 /* ---------- paramètres ---------- */
@@ -1139,6 +1208,8 @@ function openSheet(id,pre,occDate){
    <div class="grid2"><label class="field"><span>Répéter</span><select id="f-r">${[["none","Jamais"],["jours","Tous les jours ouvrés"],["hebdo","Chaque semaine"],["quinz","Toutes les 2 semaines"],["mois","Chaque mois"]].map(([k,n])=>`<option value="${k}"${k===rec?" selected":""}>${n}</option>`).join("")}</select></label>
      <label class="field" id="f-uw"${isRec?"":" hidden"}><span>Jusqu'au (facultatif)</span><input type="date" id="f-u" value="${esc((e.rec&&e.rec.jusqu)||"")}"></label></div>
    <div class="field"><span>Importance</span><div class="chips prio" id="f-pr">${[["","Normal","gris"],["imp","⚠️ Important","ocre"],["urg","🚨 Urgent","rouge"]].map(([k,n,c])=>`<button type="button" data-v="${k}" style="--c:${col(c)}" aria-pressed="${(e.prio||"")===k}">${n}</button>`).join("")}</div></div>
+   ${RAPPELS_ON?`<div class="field"><span>🔔 Rappel sur le téléphone</span><div class="alrow"><label class="switch"><input type="checkbox" id="f-al"${e.alerte&&e.alerte.n?" checked":""}> Me prévenir</label>
+     <span class="alv" id="f-alw"${e.alerte&&e.alerte.n?"":" hidden"}><input type="number" id="f-aln" min="1" max="99" inputmode="numeric" value="${esc((e.alerte&&e.alerte.n)||30)}" aria-label="Combien"><select id="f-alu" aria-label="Unité">${[["m","minutes"],["h","heures"],["j","jours"]].map(([k,l])=>`<option value="${k}"${((e.alerte&&e.alerte.u)||"m")===k?" selected":""}>${l}</option>`).join("")}</select> avant</span></div></div>`:""}
    <label class="field"><span>Texte affiché en clair sur la bulle (si vide : la note)</span><input id="f-rp" maxlength="60" value="${esc(e.rappel||"")}" placeholder="ex. Ne pas oublier les plans"></label>
    <label class="field"><span>Note (visible en passant la souris sur la bulle)</span><textarea id="f-n" rows="2">${esc(e.note||"")}</textarea></label>
    <p class="err" id="f-err" hidden></p>
@@ -1166,7 +1237,7 @@ function openSheet(id,pre,occDate){
     if(!ad&&hm(h2)<=hm(h1))return fail("L'heure de fin doit être après l'heure de début.");
     if(ad&&df&&df<d)return fail("La date de fin est avant la date de début.");
     const fr=$("#f-r").value;
-    const data={ref:e.ref||"",personne:ppl[0],personnes:ppl,cat:sel("#f-c"),titre:$("#f-t").value.trim(),lieu:$("#f-l").value.trim(),note:$("#f-n").value.trim(),prio:($("#f-pr [aria-pressed=true]")||{dataset:{v:""}}).dataset.v,rappel:$("#f-rp").value.trim(),date:d,allDay:ad,dateFin:ad&&df&&df>d?df:"",debut:ad?"":h1,fin:ad?"":h2,rec:{freq:fr,jusqu:fr==="none"?"":$("#f-u").value}};
+    const data={ref:e.ref||"",personne:ppl[0],personnes:ppl,cat:sel("#f-c"),titre:$("#f-t").value.trim(),lieu:$("#f-l").value.trim(),note:$("#f-n").value.trim(),prio:($("#f-pr [aria-pressed=true]")||{dataset:{v:""}}).dataset.v,rappel:$("#f-rp").value.trim(),alerte:!$("#f-al")?(e.alerte||null):$("#f-al").checked?{n:Math.min(99,Math.max(1,parseInt($("#f-aln").value,10)||30)),u:$("#f-alu").value||"m"}:null,date:d,allDay:ad,dateFin:ad&&df&&df>d?df:"",debut:ad?"":h1,fin:ad?"":h2,rec:{freq:fr,jusqu:fr==="none"?"":$("#f-u").value}};
     ls("me",data.personne);
     $("#f-ok").disabled=true;
     try{if(x)await db.doc("events/"+x.id).update(data);else await db.collection("events").doc("e"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)).set({...data,ex:[],cree:new Date().toISOString()});
@@ -1476,7 +1547,7 @@ function render(){
   document.querySelectorAll("#zoom button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.z===zoom));
   $("#ctl").hidden=tab!=="agenda";
   $("#whof").innerHTML=cfg.personnes.map(p=>`<button type="button" data-w="${esc(p.nom)}" style="--pc:${col(p.couleur)}" aria-pressed="${!hidden.has(p.nom)}"><i></i>${esc(p.nom)}</button>`).join("");
-  $("#range").textContent=rangeLabel();
+  $("#range").textContent=rangeLabel();{const g=$("#goto");if(g&&document.activeElement!==g)g.value=ymd(view)}
   const v=$("#view");
   if(!loaded){v.innerHTML=`<div class="empty">Chargement de l'agenda…</div>`;return}
   if(tab==="params"){$("#doss").hidden=true;{const bd=$("#board");if(bd)bd.innerHTML=""}v.innerHTML=paramsHTML();bindParams();return}
@@ -1488,6 +1559,8 @@ $("#zoom").addEventListener("click",e=>{const b=e.target.closest("[data-z]");if(
 $("#prev").addEventListener("click",()=>{view=addD(view,zoom==="jour"||zoom==="liste"?-1:zoom==="deux"?-14:-7);if(zoom==="jour"||zoom==="liste")while(!$("#we").checked&&(view.getDay()===0||view.getDay()===6))view=addD(view,-1);render()});
 $("#next").addEventListener("click",()=>{view=addD(view,zoom==="jour"||zoom==="liste"?1:zoom==="deux"?14:7);if(zoom==="jour"||zoom==="liste")while(!$("#we").checked&&(view.getDay()===0||view.getDay()===6))view=addD(view,1);render()});
 $("#today").addEventListener("click",()=>{view=new Date();render()});
+$("#goto").addEventListener("change",e=>{const v=e.target.value;if(!/^\d{4}-\d{2}-\d{2}$/.test(v))return;view=parse(v);if(zoom==="jour"||zoom==="liste")while(!$("#we").checked&&(view.getDay()===0||view.getDay()===6))view=addD(view,1);render()});
+$("#range").addEventListener("click",()=>{const g=$("#goto");try{g.showPicker()}catch(e){g.focus();g.click()}});
 $("#now").addEventListener("click",e=>{const c=e.target.closest("[data-np]");if(!c)return;zoom="liste";view=new Date();hidden=new Set(cfg.personnes.map(p=>p.nom).filter(n=>n!==c.dataset.np));ls("hidden",JSON.stringify([...hidden]));render();$("#view").scrollIntoView({behavior:"smooth"})});
 $("#whof").addEventListener("click",e=>{const b=e.target.closest("[data-w]");if(!b)return;const n=b.dataset.w;hidden.has(n)?hidden.delete(n):hidden.add(n);ls("hidden",JSON.stringify([...hidden]));render()});
 $("#as").addEventListener("change",e=>{ls("as",e.target.value);render()});
@@ -1496,6 +1569,8 @@ $("#colmode").addEventListener("change",()=>{ls("col",$("#colmode").value);rende
 $("#we").checked=ls("we")==="1";$("#we").addEventListener("change",()=>{ls("we",$("#we").checked?"1":"0");render()});
 $("#btn-new").addEventListener("click",()=>{if(db)openSheet(null,{date:zoom==="jour"?ymd(view):ymd(new Date())})});
 $("#btn-ratt").addEventListener("click",()=>{if(db&&loaded)openRatt()});
+$("#btn-rap").addEventListener("click",()=>openRappels());
+document.addEventListener("change",e=>{if(e.target.id==="f-al"){const w=$("#f-alw");if(w)w.hidden=!e.target.checked}});
 setInterval(()=>{if($("#overlay").hidden&&!drag)renderNow()},60000);
 
 render();
@@ -1508,7 +1583,7 @@ render();
   db.collection("suites").onSnapshot(s=>{suites=s.docs.map(d=>({id:d.id,...d.data()}));if(loaded)renderDoss()},()=>{});
   db.collection("taches").onSnapshot(s=>{taches=s.docs.map(d=>({id:d.id,...d.data()}));rattRefresh();if(!autoTaches.done){autoTaches.done=1;setTimeout(autoTaches,300);setTimeout(routinesDuJour,500)}if(loaded&&$("#overlay").hidden&&!drag&&tab!=="params"&&!document.activeElement.matches("[data-addt],#rt-t,#rt-jm"))render()},()=>{});
   db.collection("events").onSnapshot(s=>{
-    events=s.docs.map(d=>({id:d.id,...d.data()}));setTimeout(rattRefresh,0);
+    events=s.docs.map(d=>({id:d.id,...d.data()}));setTimeout(rattRefresh,0);rappelSync();if(!loaded)setTimeout(rappelDot,800);
     clearTimeout(timer);banner("");
     const first=!loaded;loaded=true;if(first)setTimeout(rattAuto,900);
     if(first||($("#overlay").hidden&&!drag&&tab!=="params"))render();else renderNow();
