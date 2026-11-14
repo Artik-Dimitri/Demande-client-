@@ -239,7 +239,16 @@ legend::before{content:"";width:14px;height:3px;background:var(--orange)}
 .alerts h3{margin:0 0 4px;font-size:16px}.chip.bad{background:var(--alertbg);color:var(--alert)}
 .al{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;text-align:left;border:0;border-radius:8px;padding:8px 10px;cursor:pointer;font:inherit;color:inherit;background:var(--warnbg)}
 .al.danger{background:var(--alertbg)}.al b{white-space:nowrap}.al span{font-size:13.5px}.al.danger span{color:var(--alert)}.al.warn span{color:var(--warn)}
-.dlt{color:var(--alert);font-weight:600}.bar .reste{color:#fff;background:var(--alert);border-radius:4px;padding:0 4px}
+.dlt{color:var(--alert);font-weight:600}
+.eco{position:absolute;top:0;bottom:0;font-size:10px;color:#1F7FC4;font-weight:700;padding:3px 0 0 4px;text-transform:uppercase;letter-spacing:.04em;background:repeating-linear-gradient(135deg,rgba(31,127,196,.16) 0 6px,transparent 6px 12px);border-left:1px solid rgba(31,127,196,.25);pointer-events:none}
+.trow.sav{background:var(--soft)}
+.eco.abs{color:#8E2344;background:repeating-linear-gradient(135deg,rgba(142,35,68,.14) 0 6px,transparent 6px 12px);border-left-color:rgba(142,35,68,.3);pointer-events:auto;cursor:pointer}
+.eco.abs.maladie{color:#B3302A;background:repeating-linear-gradient(135deg,rgba(179,48,42,.16) 0 6px,transparent 6px 12px)}
+.eco.abs.formation{color:#9A6512;background:repeating-linear-gradient(135deg,rgba(184,144,26,.18) 0 6px,transparent 6px 12px)}
+.ablist{display:flex;flex-direction:column;gap:6px}.abi{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;text-align:left;border:1px solid var(--line,#e2e2e2);border-left:4px solid #8E2344;border-radius:8px;padding:8px 10px;background:var(--card,#fff);font:inherit;color:inherit;cursor:pointer}
+.abi.maladie{border-left-color:#B3302A}.abi.formation{border-left-color:#B8901A}.abi span{font-size:13px;color:var(--muted,#6b7280)}
+.trowedit .flags{grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}.trowedit .flags label{display:inline-flex;gap:5px;align-items:center}
+.ecoedit{grid-column:1/-1;font-size:13px}.ecoedit textarea{width:100%;min-height:90px;font:13px/1.4 ui-monospace,Menlo,monospace}.bar .reste{color:#fff;background:var(--alert);border-radius:4px;padding:0 4px}
 .dl{position:absolute;top:2px;bottom:2px;width:0;border-left:2px dashed var(--alert);z-index:3;pointer-events:auto}
 .dl.imp{border-left-color:var(--warn)}
 .pers{display:flex;flex-direction:column;gap:10px;margin:12px 0 8px}.pers:empty{display:none}
@@ -292,7 +301,7 @@ html.embed header.top{margin-bottom:8px;min-height:0}
       <button class="tab" role="tab" type="button" data-tab="liste" aria-selected="false">Suivi &amp; rentabilité</button>
       <button class="tab" role="tab" type="button" data-tab="params" aria-selected="false">Paramètres</button>
     </nav>
-    <button class="btn primary" id="btn-new" type="button">+ Nouveau chantier</button>
+    <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="btn-abs" type="button">+ Absence</button><button class="btn primary" id="btn-new" type="button">+ Nouveau chantier</button></span>
   </div>
 
   <div class="filters">
@@ -597,7 +606,7 @@ function fromSlot(i){const pm=(((i%2)+2)%2)===1;let d=parse(fromSlot0(i).debut);
 /* jours où un technicien n'est PAS sur le chantier : x.off = {Noah:[1,3]} (index du jour, 0 = 1er jour du chantier) */
 function offDays(x,t){return new Set(((x.off||{})[t])||[])}
 function dayIdx(x,ws){return Math.floor((ws-slotOf(x.debut,x.pm))/2)}
-function onDay(x,t,ws){return !offDays(x,t).has(dayIdx(x,ws))}
+function onDay(x,t,ws){return !offDays(x,t).has(dayIdx(x,ws))&&!isEcole(t,ws)&&!isAbsent(t,ws)}
 function presentAt(x,ws){const t=x.techs||[];return t.filter(z=>onDay(x,z,ws)).length}
 function slotsOf(x){return Number(x.slots)||(x.duree?Number(x.duree)*10:2)}
 /* plage « du … au … » : fin = dernier jour ouvré du chantier */
@@ -642,6 +651,10 @@ function alertsOf(x){
       else if(today>=e.alerte)out.push({niv:"warn",txt:`À démarrer au plus tard le ${fd(parse(e.start))} pour finir le ${fd(parse(x.dateFinLimite))} (${lib})`});
     }else if(!x.debut&&!x.heures&&joursAvant(x.dateFinLimite)<=30)out.push({niv:"warn",txt:`Fin au plus tard le ${fd(parse(x.dateFinLimite))}, pas planifié (heures vendues non renseignées)`});
   }
+  if(x.debut){const seen={};partsOf(x).forEach(q=>{const s=slotOf(q.debut,q.pm);(q.techs||[]).forEach(t=>{const ti=techInfo(t);if(!ti||!ti.apprenti)return;for(let i=s;i<s+q.slots;i+=1)if(isEcole(t,i)){const d=wsDate(i);(seen[t]=seen[t]||new Set()).add(d)}})});
+    Object.entries(seen).forEach(([t,set])=>{const L=[...set].sort();out.push({niv:"warn",txt:`${t} est à l'école ${L.length>1?`${L.length} jours (du ${fd(parse(L[0]))} au ${fd(parse(L[L.length-1]))})`:"le "+fd(parse(L[0]))} pendant ce chantier : ces jours-là il n'est pas compté`})})}
+  if(x.debut){const seen={};partsOf(x).forEach(q=>{const s=slotOf(q.debut,q.pm);(q.techs||[]).forEach(t=>{for(let i=s;i<s+q.slots;i++){const a=isAbsent(t,i);if(a){const k=t+"|"+a;(seen[k]=seen[k]||new Set()).add(wsDate(i))}}})});
+    Object.entries(seen).forEach(([k,set])=>{const [t,a]=k.split("|"),L=[...set].sort();out.push({niv:"warn",txt:`${t} : ${(ABS_T[a]||"absent").toLowerCase()} ${L.length>1?`${L.length} jours (du ${fd(parse(L[0]))} au ${fd(parse(L[L.length-1]))})`:"le "+fd(parse(L[0]))} pendant ce chantier, ces jours-là il n'est pas compté`})})}
   const cv=couverture(x);
   if(cv&&!cv.sansTech&&cv.reste>=Math.max(8,cv.H*0.02))out.push({niv:cv.pl<cv.H*0.5?"danger":"warn",txt:`${cv.H} h vendues, ${cv.pl} h tiennent dans les dates et les techniciens prévus : ${cv.reste} h restent à placer (allonger, ajouter une période ou du monde)`});
   if(x.dateDebutImp){const n=joursAvant(x.dateDebutImp);
@@ -656,7 +669,18 @@ function expand(list){return list.flatMap(x=>x.debut?partsOf(x):[x])}
 function baseId(id){return String(id||"").split("~")[0]}
 function getItem(id){const b=items.find(i=>i.id===baseId(id));if(!b)return null;if(!String(id).includes("~"))return b.phases&&b.phases.length?partsOf(b)[0]:b;return partsOf(b).find(q=>q.id===id)||null}
 function propSlots(h,nt){const jh=Number(cfg.journee)||8;return h?Math.max(2,Math.ceil(h/(Math.max(1,nt)*jh))*2):2}
-function techList(){return (cfg.techniciens||[]).map(t=>typeof t==="string"?{nom:t,heures:35,societe:"artik"}:{nom:t.nom,heures:Number(t.heures)||35,societe:t.societe==="chassaing"?"chassaing":"artik"})}
+function techList(){return (cfg.techniciens||[]).map(t=>typeof t==="string"?{nom:t,heures:35,societe:"artik",apprenti:false,depanneur:false,ecole:[]}:{nom:t.nom,heures:Number(t.heures)||35,societe:t.societe==="chassaing"?"chassaing":"artik",apprenti:!!t.apprenti,depanneur:!!t.depanneur,ecole:t.ecole||[]})}
+/* ---------- apprentis (jours d'école) et dépanneurs ----------
+   Un apprenti n'est jamais compté les jours d'école. Un dépanneur ne compte dans la capacité que les jours où il est mis sur un chantier. */
+const WSD=new Map();function wsDate(ws){if(!WSD.has(ws))WSD.set(ws,fromSlot(ws).debut);return WSD.get(ws)}
+let ECO=null,ECO_K="";function ecoleSets(){const k=JSON.stringify((cfg.techniciens||[]).map(t=>[t.nom,(t.ecole||[]).length]));if(k!==ECO_K){ECO_K=k;ECO={};techList().forEach(t=>{if(t.apprenti&&t.ecole.length)ECO[t.nom]=new Set(t.ecole)})}return ECO}
+/* ---------- absences (congés, maladie, formation…) : collection « absences » {tech,type,du,au,note} ---------- */
+let ABS=[],ABS_V=0,ABS_K=-1,ABSM={};
+const ABS_T={conges:"Congés",maladie:"Maladie",formation:"Formation",autre:"Absent"};
+function absMap(){if(ABS_K!==ABS_V){ABS_K=ABS_V;ABSM={};ABS.forEach(a=>{if(!a.tech||!a.du)return;let d=parse(a.du);const e=parse(a.au||a.du);const m=ABSM[a.tech]=ABSM[a.tech]||{};while(d<=e){m[ymd(d)]=a.type||"autre";d=addD(d,1)}})}return ABSM}
+function isAbsent(n,ws){const m=absMap()[n];return m?(m[wsDate(ws)]||""):""}
+function isEcole(n,ws){const e=ecoleSets()[n];return !!(e&&e.has(wsDate(ws)))}
+function techInfo(n){return techList().find(t=>t.nom===n)}
 function techsVisible(){const sc=$("#fl-soc").value;return techList().filter(t=>!sc||t.societe===sc)}
 function equipeList(){const tl=techList();return (cfg.equipes||[]).map(e=>{const m=(e.membres||[]).filter(n=>tl.some(t=>t.nom===n));const mt=tl.filter(t=>m.includes(t.nom));
   const soc=mt.length&&mt.every(t=>t.societe==="chassaing")?"chassaing":mt.length&&mt.every(t=>t.societe==="artik")?"artik":"mixte";
@@ -694,6 +718,10 @@ function slotWork(x,i){const s=slotOf(x.debut,x.pm),len=slotsOf(x),base=(Number(
   pres.forEach(z=>per[z]=cap?tot*techSlotH(z)/cap:0);return {tot,per}}
 function couverture(x){if(!x.debut||!x.heures)return null;let pl=0;partsOf(x).forEach(q=>{const s=slotOf(q.debut,q.pm);for(let i=0;i<q.slots;i++)pl+=slotWork(q,s+i).tot});
   const H=Number(x.heures);return {H,pl:Math.round(pl),reste:Math.max(0,Math.round(H-pl)),sansTech:!partsOf(x).some(q=>(q.techs||[]).length)}}
+function capArray(list,s0,n,techs){const out=new Array(n).fill(0),busy=new Array(n).fill(null).map(()=>new Set());
+  list.forEach(x=>{if(!active(x))return;const s=slotOf(x.debut,x.pm),len=slotsOf(x);for(let i=0;i<len;i++){const k=s+i-s0;if(k>=0&&k<n)(x.techs||[]).forEach(t=>{if(onDay(x,t,s+i))busy[k].add(t)})}});
+  (techs||techsVisible()).forEach(t=>{const h=t.heures/10;for(let k=0;k<n;k++){const ws=s0+k;if(isEcole(t.nom,ws)||isAbsent(t.nom,ws))continue;if(t.depanneur&&!busy[k].has(t.nom))continue;out[k]+=h}});
+  if(!techList().length)return out.fill((cfg.capacite||DEF.capacite)/10);return out}
 function loadTeam(list,s0,n){const out=new Array(n).fill(0);list.forEach(x=>{if(!active(x))return;const s=slotOf(x.debut,x.pm),len=slotsOf(x);for(let i=0;i<len;i++){const k=s+i-s0;if(k>=0&&k<n)out[k]+=slotWork(x,s+i).tot}});return out}
 function renderStats(){
   const f=filtered();
@@ -701,7 +729,7 @@ function renderStats(){
   $("#s-todo").textContent=todo;$("#st-todo").classList.toggle("hot",todo>0);
   $("#s-cours").textContent=f.filter(x=>x.statut==="encours").length;
   $("#s-raf").textContent=eur(f.filter(x=>x.statut!=="solde").reduce((a,x)=>a+Math.max(0,(Number(x.montant)||0)-(Number(x.facture)||0)),0));
-  const s0=slotOf(ymd(monday(new Date())),false),l=loadTeam(expand(f),s0,40).reduce((a,b)=>a+b,0)/4,pc=Math.round(l/teamHours()*100);
+  const s0=slotOf(ymd(monday(new Date())),false),ex=expand(f),l=loadTeam(ex,s0,40).reduce((a,b)=>a+b,0),cp=capArray(ex,s0,40).reduce((a,b)=>a+b,0),pc=cp?Math.round(l/cp*100):0;
   $("#s-charge").textContent=pc+" %";$("#st-charge").classList.toggle("hot",pc>100);
 }
 function fillChg(){const s=$("#fl-chg"),v=s.value;s.innerHTML='<option value="">Tous les chargés d\'affaires</option>'+cfg.charges.map(n=>`<option${n===v?" selected":""}>${esc(n)}</option>`).join("")}
@@ -843,7 +871,7 @@ function planningHTML(){
       groups=eqs.map(e=>({t:e.nom,h:e.heures,soc:e.societe,sub:`${e.membres.length} tech. · ${esc(e.membres.join(", "))}`,list:rows.filter(x=>x.equipe===e.nom)}));
       groups.push({t:"",h:0,list:rows.filter(x=>!x.equipe||!eqs.some(e=>e.nom===x.equipe))});
     }else{
-      groups=techs.map(t=>({t:t.nom,h:t.heures,soc:t.societe,sub:equipeOf(t.nom)?esc(equipeOf(t.nom)):"",list:rows.filter(x=>(x.techs||[]).includes(t.nom))}));
+      groups=techs.slice().sort((a,b)=>(a.depanneur?1:0)-(b.depanneur?1:0)).map(t=>({t:t.nom,h:t.heures,soc:t.societe,ti:t,sub:[t.apprenti?"apprenti":"",t.depanneur?"dépanneur":"",equipeOf(t.nom)?esc(equipeOf(t.nom)):""].filter(Boolean).join(" · "),list:rows.filter(x=>(x.techs||[]).includes(t.nom))}));
       groups.push({t:"",h:0,list:rows.filter(x=>!(x.techs||[]).length)});
     }
     groups.forEach(gr=>{
@@ -852,11 +880,16 @@ function planningHTML(){
       iv.forEach(o=>{o.conflit=!!gr.t&&iv.some(p=>{if(p===o||!(p.s<o.e&&o.s<p.e))return false;if(team)return true;for(let i=Math.max(p.s,o.s);i<Math.min(p.e,o.e);i++)if(onDay(o.x,gr.t,i)&&onDay(p.x,gr.t,i))return true;return false})});
       /* heures affectées à ce technicien (ou à cette équipe) sur la période affichée */
       let hrs=0;iv.forEach(o=>{if(!active(o.x))return;for(let i=Math.max(o.s,g.s0);i<Math.min(o.e,g.s1+1);i++){const w=slotWork(o.x,i);if(team){hrs+=w.tot;continue}hrs+=w.per[gr.t]||0}});
-      const cap=gr.h/10*nWork,occ=cap?Math.round(hrs/cap*100):0;
+      let cap=gr.h/10*nWork;
+      if(gr.ti){cap=0;for(let k=0;k<nWork;k++){const ws=g.s0+k;if(isEcole(gr.t,ws)||isAbsent(gr.t,ws))continue;if(gr.ti.depanneur&&!iv.some(o=>active(o.x)&&o.s<=ws&&ws<o.e&&onDay(o.x,gr.t,ws)))continue;cap+=gr.h/10}}
+      else if(team){const eq=equipeList().find(q=>q.nom===gr.t);if(eq){cap=capArray(rows,g.s0,nWork,techList().filter(t=>eq.membres.includes(t.nom))).reduce((a,b)=>a+b,0)}}
+      const occ=cap?Math.round(hrs/cap*100):0;
+      const eco=gr.ti?g.work.map(c=>{if(gr.ti.apprenti&&isEcole(gr.t,c.ws))return `<span class="eco" style="left:${c.x}px;width:${c.w}px" title="École">${c.w>=40&&!(c.ws%2)?"école":""}</span>`;
+        const a=isAbsent(gr.t,c.ws);return a?`<span class="eco abs ${a}" data-absd="${esc(gr.t)}|${wsDate(c.ws)}" style="left:${c.x}px;width:${c.w}px" title="${ABS_T[a]||"Absent"}">${c.w>=40&&!(c.ws%2)?(ABS_T[a]||"Absent"):""}</span>`:""}).join(""):"";
       const lanes=Math.max(1,ends.length),hgt=Math.max(team?56:48,8+lanes*38);
       const empty=team?"Glisser une barre sur une équipe pour l'affecter":"Glisser une barre sur un technicien pour l'affecter";
-      labs+=`<div class="lab" style="height:${hgt}px"><b>${gr.t?`<span class="sw" style="--bc:var(--${gr.soc==="chassaing"?"blue":"orange"})"></span>`+esc(gr.t):(team?"Sans équipe":"Sans technicien")}${iv.some(o=>o.conflit)?' <span class="chip" style="background:var(--alertbg);color:var(--alert)">Conflit</span>':""}</b><small>${gr.t?`${gr.h} h · <span class="occ${occ>100?" over":""}"><i style="width:${Math.min(occ,100)}%"></i></span>${occ} %${gr.sub?" · "+gr.sub:""}`:empty}</small></div>`;
-      trs+=`<div class="trow" data-tech="${esc(gr.t)}" style="height:${hgt}px">${iv.map(o=>barHTML(o.x,g,8+o.lane*38,gr.t,o.conflit)).join("")}</div>`;
+      labs+=`<div class="lab" style="height:${hgt}px"><b>${gr.t?`<span class="sw" style="--bc:var(--${gr.soc==="chassaing"?"blue":"orange"})"></span>`+esc(gr.t):(team?"Sans équipe":"Sans technicien")}${iv.some(o=>o.conflit)?' <span class="chip" style="background:var(--alertbg);color:var(--alert)">Conflit</span>':""}</b><small>${gr.t?(gr.ti&&gr.ti.depanneur&&!cap?`${gr.h} h · au SAV${gr.sub?" · "+gr.sub:""}`:`${gr.h} h · <span class="occ${occ>100?" over":""}"><i style="width:${Math.min(occ,100)}%"></i></span>${occ} %${gr.sub?" · "+gr.sub:""}`):empty}</small></div>`;
+      trs+=`<div class="trow${gr.ti&&gr.ti.depanneur?" sav":""}" data-tech="${esc(gr.t)}" style="height:${hgt}px">${eco}${iv.map(o=>barHTML(o.x,g,8+o.lane*38,gr.t,o.conflit)).join("")}</div>`;
     });
     if(team&&!equipesVisible().length)labs+=`<div class="lab" style="height:48px"><small>Créez vos équipes dans l'onglet Suivi &amp; facturation.</small></div>`,trs+=`<div class="trow" style="height:48px"></div>`;
     if(!team&&!techs.length)labs+=`<div class="lab" style="height:48px"><small>Ajoutez vos techniciens dans Réglages.</small></div>`,trs+=`<div class="trow" style="height:48px"></div>`;
@@ -867,12 +900,12 @@ function planningHTML(){
   if(zoom==="six"){for(let w=0;w<g.days/7;w++){const d=addW(g.start,w);const ws=g.work.filter(c=>c.d>=d&&c.d<addW(d,1));if(ws.length)groupsC.push(ws)}}
   else if(zoom==="jour")g.work.forEach(c=>groupsC.push([c]));
   else{let cur=[];g.work.forEach(c=>{if(cur.length&&ymd(cur[0].d)!==ymd(c.d)){groupsC.push(cur);cur=[]}cur.push(c)});if(cur.length)groupsC.push(cur)}
-  const capSlot=teamHours()/10;
-  const vals=groupsC.map(cs=>({x:cs[0].x,w:cs[cs.length-1].x+cs[cs.length-1].w-cs[0].x,v:cs.reduce((a,c)=>a+load[c.ws-g.s0],0),cap:capSlot*cs.length}));
+  const capA=capArray(expand(f),g.s0,g.work.length),capSlot=techList().length?techsVisible().filter(t=>!t.depanneur).reduce((a,t)=>a+t.heures,0)/10:(cfg.capacite||DEF.capacite)/10;
+  const vals=groupsC.map(cs=>({x:cs[0].x,w:cs[cs.length-1].x+cs[cs.length-1].w-cs[0].x,v:cs.reduce((a,c)=>a+load[c.ws-g.s0],0),cap:cs.reduce((a,c)=>a+capA[c.ws-g.s0],0)}));
   const max=Math.max(1,...vals.map(v=>Math.max(v.v,v.cap)));
   const chg=vals.map(v=>{const pc=v.v/(v.cap||1);return `<div class="ch${pc>1?" over":pc>.85?" mid":""}" style="left:${v.x}px;width:${v.w}px" title="${Math.round(v.v)} h sur ${Math.round(v.cap)} h">${v.v&&v.w>=24?Math.round(v.v):""}<i style="height:${Math.round(v.v/max*40)}px"></i></div>`}).join("");
   const unit={jour:"demi-journée",semaine:"jour",deux:"jour",mois:"jour",six:"semaine"}[zoom];
-  labs+=`<div class="lab chg"><b>Charge équipe (h)</b><small>capacité ${Math.round(capSlot*(zoom==="six"?10:zoom==="jour"?1:2))} h / ${unit}</small></div>`;
+  labs+=`<div class="lab chg"><b>Charge équipe (h)</b><small>capacité ${Math.round(capSlot*(zoom==="six"?10:zoom==="jour"?1:2))} h / ${unit}${techList().some(t=>t.depanneur||t.apprenti)?" (sans dépanneurs ni école)":""}</small></div>`;
   h+=`<div class="gantt-wrap"><div class="gantt2" style="--labw:${labW()}px">
     <div class="labels">${labs}</div>
     <div class="track" style="width:${g.total}px"><div class="thead">${hd.head}</div><div class="layer">${hd.layer}</div>${trs}<div class="tcharge">${chg}</div></div>
@@ -1116,7 +1149,7 @@ function paramsHTML(){
   </div>
   <div class="panel"><h3>Techniciens</h3>
    <div class="ttable" id="r-techs">${techs.map((t,i)=>techRow(t,i)).join("")}</div>
-   <div class="actions" style="justify-content:space-between"><button class="btn small" type="button" id="r-add">+ Ajouter un technicien</button><span class="hint" id="r-tot">Capacité : ${techs.filter(t=>t.societe==="artik").reduce((a,b)=>a+b.heures,0)} h Artik + ${techs.filter(t=>t.societe==="chassaing").reduce((a,b)=>a+b.heures,0)} h Chassaing par semaine</span></div>
+   <div class="actions" style="justify-content:space-between"><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" type="button" id="r-add">+ Ajouter un technicien</button><label class="btn small" style="cursor:pointer">Importer des dates d'école<input type="file" id="r-ecoimp" accept=".json,application/json" hidden></label></span><span class="hint" id="r-tot">Capacité chantier : ${techs.filter(t=>t.societe==="artik"&&!t.depanneur).reduce((a,b)=>a+b.heures,0)} h Artik + ${techs.filter(t=>t.societe==="chassaing"&&!t.depanneur).reduce((a,b)=>a+b.heures,0)} h Chassaing par semaine${techs.some(t=>t.depanneur)?` · dépanneurs : ${techs.filter(t=>t.depanneur).reduce((a,b)=>a+b.heures,0)} h, comptées seulement quand ils sont sur un chantier`:""}</span></div>
   </div>
   <div class="panel"><h3>Équipes fixes</h3>
    <div class="ttable" id="r-eqs">${(cfg.equipes||[]).map((e,i)=>eqRow(e,i,techs)).join("")}</div>
@@ -1131,7 +1164,15 @@ function paramsHTML(){
 }
 function coutRow(c){return `<div class="coutedit"><label class="field"><span>À partir du</span><input type="date" data-cd value="${esc(c.date||"")}"></label><label class="field"><span>Artik (€/h)</span><input type="number" min="0" step="0.5" data-ca value="${esc(c.artik??"")}"></label><label class="field"><span>Chassaing (€/h)</span><input type="number" min="0" step="0.5" data-cc value="${esc(c.chassaing??"")}"></label><button class="btn small danger" type="button" data-cdel aria-label="Supprimer ce taux">Retirer</button></div>`}
 function eqRow(e,i,techs){return `<div class="eqedit" style="display:grid;gap:8px;padding:10px 0;border-bottom:1px solid var(--soft)"><div style="display:flex;gap:8px"><input type="text" data-en="${i}" value="${esc(e.nom)}" placeholder="Nom de l'équipe (ex. Équipe Froid 1)" aria-label="Nom de l'équipe"><button class="btn small danger" type="button" data-edel="1">Supprimer</button></div><div class="techs">${techs.map(t=>`<button type="button" data-m="${esc(t.nom)}" aria-pressed="${(e.membres||[]).includes(t.nom)}"><span class="sw" style="--bc:var(--${t.societe==="chassaing"?"blue":"orange"});margin-right:6px"></span>${esc(t.nom)}</button>`).join("")}</div></div>`}
-function techRow(t,i){return `<div class="trowedit"><input type="text" data-tn="${i}" value="${esc(t.nom)}" aria-label="Nom du technicien" placeholder="Prénom Nom"><select data-ts="${i}" aria-label="Société"><option value="artik"${t.societe!=="chassaing"?" selected":""}>Artik</option><option value="chassaing"${t.societe==="chassaing"?" selected":""}>Chassaing</option></select><select data-th="${i}" aria-label="Heures de contrat">${[35,37,39,40,42].map(h=>`<option value="${h}"${h===t.heures?" selected":""}>${h} h / sem</option>`).join("")}</select><button class="btn small danger" type="button" data-tdel="${i}" aria-label="Retirer">Retirer</button></div>`}
+/* dates d'école : liste de jours → plages lisibles « 21/09/2026 → 25/09/2026 » (et retour) */
+function ecoleRanges(L){const d=[...L].sort(),out=[];let a=null,b=null;const nextWork=x=>{let y=addD(parse(x),1);while(isWE(y))y=addD(y,1);return ymd(y)};
+  d.forEach(x=>{if(a&&nextWork(b)===x)b=x;else{if(a)out.push([a,b]);a=b=x}});if(a)out.push([a,b]);
+  const f=x=>x.split("-").reverse().join("/");return out.map(([a,b])=>a===b?f(a):f(a)+" → "+f(b)).join("\n")}
+function parseRanges(txt){const out=new Set(),toIso=x=>{const m=x.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:null};
+  String(txt).split(/\n+/).forEach(l=>{const pr=l.split(/→|->|\s-\s|\s+au\s+/).map(z=>z.trim()).filter(Boolean);const a=toIso(pr[0]||""),b=toIso(pr[1]||pr[0]||"");if(!a||!b)return;let d=parse(a);const e=parse(b);while(d<=e){if(!isWE(d))out.add(ymd(d));d=addD(d,1)}});return [...out].sort()}
+function techRow(t,i){const eco=t.ecole||[];return `<div class="trowedit" data-ecole="${esc(JSON.stringify(eco))}"><input type="text" data-tn="${i}" value="${esc(t.nom)}" aria-label="Nom du technicien" placeholder="Prénom Nom"><select data-ts="${i}" aria-label="Société"><option value="artik"${t.societe!=="chassaing"?" selected":""}>Artik</option><option value="chassaing"${t.societe==="chassaing"?" selected":""}>Chassaing</option></select><select data-th="${i}" aria-label="Heures de contrat">${[35,37,39,40,42].map(h=>`<option value="${h}"${h===t.heures?" selected":""}>${h} h / sem</option>`).join("")}</select><button class="btn small danger" type="button" data-tdel="${i}" aria-label="Retirer">Retirer</button>
+  <div class="flags"><label><input type="checkbox" data-tap${t.apprenti?" checked":""}> Apprenti</label><label><input type="checkbox" data-tdp${t.depanneur?" checked":""}> Dépanneur (SAV)</label><span class="ecosum"${t.apprenti?"":" hidden"}>${eco.length?`École : ${eco.length} jours, du ${fd(parse(eco[0]))} au ${fd(parse(eco[eco.length-1]))}`:"École : aucune date"} <button class="btn small" type="button" data-teco>Dates d'école</button></span></div>
+  <div class="ecoedit" hidden><textarea data-tecot aria-label="Dates d'école, une plage par ligne">${esc(ecoleRanges(eco))}</textarea><small class="hint">Une plage par ligne : 21/09/2026 → 25/09/2026, ou un seul jour : 02/10/2026. Week-ends ignorés.</small></div></div>`}
 function bindListe(){
   const s=$("#r-save");if(!s)return;
   const cb=$("#r-couts");
@@ -1139,11 +1180,21 @@ function bindListe(){
   cb.addEventListener("click",e=>{const b=e.target.closest("[data-cdel]");if(b)b.closest(".coutedit").remove()});
   const readCouts=()=>[...cb.querySelectorAll(".coutedit")].map(r=>({date:r.querySelector("[data-cd]").value,artik:Number(r.querySelector("[data-ca]").value)||0,chassaing:Number(r.querySelector("[data-cc]").value)||0})).filter(c=>c.date&&(c.artik||c.chassaing));
   const box=$("#r-techs");
-  const readTechs=()=>[...box.querySelectorAll(".trowedit")].map(r=>({nom:r.querySelector("input").value.trim(),societe:r.querySelector("[data-ts]").value,heures:Number(r.querySelector("[data-th]").value)})).filter(t=>t.nom);
-  const upd=()=>{$("#r-tot").textContent="Capacité de l'équipe : "+readTechs().reduce((a,b)=>a+b.heures,0)+" h par semaine (non enregistré)"};
+  const readTechs=()=>[...box.querySelectorAll(".trowedit")].map(r=>{const ta=r.querySelector("[data-tecot]"),ap=r.querySelector("[data-tap]").checked;
+    let eco=[];try{eco=JSON.parse(r.dataset.ecole||"[]")}catch(e){}if(ta&&!r.querySelector(".ecoedit").hidden)eco=parseRanges(ta.value);
+    return {nom:r.querySelector("input").value.trim(),societe:r.querySelector("[data-ts]").value,heures:Number(r.querySelector("[data-th]").value),apprenti:ap,depanneur:r.querySelector("[data-tdp]").checked,ecole:ap?eco:[]}}).filter(t=>t.nom);
+  const upd=()=>{$("#r-tot").textContent="Capacité chantier : "+readTechs().filter(t=>!t.depanneur).reduce((a,b)=>a+b.heures,0)+" h par semaine, dépanneurs à part (non enregistré)"};
   box.addEventListener("change",upd);
   $("#r-add").addEventListener("click",()=>{const i=box.children.length;box.insertAdjacentHTML("beforeend",techRow({nom:"",heures:35,societe:$("#fl-soc").value||"artik"},i));box.lastElementChild.querySelector("input").focus()});
-  box.addEventListener("click",e=>{const b=e.target.closest("[data-tdel]");if(b){b.closest(".trowedit").remove();upd()}});
+  box.addEventListener("click",e=>{const b=e.target.closest("[data-tdel]");if(b){b.closest(".trowedit").remove();upd();return}
+    const ec=e.target.closest("[data-teco]");if(ec){const ed=ec.closest(".trowedit").querySelector(".ecoedit");ed.hidden=!ed.hidden;if(!ed.hidden)ed.querySelector("textarea").focus()}});
+  box.addEventListener("change",e=>{const a=e.target.closest("[data-tap]");if(a)a.closest(".trowedit").querySelector(".ecosum").hidden=!a.checked});
+  /* import d'un fichier de dates d'école (JSON { "Prénom": ["2026-09-21", …] }) : lu ici, enregistré dans les paramètres */
+  const imp=$("#r-ecoimp");if(imp)imp.addEventListener("change",async()=>{const f=imp.files[0];if(!f)return;let J;try{J=JSON.parse(await f.text())}catch(e){toast("Fichier illisible",true);return}
+    const norm=x=>String(x).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();let n=0;const miss=[];
+    Object.entries(J).forEach(([k,v])=>{if(k.startsWith("_")||!Array.isArray(v))return;const r=[...box.querySelectorAll(".trowedit")].find(r=>{const nm=norm(r.querySelector("input").value);return nm===norm(k)||nm.split(" ")[0]===norm(k)});
+      if(!r){miss.push(k);return}r.dataset.ecole=JSON.stringify(v);r.querySelector("[data-tap]").checked=true;const sm=r.querySelector(".ecosum");sm.hidden=false;sm.firstChild.textContent=`École : ${v.length} jours, du ${fd(parse(v[0]))} au ${fd(parse(v[v.length-1]))} `;r.querySelector("[data-tecot]").value=ecoleRanges(v);n++});
+    imp.value="";toast(n+" apprenti"+(n>1?"s":"")+" mis à jour"+(miss.length?" · introuvable : "+miss.join(", "):"")+". Pensez à enregistrer.",!!miss.length)});
   const eb=$("#r-eqs");
   eb.addEventListener("click",e=>{const m=e.target.closest("[data-m]");if(m){m.setAttribute("aria-pressed",m.getAttribute("aria-pressed")!=="true");return}
     if(e.target.closest("[data-edel]"))e.target.closest(".eqedit").remove()});
@@ -1360,6 +1411,41 @@ $("#next").addEventListener("click",()=>step(1));
 $("#today").addEventListener("click",()=>{viewDate=new Date();render()});
 $("#view").addEventListener("click",e=>{if(suppressClick)return;const o=e.target.closest("[data-open]");if(o&&!e.target.closest(".bar"))openSheet(o.dataset.open)});
 $("#btn-new").addEventListener("click",()=>openSheet(null));
+$("#btn-abs").addEventListener("click",()=>openAbs());
+$("#view").addEventListener("click",e=>{const a=e.target.closest("[data-absd]");if(!a)return;const [t,d]=a.dataset.absd.split("|");const ab=ABS.find(z=>z.tech===t&&z.du<=d&&(z.au||z.du)>=d);if(ab)openAbs(ab.id)});
+function openAbs(editId){
+  const techs=techList(),ab=editId?ABS.find(a=>a.id===editId):null,o=$("#overlay"),today=ymd(new Date());
+  const list=ABS.filter(a=>(a.au||a.du)>=today).sort((a,b)=>a.du.localeCompare(b.du));
+  o.innerHTML=`<div class="sheet plage" role="dialog" aria-modal="true" aria-labelledby="ab-h"><div class="sheet-head"><h2 id="ab-h">${ab?"Modifier l'absence":"Nouvelle absence"}</h2><button class="btn small" type="button" data-close>Fermer</button></div>
+  <div class="sheet-body">
+    ${techs.length?"":'<p class="hint">Ajoutez d\'abord vos techniciens dans Paramètres.</p>'}
+    <label class="field"><span>Technicien</span><select id="ab-t">${techs.map(t=>`<option${ab&&ab.tech===t.nom?" selected":""}>${esc(t.nom)}</option>`).join("")}</select></label>
+    <div class="field"><span>Motif</span>${seg("ab-y",Object.entries(ABS_T),ab?ab.type:"conges")}</div>
+    <div class="grid2"><label class="field"><span>Du</span><input type="date" id="ab-d" value="${esc(ab?ab.du:today)}"></label><label class="field"><span>Au (inclus)</span><input type="date" id="ab-f" value="${esc(ab?(ab.au||ab.du):today)}"></label></div>
+    <label class="field"><span>Note <small>(facultatif)</small></span><input type="text" id="ab-n" value="${esc(ab?ab.note||"":"")}" placeholder="ex. retour prévu le…"></label>
+    <div class="plinfo" id="ab-i"></div><div class="err" id="ab-e" hidden></div>
+    <div class="actions">${ab?'<button class="btn danger" type="button" id="ab-del">Supprimer</button>':""}<button class="btn" type="button" data-close>Annuler</button><button class="btn primary" type="button" id="ab-ok">Enregistrer</button></div>
+    ${list.length?`<h3 style="margin:18px 0 6px;font-size:15px">Absences à venir</h3><div class="ablist">${list.map(a=>`<button type="button" class="abi ${a.type}" data-abe="${a.id}"><b>${esc(a.tech)}</b><span>${ABS_T[a.type]||"Absent"} · ${a.du===(a.au||a.du)?"le "+fd(parse(a.du)):"du "+fd(parse(a.du))+" au "+fd(parse(a.au))}${a.note?" · "+esc(a.note):""}</span></button>`).join("")}</div>`:""}
+  </div></div>`;
+  o.hidden=false;
+  o.querySelectorAll(".seg").forEach(g=>g.addEventListener("click",e=>{const b=e.target.closest("button");if(b)g.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed",z===b))}));
+  o.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",close));
+  o.querySelectorAll("[data-abe]").forEach(b=>b.addEventListener("click",()=>openAbs(b.dataset.abe)));
+  /* chantiers touchés par l'absence */
+  const info=()=>{const t=$("#ab-t").value,d=$("#ab-d").value,f=$("#ab-f").value;if(!t||!d||!f||f<d){$("#ab-i").innerHTML="";return}
+    let n=0,dd=parse(d);while(dd<=parse(f)){if(!isWE(dd)&&!isFer(dd))n++;dd=addD(dd,1)}
+    const hit=items.filter(x=>x.debut&&x.statut!=="termine"&&x.statut!=="solde"&&partsOf(x).some(q=>(q.techs||[]).includes(t)&&q.debut<=f&&finOf(q.debut,q.pm,q.slots)>=d));
+    $("#ab-i").innerHTML=`<b>${n} jour${n>1?"s":""} ouvré${n>1?"s":""}</b> d'absence${hit.length?`<span class="plwarn">Prévu sur : ${hit.map(x=>esc(x.client)).join(", ")}. Ces jours-là il ne sera pas compté : pensez à le remplacer.</span>`:'<span class="plhint">Aucun chantier prévu pour lui sur ces dates.</span>'}`};
+  ["#ab-t","#ab-d","#ab-f"].forEach(k=>$(k).addEventListener("change",()=>{if(k==="#ab-d"&&$("#ab-f").value<$("#ab-d").value)$("#ab-f").value=$("#ab-d").value;info()}));info();
+  $("#ab-ok").addEventListener("click",async()=>{const t=$("#ab-t").value,d=$("#ab-d").value,f=$("#ab-f").value;
+    if(!t||!d||!f||f<d){$("#ab-e").textContent="Choisissez le technicien et des dates valides.";$("#ab-e").hidden=false;return}
+    const v={tech:t,type:segVal("ab-y")||"autre",du:d,au:f,note:$("#ab-n").value.trim(),creePar:window.__me||"",le:new Date().toISOString()};
+    $("#ab-ok").disabled=true;
+    try{await db.collection("absences").doc(ab?ab.id:"a"+Date.now().toString(36)).set(v);close();toast(`${t} : ${ABS_T[v.type].toLowerCase()} du ${fd(parse(d))} au ${fd(parse(f))}`)}
+    catch(e){$("#ab-ok").disabled=false;$("#ab-e").textContent="Enregistrement impossible ("+(e.code||e.message)+").";$("#ab-e").hidden=false}});
+  const del=$("#ab-del");if(del){let armed=false;del.addEventListener("click",async()=>{if(!armed){armed=true;del.textContent="Confirmer la suppression";return}
+    try{await db.doc("absences/"+ab.id).delete();close();toast("Absence supprimée")}catch(e){toast("Suppression impossible",true)}})}
+}
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{if(tab==="planning"&&!drag&&$("#overlay").hidden)render()},150)});
 
 tab=ls("tab")||"planning";zoom=ZOOMS[ls("zoom2")]?ls("zoom2"):"semaine";mode=modeUser=["techniciens","equipes"].includes(ls("mode"))?ls("mode"):"chantiers";applyPrev();
@@ -1378,6 +1464,7 @@ render();
     let n=0;const tryo=()=>{if(items.some(i=>i.id===id)){const tb=document.querySelector(".tab[data-tab=\"planning\"]");if(tb&&tb.getAttribute("aria-selected")!=="true")tb.click();openSheet(id)}else if(n++<20)setTimeout(tryo,300)};tryo()};
   try{new BroadcastChannel("artik-planning").onmessage=e=>{if(e.data&&e.data.open)askOpen(e.data.open)}}catch(_){}
   try{const r=JSON.parse(localStorage.getItem("plan-open")||"null");if(r&&Date.now()-r.t<120000)setTimeout(()=>askOpen(r.id),600)}catch(_){}
+  db.collection("absences").onSnapshot(s=>{ABS=s.docs.map(d=>({id:d.id,...d.data()}));ABS_V++;if($("#overlay").hidden&&!drag)render()},()=>{});
   db.collection("chantiers").onSnapshot(s=>{
     items=s.docs.map(d=>({id:d.id,...d.data()}));
     if(!s.metadata.fromCache){clearTimeout(timer);banner("")}
