@@ -477,7 +477,7 @@ function rowsHTML(k,title,cols,rows,addLbl){
    ${rows.length?`<div class="tbl"><table><thead><tr>${cols.map(c=>`<th>${c.l}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map((l,i)=>`<tr>${cols.map(c=>`<td><input type="${c.t||"text"}"${c.t?"":' inputmode="decimal"'} class="${c.cls||"s num"}" data-ln="${k}|${i}|${c.k}" value="${esc(c.t?l[c.k]:inV(l[c.k]))}"${c.ph?` placeholder="${c.ph}"`:""}></td>`).join("")}<td><button type="button" class="x" data-lx="${k}|${i}" aria-label="Retirer la ligne">✕</button></td></tr>`).join("")}</tbody></table></div>`:""}
    <div class="add"><button type="button" class="btn sm" data-la="${k}">+ ${addLbl}</button></div></div>`}
 function ficheHTML(){const d=cur;
-  const infos=`<section class="card"><h2>🗂 Identification du dossier</h2>
+  const infos=`<section class="card"><h2>📁 Identification du dossier</h2>
     <label class="f"><span>👤 Client</span><input type="text" data-dv="client" value="${esc(d.client)}" placeholder="Nom du client"></label>
     <label class="f"><span>📍 Chantier / adresse</span><input type="text" data-dv="adresse" value="${esc(d.adresse)}"></label>
     <div class="row2"><label class="f"><span>🧾 N° de devis</span><input type="text" data-dv="ref" value="${esc(d.ref)}"></label><label class="f"><span>📅 Date</span><input type="date" data-dv="date" value="${esc(d.date)}"></label></div>
@@ -623,7 +623,7 @@ function pvHTML(){const L_=mesPV();if(!pv||!PVS.includes(pv)&&!L_.some(x=>x.id==
   const d=pv,C=pvCalc(d);
   return `<div class="dl"><label class="f">Dossier<select id="pvsel">${L_.map(x=>`<option value="${x.id}"${x.id===d.id?" selected":""}>${esc(x.client||"Sans nom")}${x.ref?" · "+esc(x.ref):""}</option>`).join("")}</select></label><button type="button" class="btn pri" data-pact="new">➕ Nouveau</button><button type="button" class="btn" data-pact="dup">⧉ Copier</button><button type="button" class="btn bad" data-pact="del">🗑️</button></div>
   <div class="pv">
-   <section class="card"><h2>🗂 Le dossier</h2>
+   <section class="card"><h2>📁 Le dossier</h2>
     <label class="f">Client<input type="text" data-pk="client" value="${esc(d.client)}"></label>
     <label class="f">N° de devis<input type="text" data-pk="ref" value="${esc(d.ref)}"></label>
     ${seeAll()?`<label class="f">Chargé d'affaires<select data-pk="charge">${P.charges.map(c=>`<option${c===d.charge?" selected":""}>${esc(c)}</option>`).join("")}</select></label>`:""}
