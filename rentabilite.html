@@ -158,6 +158,11 @@ input.num{text-align:right;font-variant-numeric:tabular-nums}
 .pvz{border-radius:10px;padding:6px 10px;font-weight:700;text-align:center}.pvz.ok{background:var(--okS);color:var(--ok)}.pvz.mid{background:var(--midS);color:var(--mid)}.pvz.ko{background:var(--koS);color:var(--ko)}.pvz.hi{background:var(--hiS);color:var(--hi)}
 .warn{background:var(--midS);border-radius:10px;padding:8px 10px;font-size:13.5px}
 .dl{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}.dl .f{flex:1;min-width:180px}
+.auto{border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:grid;gap:6px;background:var(--soft)}
+.arow{display:grid;grid-template-columns:120px minmax(0,1fr) 14px 70px 96px;gap:6px;align-items:center}.arow .al{font-weight:700;font-size:14px}.arow .x2{color:var(--muted);text-align:center}
+.arow .eur{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (max-width:600px){.arow{grid-template-columns:1fr 14px 60px 86px}.arow .al{grid-column:1/-1}}
+.bul{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;cursor:pointer}.chip:hover{border-color:var(--c1);color:var(--c1)}
 .pvhero{align-items:center;text-align:center;padding:36px 20px;max-width:560px;margin:0 auto}.pvhero h2{justify-content:center;font-size:28px}
 .pvempty{display:grid;justify-items:center;gap:4px;text-align:center;color:var(--muted);padding:18px 8px}.pvempty span:first-child{font-size:34px}.pvempty b{color:var(--ink)}
 </style>
@@ -324,10 +329,12 @@ const OWNER="Dimitri",TOUT_VOIR=["Dimitri","Karim"];
 const DEF={act:[{n:"MO Chantier CVC",t:50},{n:"MO Chantier Froid",t:55},{n:"MO SAV",t:57.5}],coutH:{artik:81,chassaing:97},charges:["Dimitri","Karim","Guilhem","Samuel","Laurent","Alexis"],
   typo:{on:true,seuils:[10000,30000,60000],mat:65,mo:35,grille:[[-2,3,5],[-4,0,2],[-7,-3,0],[-10,-6,-3]]},
   niveau:"normal",niveaux:{faible:{n:"Peu de travail d'avance",m:20},normal:{n:"Carnet normal",m:25},plein:{n:"Carnet plein",m:32}},
-  tolBas:4,tolHaut:12,coefMin:1.25,ratioMO:1.5,partAch:70};
+  tolBas:4,tolHaut:12,coefMin:1.25,ratioMO:1.5,partAch:70,
+  pvF:{base:8,parVeh:2,dep:[{n:"0 à 15 km",p:""},{n:"15 à 30 km",p:""},{n:"30 à 60 km",p:""},{n:"60 à 100 km",p:""},{n:"Plus de 100 km",p:""}],repas:{panier:"",resto:""},
+    bulles:[{n:"Location nacelle",p:"",u:"jour"},{n:"Benne",p:"",u:""},{n:"Échafaudage",p:"",u:"jour"},{n:"Grue / levage",p:"",u:""},{n:"Chariot / transpalette",p:"",u:"jour"},{n:"Carottage",p:"",u:""},{n:"Hôtel",p:"",u:"nuit"},{n:"Sous-traitance",p:"",u:""},{n:"Évacuation des déchets",p:"",u:""}]}};
 const LS=k=>{try{return JSON.parse(localStorage.getItem("rd-"+k)||"null")}catch(e){return null}};
 const SS=(k,v)=>{try{localStorage.setItem("rd-"+k,JSON.stringify(v))}catch(e){}};
-let P=Object.assign(JSON.parse(JSON.stringify(DEF)),LS("params3")||{});if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));
+let P=Object.assign(JSON.parse(JSON.stringify(DEF)),LS("params3")||{});if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));if(!P.pvF||!P.pvF.dep)P.pvF=JSON.parse(JSON.stringify(DEF.pvF));
 let DEVIS=LS("devis2")||[];
 let F=Object.assign({q:"",charge:"",cat:"",statut:"actifs",soc:"",du:"",au:"",perdus:false,sk:"date",sd:-1},LS("filtres")||{});
 let VUE=LS("vue")||OWNER;
@@ -576,6 +583,14 @@ function paramsHTML(){const lk=!isOwner(),dis=lk?" disabled":"";
   <section class="card"><h2>👷 Coût horaire réel par société</h2>
    <div class="row2"><label class="f"><span>Artik (€/h)</span>${nI('data-pc="artik"',P.coutH.artik,"100%")}</label><label class="f"><span>Chassaing (€/h)</span>${nI('data-pc="chassaing"',P.coutH.chassaing,"100%")}</label></div>
    <p class="hint">Repris de ta fiche Excel. Sert au coût réel de la main-d'œuvre.</p></section>
+  <section class="card"><h2>🚚 Prix de vente : frais annexes</h2>
+   <div class="row2"><label class="f"><span>Heures par journée</span>${nI('data-pf="base"',P.pvF.base,"100%")}</label><label class="f"><span>Techniciens par véhicule</span>${nI('data-pf="parVeh"',P.pvF.parVeh,"100%")}</label></div>
+   <div class="tbl"><table><thead><tr><th>🚐 Zone de déplacement</th><th>Prix aller-retour (€ HT)</th><th></th></tr></thead><tbody>${P.pvF.dep.map((z,i)=>`<tr><td><input type="text" data-pdn="${i}" value="${esc(z.n)}"${dis}></td><td>${nI(`data-pdp="${i}"`,z.p)}</td><td>${lk?"":`<button type="button" class="x" data-pdx="${i}" title="Retirer">✕</button>`}</td></tr>`).join("")}</tbody></table></div>
+   ${lk?"":`<div><button type="button" class="btn sm" data-pdadd>+ Zone</button></div>`}
+   <div class="row2"><label class="f"><span>🍽️ Panier (€ par repas)</span>${nI('data-prp="panier"',P.pvF.repas.panier,"100%")}</label><label class="f"><span>🍽️ Restaurant (€ par repas)</span>${nI('data-prp="resto"',P.pvF.repas.resto,"100%")}</label></div>
+   <div class="tbl"><table><thead><tr><th>🔖 Bulle de frais</th><th>Prix (€ HT)</th><th>Unité</th><th></th></tr></thead><tbody>${P.pvF.bulles.map((b,i)=>`<tr><td><input type="text" data-pbn="${i}" value="${esc(b.n)}"${dis}></td><td>${nI(`data-pbp="${i}"`,b.p)}</td><td><input type="text" data-pbu="${i}" value="${esc(b.u||"")}" placeholder="jour, nuit…" style="width:90px"${dis}></td><td>${lk?"":`<button type="button" class="x" data-pbx="${i}" title="Retirer">✕</button>`}</td></tr>`).join("")}</tbody></table></div>
+   ${lk?"":`<div><button type="button" class="btn sm" data-pbadd>+ Bulle</button></div>`}
+   <p class="hint">Prix vide : la ligne s'ajoute sans montant, à compléter dans le dossier.</p></section>
   <section class="card"><h2>🧑‍💼 Chargés d'affaires</h2><label class="f"><span>Noms, séparés par des virgules</span><input type="text" data-pch value="${esc(P.charges.join(", "))}"${dis}></label></section>
  </div>`}
 
@@ -591,16 +606,19 @@ const openD=id=>{const d=DEVIS.find(x=>x.id===id);if(!d)return;cur=JSON.parse(JS
    Un dossier peut devenir une analyse de devis d'un clic.
    ===================================================================== */
 let PVS=RD?[]:(LS("pv")||[]),pv=null;
-const pvBlank=()=>({id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),client:"",ref:"",charge:VUE,soc:"artik",cat:"clim",act:0,niveau:"",margeMan:"",ach:[{d:"",m:""}],mo:[{d:"",n:"1",h:""}],fr:[{d:"Déplacements",m:""}],cible:"",cibleM:"",date:today(),devis:""});
+const pvBlank=()=>({id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),client:"",ref:"",charge:VUE,soc:"artik",cat:"clim",act:0,niveau:"",margeMan:"",ach:[{d:"",m:""}],mo:[{d:"",n:"1",h:""}],fr:[],depZ:"",depN:"",repas:"",repN:"",cible:"",cibleM:"",date:today(),devis:""});
 const mesPV=()=>seeAll()?PVS:PVS.filter(x=>x.charge===VUE);
 function pvSave(){if(!pv)return;pv.maj=new Date().toISOString();const i=PVS.findIndex(x=>x.id===pv.id);if(i>=0)PVS[i]=pv;else PVS.unshift(pv);if(RD)RD.savePV(JSON.parse(JSON.stringify(pv)));else SS("pv",PVS)}
-function pvCalc(d){const A=d.ach.reduce((a,x)=>a+num(x.m),0),F_=d.fr.reduce((a,x)=>a+num(x.m),0),ch=+P.coutH[d.soc]||0,act=P.act[+d.act]||P.act[0]||{n:"",t:0};
+function pvAuto(d){const V=P.pvF,b=num(V.base)||8,pv_=num(V.parVeh)||2;let dep=0,rep=0;(d.mo||[]).forEach(x=>{const h=num(x.h),n=Math.max(1,Math.round(num(x.n)||1));if(!(h>0))return;const j=Math.ceil(h/b);dep+=j*Math.ceil(n/pv_);rep+=j*n});
+  const z=V.dep[+d.depZ],depN=d.depZ===""?0:(String(d.depN).trim()!==""?num(d.depN):dep),depP=z?num(z.p):0,rp=d.repas?num(V.repas[d.repas]):0,repN=!d.repas?0:(String(d.repN).trim()!==""?num(d.repN):rep);
+  return {dep,rep,depN,depP,depM:depN*depP,repN,rp,repM:repN*rp,z}}
+function pvCalc(d){d.fr=d.fr||[];const AU=pvAuto(d),A=d.ach.reduce((a,x)=>a+num(x.m),0),F_=d.fr.reduce((a,x)=>a+num(x.m),0)+AU.depM+AU.repM,ch=+P.coutH[d.soc]||0,act=P.act[+d.act]||P.act[0]||{n:"",t:0};
   const H=d.mo.reduce((a,x)=>a+num(x.h)*(num(x.n)||1),0),MO=H*ch,cout=A+F_+MO,nivK=d.niveau||P.niveau,base=(+((P.niveaux[nivK]||{}).m)||0)/100;
   let o=base,prix=cout/(1-o),ty=null;
   if(d.margeMan!==""){o=Math.min(.9,num(d.margeMan)/100);prix=cout/(1-o)}else for(let k=0;k<8;k++){ty=typoOf(prix,A+F_);o=Math.max(.03,base+(ty?ty.adj/100:0));prix=cout/(1-o)}
   const pr=cout?Math.ceil(prix/10)*10:0,M=pr-cout,moV=H*act.t,coefMat=A+F_?(pr-moV)/(A+F_):NaN,coefG=cout?pr/cout:NaN,tauxEq=H?(pr-(A+F_)*P.coefMin)/H:NaN;
   const cib=num(d.cible),Mc=cib?cib-cout:NaN,oc=cib?Mc/cib:NaN,zc=!isFinite(oc)?"":oc<0?"ko":oc<o-P.tolBas/100?"mid":oc>o+P.tolHaut/100?"hi":"ok";
-  return {A,F:F_,H,ch,act,MO,cout,nivK,base,o,ty,prix:pr,M,moV,coefMat,coefG,tauxEq,cib,Mc,oc,zc}}
+  return {AU,A,F:F_,H,ch,act,MO,cout,nivK,base,o,ty,prix:pr,M,moV,coefMat,coefG,tauxEq,cib,Mc,oc,zc}}
 const PVZ={ok:"✅ dans la cible",mid:"⚠️ sous la cible",ko:"🛑 à perte",hi:"💎 au-dessus de la cible"};
 const f2=n=>(+n||0).toLocaleString("fr-FR",{maximumFractionDigits:2});
 function pvLine(k,x,i){return `<div class="ln"><input type="text" data-pl="${k}|${i}|d" value="${esc(x.d)}" placeholder="${k==="ach"?"Ex. : unité extérieure, cuivre, fournitures…":"Ex. : nacelle, sous-traitance…"}"><input type="text" inputmode="decimal" class="numi" data-pl="${k}|${i}|m" value="${esc(x.m)}" placeholder="€ HT"><button type="button" class="x" data-pdel="${k}|${i}" title="Supprimer la ligne">✕</button></div>`}
@@ -642,8 +660,10 @@ function pvHTML(){const L_=mesPV();if(!pv||!PVS.includes(pv)&&!L_.some(x=>x.id==
     <div class="lines">${d.mo.map((x,i)=>`<div class="ln mo"><input type="text" data-pl="mo|${i}|d" value="${esc(x.d)}" placeholder="Ex. : pose, mise en service…"><input type="text" inputmode="numeric" class="numi" data-pl="mo|${i}|n" value="${esc(x.n)}"><input type="text" inputmode="decimal" class="numi" data-pl="mo|${i}|h" value="${esc(x.h)}" placeholder="h"><span class="eur" id="mov-${i}">${eur(num(x.h)*(num(x.n)||1)*C.ch)}</span><button type="button" class="x" data-pdel="mo|${i}" title="Supprimer la ligne">✕</button></div>`).join("")}</div>
     <div><button type="button" class="btn sm" data-padd="mo">+ Ligne de temps</button></div>
     <div class="sub"><span id="sH">Total temps : ${f2(C.H)} h</span><b id="sMO">${eur(C.MO)}</b></div>
-    <div class="lnh">🚚 Frais annexes (déplacements, nacelle, sous-traitance…)</div>
-    <div class="lines">${d.fr.map((x,i)=>pvLine("fr",x,i)).join("")}</div><div><button type="button" class="btn sm" data-padd="fr">+ Ligne de frais</button></div>
+    <div class="lnh">🚚 Frais annexes</div>
+    ${pvAutoHTML(d,C)}
+    <div class="bul"><span class="hint">Ajouter :</span>${P.pvF.bulles.map((b,i)=>`<button type="button" class="chip" data-pbul="${i}">${esc(b.n)}${num(b.p)?` · ${eur(num(b.p))}${b.u?"/"+esc(b.u):""}`:""}</button>`).join("")}</div>
+    <div class="lines">${d.fr.map((x,i)=>pvLine("fr",x,i)).join("")}</div><div><button type="button" class="btn sm" data-padd="fr">+ Ligne libre</button></div>
     <div class="sub"><span>Total frais</span><b id="sF">${eur(C.F)}</b></div>
     <div class="big grey"><span>Coût de revient total</span><b id="sC">${eur(C.cout)}</b></div></section>
    <section class="card"><h2>🎯 Le prix à proposer</h2><div id="pvres" style="display:flex;flex-direction:column;gap:12px">${pvRes(d,C)}</div>
@@ -652,24 +672,34 @@ function pvHTML(){const L_=mesPV();if(!pv||!PVS.includes(pv)&&!L_.some(x=>x.id==
 function pvCibM(d,C){const m=num(d.cibleM)/100;if(!(d.cibleM&&C.cout))return `<p class="hint">Tape un pourcentage pour voir le prix qu'il faut annoncer.</p>`;if(m>=0.95)return `<p class="hint">Marge trop haute.</p>`;
   const pr=Math.ceil(C.cout/(1-m)/10)*10,coef=C.A+C.F?(pr-C.moV)/(C.A+C.F):NaN,zc=m<0?"ko":m<C.o-P.tolBas/100?"mid":m>C.o+P.tolHaut/100?"hi":"ok";
   return `<div class="kv"><span>Prix à annoncer</span><b>${eur(pr)}</b></div><div class="kv"><span>Marge nette</span><b>${eur(pr-C.cout)}</b></div><div class="kv"><span>Coefficient matériel et frais</span><b>${isFinite(coef)?"× "+f2(coef):"—"}</b></div><div class="pvz ${zc}">${PVZ[zc]}</div><button type="button" class="btn sm" data-pact="applym">✔️ Retenir cette marge</button>`}
+function pvAutoHTML(d,C){const AU=C.AU,V=P.pvF;
+  return `<div class="auto"><div class="arow"><span class="al">🚐 Déplacements</span><select data-pk="depZ"><option value="">Aucun</option>${V.dep.map((z,i)=>`<option value="${i}"${String(d.depZ)===String(i)?" selected":""}>${esc(z.n)}${num(z.p)?" · "+eur(num(z.p)):""}</option>`).join("")}</select>
+     <span class="x2">×</span><input type="text" inputmode="numeric" class="numi" data-pk="depN" value="${esc(d.depN||"")}" placeholder="${AU.dep}" title="Nombre d'allers-retours (vide = calcul auto)"${d.depZ===""?" disabled":""}><span class="eur" id="depM">${eur(AU.depM)}</span></div>
+    <div class="arow"><span class="al">🍽️ Repas</span><select data-pk="repas"><option value="">Aucun</option><option value="panier"${d.repas==="panier"?" selected":""}>Panier${num(V.repas.panier)?" · "+eur(num(V.repas.panier)):""}</option><option value="resto"${d.repas==="resto"?" selected":""}>Restaurant${num(V.repas.resto)?" · "+eur(num(V.repas.resto)):""}</option></select>
+     <span class="x2">×</span><input type="text" inputmode="numeric" class="numi" data-pk="repN" value="${esc(d.repN||"")}" placeholder="${AU.rep}" title="Nombre de repas (vide = calcul auto)"${!d.repas?" disabled":""}><span class="eur" id="repM">${eur(AU.repM)}</span></div>
+    <p class="hint" id="autoH">${autoHint(d,AU)}</p></div>`}
+function autoHint(d,AU){const V=P.pvF;let t=`Auto : journées de ${f2(num(V.base)||8)} h, ${f2(num(V.parVeh)||2)} techniciens par véhicule → ${AU.dep} aller${AU.dep>1?"s-retours":"-retour"}, ${AU.rep} repas.`;
+  if(d.depZ!==""&&!AU.depP||d.repas&&!AU.rp)t+=" ⚠️ Prix à régler dans ⚙️ Paramètres.";return t}
 function pvUpdate(){const d=pv,C=pvCalc(d),T_=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  T_("depM",eur(C.AU.depM));T_("repM",eur(C.AU.repM));T_("autoH",autoHint(d,C.AU));{const a=document.querySelector('[data-pk="depN"]');if(a)a.placeholder=C.AU.dep;const r_=document.querySelector('[data-pk="repN"]');if(r_)r_.placeholder=C.AU.rep}
   T_("sA",eur(C.A));T_("sMO",eur(C.MO));T_("sH","Total temps : "+f2(C.H)+" h");T_("sF",eur(C.F));T_("sC",eur(C.cout));d.mo.forEach((x,i)=>T_("mov-"+i,eur(num(x.h)*(num(x.n)||1)*C.ch)));
   const r=document.getElementById("pvres");if(r)r.innerHTML=pvRes(d,C);const c=document.getElementById("pvcib");if(c)c.innerHTML=pvCib(C);const cm=document.getElementById("pvcibm");if(cm)cm.innerHTML=pvCibM(d,C);
   const ci=document.querySelector('[data-pk="cible"]');if(ci)ci.placeholder=C.prix?Math.round(C.prix):"";const b=document.querySelector('[data-pact="todevis"]');if(b)b.disabled=!C.cout;pvSave()}
 document.addEventListener("input",e=>{const t=e.target,d=t.dataset;if(view!=="pv"||!pv)return;
-  if(d.pk){pv[d.pk]=t.value;if(t.tagName==="SELECT"){pvSave();render();return}if(d.pk==="client"||d.pk==="ref"){const o=document.querySelector(`#pvsel option[value="${pv.id}"]`);if(o)o.textContent=(pv.client||"Sans nom")+(pv.ref?" · "+pv.ref:"")}pvUpdate();return}
+  if(d.pk){pv[d.pk]=t.value;if(t.tagName==="SELECT"){if(d.pk==="depZ"&&t.value==="")pv.depN="";if(d.pk==="repas"&&!t.value)pv.repN="";pvSave();render();return}if(d.pk==="client"||d.pk==="ref"){const o=document.querySelector(`#pvsel option[value="${pv.id}"]`);if(o)o.textContent=(pv.client||"Sans nom")+(pv.ref?" · "+pv.ref:"")}pvUpdate();return}
   if(d.pl){const [k,i,f]=d.pl.split("|");pv[k][+i][f]=t.value;pvUpdate()}});
 document.addEventListener("change",e=>{if(e.target.id==="pvsel"){pv=PVS.find(x=>x.id===e.target.value)||pv;render()}});
 document.addEventListener("click",e=>{const b=e.target.closest("button");if(!b||view!=="pv")return;const d=b.dataset;
   if(d.padd){pv[d.padd].push(d.padd==="mo"?{d:"",n:"1",h:""}:{d:"",m:""});pvSave();render();const ins=document.querySelectorAll(`[data-pl^="${d.padd}|"][data-pl$="|d"]`);if(ins.length)ins[ins.length-1].focus();return}
   if(d.pdel){const [k,i]=d.pdel.split("|");pv[k].splice(+i,1);if(!pv[k].length)pv[k].push(k==="mo"?{d:"",n:"1",h:""}:{d:"",m:""});pvSave();render();return}
+  if(d.pbul!==undefined){const b_=P.pvF.bulles[+d.pbul];if(!b_)return;const vide=pv.fr.findIndex(x=>!x.d&&!x.m);const l={d:b_.n+(b_.u?" (1 "+b_.u+")":""),m:num(b_.p)?String(num(b_.p)):""};if(vide>=0)pv.fr[vide]=l;else pv.fr.push(l);pvSave();render();const ins=document.querySelectorAll('[data-pl^="fr|"][data-pl$="|m"]');if(ins.length){const el=ins[vide>=0?vide:ins.length-1];el.focus();el.select&&el.select()}toast("➕ "+b_.n);return}
   if(d.pniv){pv.niveau=d.pniv;pv.margeMan="";pvSave();pvUpdate();return}
   if(d.pact==="new"){pv=pvBlank();pvSave();render();const c=document.querySelector('[data-pk="client"]');if(c)c.focus();return}
   if(d.pact==="dup"){const c=JSON.parse(JSON.stringify(pv));c.id=pvBlank().id;c.client=(c.client||"Dossier")+" (variante)";c.devis="";pv=c;pvSave();render();toast("Variante créée");return}
   if(d.pact==="del"){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmer ?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="🗑️"}},3500);return}
     const id=pv.id;PVS=PVS.filter(x=>x.id!==id);if(RD)RD.delPV(id).catch(er=>toast("Suppression impossible : "+er.message));else SS("pv",PVS);pv=mesPV()[0]||null;render();toast("Dossier supprimé");return}
   if(d.pact==="applym"){pv.margeMan=pv.cibleM;pv.cibleM="";pvSave();render();toast("🎯 Marge retenue : "+pv.margeMan+" %");return}
-  if(d.pact==="todevis"){const C=pvCalc(pv),x=blank();Object.assign(x,{client:pv.client,ref:pv.ref,charge:pv.charge||x.charge,soc:pv.soc,cat:pv.cat,act:+pv.act,prix:String(Math.round(num(pv.cible)||C.prix)),achats:String(Math.round(C.A+C.F)),moV:String(Math.round(C.moV)),hPrev:String(f2(C.H)).replace(/\s/g,""),info:"Depuis « Prix de vente » : achats "+eur(C.A)+", frais "+eur(C.F)+", "+f2(C.H)+" h"});
+  if(d.pact==="todevis"){const C=pvCalc(pv),x=blank();Object.assign(x,{client:pv.client,ref:pv.ref,charge:pv.charge||x.charge,soc:pv.soc,cat:pv.cat,act:+pv.act,prix:String(Math.round(num(pv.cible)||C.prix)),achats:String(Math.round(C.A+C.F)),moV:String(Math.round(C.moV)),hPrev:String(f2(C.H)).replace(/\s/g,""),info:"Depuis « Prix de vente » : achats "+eur(C.A)+", frais "+eur(C.F)+(C.AU.depM?" (dont "+C.AU.depN+" déplacements)":"")+(C.AU.repM?" ("+C.AU.repN+" repas)":"")+", "+f2(C.H)+" h"});
     cur=x;persist();pv.devis=x.id;pvSave();boom();toast("🚀 Analyse créée : à toi de jouer !");resetE();view="fiche";render();scrollTo(0,0)}});
 
 /* exemples : seulement sur demande, marqués « exemple », effaçables d'un clic */
@@ -694,6 +724,10 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,tr[data-o
   if(isOwner()){
     if(d.niv){P.niveau=d.niv;saveP();render();toast("🎯 Marge visée : "+P.niveaux[d.niv].m+" %");return}
     if(d.aadd!==undefined){P.act.push({n:"Nouvelle activité",t:50});saveP();render();return}
+    if(d.pdadd!==undefined){P.pvF.dep.push({n:"Nouvelle zone",p:""});saveP();render();return}
+    if(d.pdx!==undefined){P.pvF.dep.splice(+d.pdx,1);saveP();render();return}
+    if(d.pbadd!==undefined){P.pvF.bulles.push({n:"Nouveau frais",p:"",u:""});saveP();render();return}
+    if(d.pbx!==undefined){P.pvF.bulles.splice(+d.pbx,1);saveP();render();return}
     if(d.ax!==undefined){P.act.splice(+d.ax,1);saveP();render();return}}
   if(!cur)return;
   if(d.try){const x=JSON.parse(d.try);Object.keys(x).forEach(k=>E[k]=(E[k]||0)+x[k]);$("#z-sl").innerHTML=slHTML();refresh();
@@ -721,6 +755,13 @@ document.addEventListener("input",e=>{const t=e.target,d=t.dataset;
   if(d.sl){E[d.sl]=+t.value;const o=$("#so-"+d.sl);if(o)o.textContent=E[d.sl]?(d.sl==="h"?sH(E[d.sl]):sEur(E[d.sl])):"—";refresh();return}
   if(isOwner()){
     if(d.an!==undefined){P.act[+d.an].n=t.value;saveP();return}
+    if(d.pf){P.pvF[d.pf]=num(t.value);saveP();return}
+    if(d.pdn!==undefined){P.pvF.dep[+d.pdn].n=t.value;saveP();return}
+    if(d.pdp!==undefined){P.pvF.dep[+d.pdp].p=t.value.trim()===""?"":num(t.value);saveP();return}
+    if(d.prp){P.pvF.repas[d.prp]=t.value.trim()===""?"":num(t.value);saveP();return}
+    if(d.pbn!==undefined){P.pvF.bulles[+d.pbn].n=t.value;saveP();return}
+    if(d.pbp!==undefined){P.pvF.bulles[+d.pbp].p=t.value.trim()===""?"":num(t.value);saveP();return}
+    if(d.pbu!==undefined){P.pvF.bulles[+d.pbu].u=t.value;saveP();return}
     if(d.at!==undefined){P.act[+d.at].t=num(t.value);saveP();return}
     if(d.pc){P.coutH[d.pc]=num(t.value);saveP();return}
     if(d.pp){P[d.pp]=num(t.value);saveP();return}
@@ -744,7 +785,7 @@ document.addEventListener("change",e=>{const t=e.target;
   if(t.id==="vue"){VUE=t.value;SS("vue",VUE);if(cur&&!seeAll()&&cur.charge!==VUE){cur=null;if(view==="fiche")view="liste"}F.charge="";render();toast("Tu vois le site comme "+VUE);return}
   if(t.dataset.dv&&t.tagName==="SELECT"){keepFocus(render);return}
 });
-(async()=>{if(RD){try{const x=await RD.load();ME=x.me;VUE=ME.nom;DEVIS=x.devis||[];PVS=x.pvs||[];if(x.params)P=Object.assign(JSON.parse(JSON.stringify(DEF)),x.params);if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));if(!ME.seeAll)F.charge=""}catch(e){if(e.message!=="redirect"&&e.message!=="stop"){const g=document.getElementById("gate");if(g){g.innerHTML=`<div class="gatecard"><h2>Lecture impossible</h2><p>${esc(e.message)}</p></div>`;g.hidden=false}}return}}render()})();
+(async()=>{if(RD){try{const x=await RD.load();ME=x.me;VUE=ME.nom;DEVIS=x.devis||[];PVS=x.pvs||[];if(x.params)P=Object.assign(JSON.parse(JSON.stringify(DEF)),x.params);if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));if(!P.pvF||!P.pvF.dep)P.pvF=JSON.parse(JSON.stringify(DEF.pvF));if(!ME.seeAll)F.charge=""}catch(e){if(e.message!=="redirect"&&e.message!=="stop"){const g=document.getElementById("gate");if(g){g.innerHTML=`<div class="gatecard"><h2>Lecture impossible</h2><p>${esc(e.message)}</p></div>`;g.hidden=false}}return}}render()})();
 </script>
 
 </body>
