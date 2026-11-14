@@ -239,7 +239,7 @@ legend::before{content:"";width:14px;height:3px;background:var(--orange)}
 .alerts h3{margin:0 0 4px;font-size:16px}.chip.bad{background:var(--alertbg);color:var(--alert)}
 .al{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;text-align:left;border:0;border-radius:8px;padding:8px 10px;cursor:pointer;font:inherit;color:inherit;background:var(--warnbg)}
 .al.danger{background:var(--alertbg)}.al b{white-space:nowrap}.al span{font-size:13.5px}.al.danger span{color:var(--alert)}.al.warn span{color:var(--warn)}
-.dlt{color:var(--alert);font-weight:600}
+.dlt{color:var(--alert);font-weight:600}.bar .reste{color:#fff;background:var(--alert);border-radius:4px;padding:0 4px}
 .dl{position:absolute;top:2px;bottom:2px;width:0;border-left:2px dashed var(--alert);z-index:3;pointer-events:auto}
 .dl.imp{border-left-color:var(--warn)}
 .pers{display:flex;flex-direction:column;gap:10px;margin:12px 0 8px}.pers:empty{display:none}
@@ -642,6 +642,8 @@ function alertsOf(x){
       else if(today>=e.alerte)out.push({niv:"warn",txt:`À démarrer au plus tard le ${fd(parse(e.start))} pour finir le ${fd(parse(x.dateFinLimite))} (${lib})`});
     }else if(!x.debut&&!x.heures&&joursAvant(x.dateFinLimite)<=30)out.push({niv:"warn",txt:`Fin au plus tard le ${fd(parse(x.dateFinLimite))}, pas planifié (heures vendues non renseignées)`});
   }
+  const cv=couverture(x);
+  if(cv&&!cv.sansTech&&cv.reste>=Math.max(8,cv.H*0.02))out.push({niv:cv.pl<cv.H*0.5?"danger":"warn",txt:`${cv.H} h vendues, ${cv.pl} h tiennent dans les dates et les techniciens prévus : ${cv.reste} h restent à placer (allonger, ajouter une période ou du monde)`});
   if(x.dateDebutImp){const n=joursAvant(x.dateDebutImp);
     if(x.debut&&x.debut>x.dateDebutImp)out.push({niv:"danger",txt:`Planifié le ${fd(parse(x.debut))}, après le démarrage impératif du ${fd(parse(x.dateDebutImp))}`});
     else if(!x.debut){
@@ -683,7 +685,16 @@ const ev=n=>((n%2)+2)%2===0;
 function snapNow(){return zoom==="jour"||$("#fl-half").checked?1:2}
 function filtered(){const c=$("#fl-chg").value,s=$("#fl-soc").value;return items.filter(x=>(!c||x.charge===c)&&(!s||x.societe===s))}
 function active(x){return x.debut&&x.statut!=="aplanifier"&&x.statut!=="termine"&&x.statut!=="solde"&&x.heures}
-function loadTeam(list,s0,n){const out=new Array(n).fill(0);list.forEach(x=>{if(!active(x))return;const s=slotOf(x.debut,x.pm),len=slotsOf(x),per=Number(x.heures)/len;for(let i=0;i<len;i++){const k=s+i-s0;if(k>=0&&k<n)out[k]+=per}});return out}
+/* Heures réellement posées sur une demi-journée : on ne compte jamais plus que ce que les techniciens présents peuvent faire
+   (heures hebdo ÷ 10 par demi-journée). Le surplus des heures vendues reste « à placer ». */
+function techSlotH(n){const t=techList().find(z=>z.nom===n);return (t?t.heures:(Number(cfg.journee)||8)*5)/10}
+function slotWork(x,i){const s=slotOf(x.debut,x.pm),len=slotsOf(x),base=(Number(x.heures)||0)/len,t=x.techs||[];
+  if(!t.length)return {tot:base,per:{}};
+  const pres=t.filter(z=>onDay(x,z,i));const cap=pres.reduce((a,z)=>a+techSlotH(z),0);const tot=Math.min(base,cap),per={};
+  pres.forEach(z=>per[z]=cap?tot*techSlotH(z)/cap:0);return {tot,per}}
+function couverture(x){if(!x.debut||!x.heures)return null;let pl=0;partsOf(x).forEach(q=>{const s=slotOf(q.debut,q.pm);for(let i=0;i<q.slots;i++)pl+=slotWork(q,s+i).tot});
+  const H=Number(x.heures);return {H,pl:Math.round(pl),reste:Math.max(0,Math.round(H-pl)),sansTech:!partsOf(x).some(q=>(q.techs||[]).length)}}
+function loadTeam(list,s0,n){const out=new Array(n).fill(0);list.forEach(x=>{if(!active(x))return;const s=slotOf(x.debut,x.pm),len=slotsOf(x);for(let i=0;i<len;i++){const k=s+i-s0;if(k>=0&&k<n)out[k]+=slotWork(x,s+i).tot}});return out}
 function renderStats(){
   const f=filtered();
   const todo=f.filter(x=>x.statut==="aplanifier"||!x.debut).length;
@@ -792,7 +803,7 @@ function barHTML(x,g,top,tech,conflit){
   const vis=segs.filter(z=>z.b-z.a>4),last=vis[vis.length-1]||{a:0,b:sp.width},canAdd=techList().length&&last.b-last.a>40;
   let label=w=>{let txt=w>60?esc(x.client)+(x._n>1?` <small>· ${x._k+1}/${x._n}</small>`:""):"";
     if(w>230&&mode==="chantiers"&&t.length)txt+=` <small>· ${esc(t.join(", "))}</small>`;
-    if(w>320)txt+=` <small>· ${x.heures||0} h · ${jours(len)}</small>`;return txt};
+    if(w>320){const cv=x._base?couverture(items.find(i=>i.id===x._base)||x):null;txt+=` <small>· ${x.heures||0} h · ${jours(len)}${cv&&!cv.sansTech&&cv.reste>=8?` · <b class="reste">${cv.reste} h à placer</b>`:""}</small>`}return txt};
   const split=box.__gaps.length>0;
   const dot=ICO[x.statut]?`<span class="stico" title="${ST[x.statut]}">${ICO[x.statut]}</span>`:"";
   const txt=split?vis.map((z,i)=>`<span class="sbg" style="left:${z.a}px;width:${z.b-z.a-(z.b>=sp.width?2:0)}px;${i===0&&sp.cutL?"border-top-left-radius:0;border-bottom-left-radius:0;":""}${z===last&&sp.cutR?"border-top-right-radius:0;border-bottom-right-radius:0;":""}"></span><span class="seglab" style="left:${z.a+9}px;width:${Math.max(0,z.b-z.a-(z===last&&canAdd?44:14))}px">${z.b-z.a>60?dot:""}${label(z.b-z.a)}</span>`).join(""):dot+label(sp.width);
@@ -840,7 +851,7 @@ function planningHTML(){
       const ends=[];iv.forEach(o=>{let k=ends.findIndex(e=>e<=o.s);if(k<0){k=ends.length;ends.push(0)}ends[k]=o.e;o.lane=k});
       iv.forEach(o=>{o.conflit=!!gr.t&&iv.some(p=>{if(p===o||!(p.s<o.e&&o.s<p.e))return false;if(team)return true;for(let i=Math.max(p.s,o.s);i<Math.min(p.e,o.e);i++)if(onDay(o.x,gr.t,i)&&onDay(p.x,gr.t,i))return true;return false})});
       /* heures affectées à ce technicien (ou à cette équipe) sur la période affichée */
-      let hrs=0;iv.forEach(o=>{if(!active(o.x))return;const base=Number(o.x.heures)/slotsOf(o.x);for(let i=Math.max(o.s,g.s0);i<Math.min(o.e,g.s1+1);i++){if(team){hrs+=base;continue}if(!onDay(o.x,gr.t,i))continue;hrs+=base/Math.max(1,presentAt(o.x,i))}});
+      let hrs=0;iv.forEach(o=>{if(!active(o.x))return;for(let i=Math.max(o.s,g.s0);i<Math.min(o.e,g.s1+1);i++){const w=slotWork(o.x,i);if(team){hrs+=w.tot;continue}hrs+=w.per[gr.t]||0}});
       const cap=gr.h/10*nWork,occ=cap?Math.round(hrs/cap*100):0;
       const lanes=Math.max(1,ends.length),hgt=Math.max(team?56:48,8+lanes*38);
       const empty=team?"Glisser une barre sur une équipe pour l'affecter":"Glisser une barre sur un technicien pour l'affecter";
