@@ -431,7 +431,7 @@ async function start(){TOOLS.forEach(t=>{t.DEF=clone(DEF0[t.dk||t.k]||{});PAR[t.
 const C4=[[228,103,10],[31,127,196],[142,35,68],[184,144,26]];
 const SOCS={groupe:{nom:"Artik & Chassaing Technologies",adr:"Creissels · Saint-Rome-de-Cernon",tel:"05 65 59 15 12 / 05 65 62 38 33",mail:"contact@artikfrigoriste.fr",c:[228,103,10],logos:[0,1],quatre:1},artik:{nom:"SAS Artik Millau",adr:"2 avenue Jean Monnet, 12100 Creissels",tel:"05 65 59 15 12",mail:"contact@artikfrigoriste.fr",c:[228,103,10],logo:0},
   chassaing:{nom:"SAS Chassaing Technologies",adr:"La plaine de Laumière, 12490 Saint-Rome-de-Cernon",tel:"05 65 62 38 33",mail:"contact@chassaing-technologies.fr",c:[31,127,196],logo:1}};
-const pt=s=>String(s??"").replace(/[–—]/g,"-").replace(/[’]/g,"'").replace(/[  ]/g," ").replace(/Δ/g,"Delta ").replace(/→/g,">").replace(/≈/g,"env. ").replace(/≤/g,"<=").replace(/≥/g,">=").replace(/œ/g,"oe").replace(/Œ/g,"Oe").replace(/×/g,"x").replace(/³/g,"3").replace(/²/g,"2").replace(/[^\x00-\xff]/g,"").replace(/^\s+/,"");
+const pt=s=>String(s??"").replace(/[–—]/g,"-").replace(/[’]/g,"'").replace(/[  ]/g," ").replace(/Δ/g,"Delta ").replace(/→/g,">").replace(/≈/g,"env. ").replace(/≤/g,"<=").replace(/≥/g,">=").replace(/œ/g,"oe").replace(/Œ/g,"Oe").replace(/×/g,"x").replace(/›/g,">").replace(/…/g,"...").replace(/[▲]/g,"+").replace(/[▼]/g,"-").replace(/•/g,"-").replace(/³/g,"3").replace(/²/g,"2").replace(/[^\x00-\xff]/g,"").replace(/^\s+/,"");
 function loadPDFlib(){const s=(u)=>new Promise((ok,ko)=>{const e=document.createElement("script");e.src=u;e.onload=ok;e.onerror=()=>ko(new Error("module PDF indisponible (connexion ?)"));document.head.appendChild(e)});
   return (window.jspdf&&window.jspdf.jsPDF?Promise.resolve():s("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"))
     .then(()=>window.jspdf.jsPDF.API.autoTable?null:s("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"))}
@@ -446,7 +446,7 @@ async function pdfStart(soc,kind){await loadPDFlib();const S=SOCS[soc]||SOCS.gro
     doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.setTextColor(...G);doc.text(pt(sub||""),W-M,19,{align:"right"});doc.setDrawColor(...LG);doc.setLineWidth(0.3);doc.line(M,26,W-M,26);X.y=33};
   X.page=(t,sub)=>{if(!X.first)doc.addPage();X.first=false;X.head(t,sub);X.cur=[t,sub]};
   X.need=h=>{if(X.y+h>H-22){doc.addPage();X.head(...X.cur);}};
-  X.title=t=>{X.need(14);doc.setFont("helvetica","bold");doc.setFontSize(11.5);doc.setTextColor(...INK);doc.text(pt(t),M,X.y);X.bar(M,X.y+1.4,16,0.8);X.y+=6};
+  X.title=t=>{X.need(14);doc.setFont("helvetica","bold");doc.setFontSize(11.5);doc.setTextColor(...INK);doc.text(pt(t),M,X.y);X.bar(M,X.y+1.8,W-2*M,0.5);X.y+=6.5};
   X.text=(t,o={})=>{doc.setFont("helvetica",o.b?"bold":o.i?"italic":"normal");doc.setFontSize(o.s||9);doc.setTextColor(...(o.c||INK));const L=doc.splitTextToSize(pt(t),W-2*M-(o.x||0));X.need(L.length*(o.s||9)*0.45+2);doc.text(L,M+(o.x||0),X.y);X.y+=L.length*(o.s||9)*0.45+(o.after??2.5)};
   X.table=(head,body,o={})=>{doc.autoTable({startY:X.y,margin:{left:M,right:M,top:33,bottom:24},theme:o.plain?"plain":"grid",rowPageBreak:"avoid",head:head?[head.map(pt)]:undefined,body:body.map(r=>r.map(c=>typeof c==="object"&&c?{...c,content:pt(c.content)}:pt(c))),
       styles:{font:"helvetica",fontSize:o.fs||8.6,cellPadding:1.5,lineColor:LG,lineWidth:0.2,textColor:INK,overflow:"linebreak"},headStyles:{fillColor:[255,255,255],textColor:G,fontStyle:"bold",lineWidth:{bottom:0.5},lineColor:O},
@@ -460,10 +460,11 @@ async function pdfStart(soc,kind){await loadPDFlib();const S=SOCS[soc]||SOCS.gro
     doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(...INK);doc.text(doc.splitTextToSize(pt(lab||"Le client - « Bon pour accord sur les conditions d'utilisation ci-dessus »"),w-6),M+3,X.y+5);
     doc.setFont("helvetica","normal");doc.setTextColor(...G);doc.text(pt("Nom, qualité :"),M+3,X.y+16);doc.text(pt("Date :"),M+3,X.y+22);doc.text(pt("Signature et cachet :"),M+3,X.y+28);
     doc.setFont("helvetica","bold");doc.setTextColor(...INK);doc.text(pt(S.quatre?"Pour Artik / Chassaing Technologies":S.nom),M+w+9,X.y+5);doc.setFont("helvetica","normal");doc.setTextColor(...G);doc.text(pt("Établi par :"),M+w+9,X.y+16);doc.text(pt("Date :"),M+w+9,X.y+22);doc.text(pt("Signature :"),M+w+9,X.y+28);X.y+=42};
-  X.end=(fn,foot)=>{const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setDrawColor(...LG);doc.line(M,H-17,W-M,H-17);doc.setFontSize(7.3);doc.setFont("helvetica","italic");doc.setTextColor(...G);
+  X.end=(fn,foot)=>{const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){if(X.memoPages&&X.memoPages.has(i))continue;doc.setPage(i);doc.setDrawColor(...LG);doc.line(M,H-17,W-M,H-17);doc.setFontSize(7.3);doc.setFont("helvetica","italic");doc.setTextColor(...G);
       doc.text(doc.splitTextToSize(pt(foot||"Pré-dimensionnement selon les conditions d'utilisation indiquées ; matériel définitif selon les fiches du fabricant."),W-2*M-40),M,H-13);
       doc.setFont("helvetica","normal");doc.text(pt(S.quatre?"SAS Artik Millau, Creissels - 05 65 59 15 12   |   SAS Chassaing Technologies, Saint-Rome-de-Cernon - 05 65 62 38 33":`${S.nom} - ${S.adr} - ${S.tel} - ${S.mail}`),M,H-8.5);doc.text(`${i} / ${n}`,W-M,H-8.5,{align:"right"});
-      if(X.kind==="note"){doc.text(pt("Paraphe client :"),W-M-38,H-13);doc.setDrawColor(...LG);doc.rect(W-M-14,H-16.5,14,5)}}
+      if(X.kind==="note"&&!X.noFoot){doc.text(pt("Paraphe client :"),W-M-38,H-13);doc.setDrawColor(...LG);doc.rect(W-M-14,H-16.5,14,5)}}
+    const tot=n;if(X.memoPages)for(let i=1;i<=n;i++){if(!X.memoPages.has(i))continue;doc.setPage(i);doc.setFontSize(7.3);doc.setTextColor(...G);doc.text(`${i} / ${tot}`,W-M,H-4.5,{align:"right"})}
     return X.save(pt(fn.replace(/[\\/:*?"<>|]/g,"-"))+".pdf")};
   X.save=async fn=>{if(OC){doc.save(fn);toast("PDF téléchargé");return}const dl=window.claude&&await window.claude.use("downloads").catch(()=>null);
     if(dl){try{await dl.save({filename:fn,data:doc.output("blob")})}catch(e){if(e&&e.code!=="cancelled")toast("Enregistrement refusé")}return}doc.save(fn)};
@@ -487,7 +488,7 @@ async function pdfOne(kind){const t=T(TOOL),d0=cur();if(!d0)return;const pj=d0.p
 function specOf(t,d){const P=PAR[t.k],sp=t.pdf?t.pdf(d,P):domSpec(t,d,P);if(!sp.regu&&t.regu)sp.regu=t.regu(d,P);if(!sp.regu||!sp.regu.length)sp.regu=[{t:"Mise en service",rows:[["Réglages","Selon les notices du matériel posé",""]]}];return sp}
 function pdfBar(t,d){if(!d)return "";const open=d._pdfo;
   return `<div class="pdfbar"><button type="button" class="btn" data-pdfo>${open?"✕ Fermer":"📄 PDF"}</button>${open?`<div class="pdfp"><label class="f">Société${`<select data-f="soc"><option value="groupe"${!d.soc||d.soc==="groupe"?" selected":""}>Artik + Chassaing (4 couleurs)</option><option value="artik"${d.soc==="artik"?" selected":""}>Artik seul (orange et gris)</option><option value="chassaing"${d.soc==="chassaing"?" selected":""}>Chassaing seul</option></select>`}</label>${inp("devis",{lab:"Réf. devis",w:"120px"})}<label class="f">Validation client${`<select data-f="valid"><option${d.valid!=="Non"?" selected":""}>Oui</option><option${d.valid==="Non"?" selected":""}>Non</option></select>`}</label>
-    <div class="pdfa">${t.k==="projet"?`<button type="button" class="btn pri" data-pdf="dossier">📄 Dossier complet</button><button type="button" class="btn" data-pdf="regu">🎛️ Réglages de toutes les installations</button>`:`<button type="button" class="btn pri" data-pdf="note">📄 Note de calcul</button><button type="button" class="btn" data-pdf="regu">🎛️ Réglages régulateur</button>`}</div></div>`:""}</div>`}
+    <div class="pdfa">${t.k==="projet"?`<button type="button" class="btn pri" data-pdf="dossier">📄 Dossier complet</button><button type="button" class="btn" data-pdf="regu">🎛️ Réglages de toutes les installations</button><button type="button" class="btn" data-livret>📘 Livret client</button>`:`<button type="button" class="btn pri" data-pdf="note">📄 Note de calcul</button><button type="button" class="btn" data-pdf="regu">🎛️ Réglages régulateur</button><button type="button" class="btn" data-livret>📘 Livret client</button>`}</div></div>`:""}</div>`}
 document.addEventListener("click",async ev=>{const b=ev.target.closest("button");if(!b)return;
   if(b.dataset.pdfo!==undefined){const d=cur();if(!d)return;d._pdfo=!d._pdfo;render();return}
   const k=b.dataset.pdf;if(!k)return;const old=b.textContent;b.disabled=true;b.textContent="Préparation…";
@@ -1342,6 +1343,107 @@ set("cuisine",(d,P)=>{const C=T("cuisine").calc(d,P);return [{t:"Froid",rows:[["
 set("boul",(d,P)=>{const C=T("boul").calc(d,P);return [{t:"Froid",rows:[["Armoires positives","+3 °C",""],["Armoires négatives","-18 °C",""],["Refroidisseur d'eau","+2 à +4 °C",""],["Pousse contrôlée","Programme de la fiche « Blocage / pousse »",""]]},
   {t:"Fournil",rows:[["Extraction des buées",f0(C.ex)+" m³/h",""],["Puissance électrique installée",f(C.el,1)+" kW",""],["Intensité si tout tourne",f0(C.iA)+" A",""]]}]});
 })();
+</script>
+<script>
+/* =====================================================================
+   FICHES MÉMO CLIENT (base) + LIVRET À LAISSER AU CLIENT
+   Une fiche = des blocs (cartes) : touches, étapes, coches, listes, encadrés.
+   Le livret : page « votre installation » + fiches utiles + carnet d'entretien.
+   ===================================================================== */
+const MEMOS=[
+ {id:"tel-murale",tag:"FICHE MÉMO · CLIMATISATION",titre:"Votre télécommande Mitsubishi",sous:"Gammes murales Compact, Design… · les touches changent un peu selon le modèle",pied:"Un souci ? Appelez-nous",
+  pages:[[
+   {t:"1 · Les essentiels",w:"half",keys:[["ON/OFF","Allume ou éteint la clim. Un bip confirme."],["MODE","Choisit le mode, à chaque appui : **Auto · Froid · Déshu** (sèche l'air) · **Ventil** (brasse sans chauffer ni refroidir) · **Chaud**"],["TEMP + / -","Monte ou baisse la température voulue, 1 °C par appui."],["FAN","Force du ventilateur : Auto (conseillé), puis du plus doux au plus fort."]]},
+   {t:"2 · Diriger l'air",w:"half",keys:[["VANE","Volet **haut / bas** : Auto, une position fixe, ou balayage (le volet bouge en continu)."],["WIDE VANE","Air **gauche / droite** (selon modèle)."]],note:"Astuce : en **froid**, souffler vers le plafond ; en **chaud**, vers le sol. L'air chaud monte, l'air froid descend."},
+   {t:"3 · Les fonctions pratiques",w:"half",keys:[["i-save","Garde un réglage « éco » en mémoire (un en froid, un en chaud) et le rappelle d'un appui. Idéal la nuit ou en absence. En chaud, réglable dès **10 °C = hors gel**."],["ECONO COOL","En froid seulement : le volet balaie pour rafraîchir en consommant moins."],["POWERFUL","Pleine puissance pendant un temps court, pour une pièce vite chaude ou vite fraîche (selon modèle)."],["NIGHT","Mode nuit : plus silencieux, voyants atténués (selon modèle)."]]},
+   {t:"4 · Programmer",w:"half",keys:[["CLOCK","Règle l'heure (à faire après un changement de piles). Indispensable pour les programmes."],["ON / OFF TIMER","Minuterie : la clim s'allume ou s'éteint toute seule à l'heure choisie."],["WEEKLY","Programme à la semaine (jours, heures, températures). Valider avec **SET**, effacer avec **CLEAR**."],["RESET","Remet la télécommande à zéro (petit trou, pointe de stylo)."]]},
+   {t:"Les bons réflexes",w:"full",plain:1,checks:["Chauffage : **19–20 °C** suffit. Chaque degré en plus coûte environ 7 % de plus.","Clim : **pas plus de 7 °C d'écart** avec l'extérieur (ex. 26 °C quand il fait 33 °C).","Portes et fenêtres fermées pendant que ça tourne.","Filtres : un coup d'aspirateur ou d'eau tiède **tous les mois**.","En chaud, quelques minutes avant que l'air sorte chaud : c'est normal.","L'hiver, l'unité extérieure peut fumer ou s'arrêter un moment : c'est le **dégivrage**, normal."]},
+   {t:"La clim ne répond pas ?",w:"full",plain:1,steps:["Viser l'unité murale, à moins de 6 m, rien devant.","Écran vide ou pâle → changer les **2 piles AAA** (les deux en même temps), puis remettre l'heure.","Toujours rien → vérifier le disjoncteur de la clim au tableau électrique.","Un voyant clignote sur l'unité → noter le nombre de clignotements et nous appeler."]}]]},
+ {id:"par41",tag:"FICHE MÉMO · CLIMATISATION",titre:"Télécommande PAR-41MAA",sous:"Le boîtier fixé au mur des clims Mitsubishi Electric (Mr Slim, gainables, cassettes…)",pied:"Un souci ? Appelez-nous",
+  pages:[[
+   {t:"1 · Au quotidien : 5 touches suffisent",w:"full",intro:"Sur l'écran d'accueil, les 4 touches sous l'écran (F1 à F4) servent directement :",keys:[["ON/OFF","Allume ou éteint la clim. Le voyant est allumé quand elle tourne."],["F1","Mode : Froid · Déshumidification · Ventilation · Auto · Chaud."],["F2","Température voulue **moins**."],["F3","Température voulue **plus**."],["F4","Ventilateur : Auto (conseillé) ou une vitesse fixe."]]},
+   {t:"2 · Les touches de menu",w:"full",keys:[["MENU","Ouvre le menu (volets, minuteries, réglages…)."],["SELECT","Valide et enregistre."],["RETURN","Revient en arrière sans rien casser."]],note:"Dans les menus, F1 à F4 changent de rôle : l'écran affiche au-dessus de chaque touche ce qu'elle fait. On lit l'écran, on appuie dessous."},
+   {t:"3 · Diriger l'air",w:"full",path:"MENU › Operation › Vane · 3D i-See · Vent.",text:"Volet haut / bas : Auto, une position fixe (1 à 5) ou Swing (balayage). Selon l'appareil, réglage gauche / droite et ventilation aussi. Valider avec SELECT."},
+   {t:"4 · Les pictos à connaître",w:"full",keys:[["Filtre","L'icône filtre apparaît : il est temps de nettoyer les filtres. Ensuite, on efface le message (voir au dos)."],["Erreur","L'écran affiche un code et le voyant ON/OFF clignote : **notez le code et appelez-nous**."],["Cadenas","Une touche ne répond pas ? Elle est peut-être verrouillée volontairement (bureau, hôtel…)."]]},
+   {t:"Les bons réflexes",w:"full",plain:1,checks:["Chauffage : **19–20 °C** suffit.","Clim : **pas plus de 7 °C d'écart** avec dehors.","Le capteur de température peut être dans la télécommande : rien de chaud devant (lampe, soleil).","En chaud, quelques minutes avant l'air chaud : c'est normal."]}],
+  [{t:"1 · Régler l'heure",w:"half",path:"MENU › Initial setting › Basic setting › Clock › Clock",steps:["Choisir chaque ligne avec F1/F2 et valider avec SELECT.","Sur l'écran Clock : F1/F2 passe d'un champ à l'autre (année, mois, jour, heure, minute).","F3/F4 change la valeur.","SELECT, puis confirmer."],note:"À faire en premier : sans l'heure, aucune minuterie ni programme ne fonctionne."},
+   {t:"2 · Heure d'été / d'hiver",w:"half",path:"MENU › Initial setting › Basic setting › Clock › Daylight saving time",steps:["Mettre DST sur Yes.","Par défaut : passage le dernier dimanche de mars et retour le dernier dimanche d'octobre. C'est le calendrier français, rien à changer.","SELECT pour enregistrer."],note:"Laisser sur No si la clim est pilotée par une gestion centralisée."},
+   {t:"3 · Programme de la semaine (Weekly timer)",w:"full",path:"MENU › Operation › Timer › Weekly timer",steps:["SELECT pour ouvrir le réglage. Choisir le programme 1 ou 2 (F3/F4), puis SELECT.","Choisir les jours : F1/F2 pour se déplacer, F3 pour cocher (plusieurs jours possibles), puis SELECT.","Pour chaque créneau : F1 = n° du créneau, F2 = champ (Heure · On/Off · Température), F3/F4 = valeur.","SELECT, puis confirmer."],text:"Jusqu'à 8 créneaux par jour, heure au pas de 5 min, température au pas de 1 °C. Exemple bureau : lundi au vendredi, On 7h30 à 21 °C, puis Off 18h30.",note:"Ne fonctionne pas si la minuterie On/Off est active. Le menu peut demander le mot de passe administrateur (0000 par défaut, sauf s'il a été changé)."},
+   {t:"4 · Minuteries simples",w:"half",path:"MENU › Operation › Timer › Timer",text:"**On/Off timer** : une heure de marche et une heure d'arrêt (pas de 5 min). Repeat = Yes pour tous les jours.\n**Auto-Off** : arrêt automatique de 30 à 240 min après la mise en route. Pratique contre les oublis."},
+   {t:"5 · Réduit de nuit",w:"half",path:"MENU › Operation › Timer › Night setback",text:"Pendant que la clim est arrêtée la nuit, garde une température mini en chaud (hors gel) et maxi en froid, entre une heure de début et une heure de fin."},
+   {t:"6 · Effacer l'icône filtre",w:"half",path:"MENU › Maintenance › Filter information",text:"Après le nettoyage des filtres : F4 (Reset), puis F4 sur OK."},
+   {t:"7 · Verrouiller des touches",w:"half",path:"MENU › Energy saving › Restriction › Operation locked",text:"Bloquer marche, mode, température, menu… (mot de passe administrateur). Utile en bureau, salle de réunion ou location."}]],sous2:"Heure et programmes · menus affichés en anglais par défaut"},
+ {id:"entretien-mitsu",tag:"FICHE MÉMO · CLIMATISATION",titre:"Filtres, entretien et garantie",sous:"Votre clim Mitsubishi Electric, propre et protégée",pied:"Programmer votre entretien ?",
+  pages:[[
+   {t:"1 · Nettoyer les filtres : c'est vous, c'est facile",w:"full",badge:"Toutes les 2 semaines en saison",steps:["**Éteindre** la clim avec la télécommande.","**Soulever le capot** avant de l'unité murale jusqu'au cran.","Retirer les filtres et passer un coup d'**aspirateur**.","Laver à l'**eau tiède**, un peu de liquide vaisselle si besoin, puis rincer.","Laisser **sécher à l'ombre** : ni soleil, ni sèche-cheveux, ni radiateur.","Remettre les filtres bien en place et **refermer** le capot."],note:"Pourquoi ? Un filtre encrassé, c'est moins d'air, plus de consommation, des odeurs et une clim qui force. À ne pas faire : toucher aux ailettes métalliques derrière le filtre (elles coupent et s'abîment), ou couvrir l'unité extérieure. Pensez juste à dégager les feuilles autour d'elle."},
+   {t:"2 · L'entretien annuel : c'est nous",w:"full",two:[["CE QUE FAIT LE TECHNICIEN",["Nettoyage et désinfection de l'unité intérieure","Contrôle de l'évacuation des condensats (fuites d'eau)","Nettoyage de l'unité extérieure","Contrôle du circuit frigorifique et de l'étanchéité","Contrôle électrique et des performances"]],["CE QUE VOUS Y GAGNEZ",["✓ Une clim qui consomme moins","✓ Un air plus sain, sans odeurs","✓ Un appareil qui dure plus longtemps","✓ Moins de risques de panne","✓ Votre **garantie 5 ans conservée**"]]],note:"Soyons clairs : l'entretien limite les pannes, il ne les supprime pas. Une clim entretenue tombe beaucoup moins souvent en panne et se répare plus facilement."},
+   {t:"3 · Votre garantie 5 ans",w:"full",boxes:[["5 ans pièces","Toutes pièces et compresseur, garantis par Mitsubishi Electric parce que nous sommes installateur **Home Partenaire**. La garantie de base n'est que de 3 ans."],["+ main d'œuvre","Pendant ces 5 ans, la main d'œuvre du dépannage sous garantie est assurée par nos équipes."]],text:"**Les conditions, simples** : installation et mise en service par nos soins · enregistrement de l'appareil chez Mitsubishi (nous nous en occupons) · **une visite d'entretien chaque année** depuis la mise en service. La garantie court à partir de la mise en service."},
+   {t:"4 · Mitsubishi Electric en bref",w:"full",text:"Fabricant japonais fondé en **1921**, parmi les références mondiales de la climatisation et des pompes à chaleur. Plus de **30 ans** de présence en France, réputé pour la fiabilité, le silence et le faible encombrement de ses appareils. C'est la marque que nous installons au quotidien."}]]}];
+/* quelles fiches pour quel dossier */
+function memosFor(k,d){const out=new Set();try{
+  if(k==="clim"){const C=T("clim").calc(d,PAR.clim),types=[...(C.mono||[]),...(C.multi||[])].filter(r=>r.ok).map(r=>String(r.ref||"")+" "+String((r.u&&r.u.type)||""));
+    const mur=(d.monos||[]).concat(d.multis||[]).some(p=>!/gainable|cassette|console|plafonnier/i.test(String(p.type||PAR.clim.defType||"")))||types.some(t=>/MSZ|mural/i.test(t));
+    const fil=(C.zones||[]).some(z=>z.n)||(d.monos||[]).concat(d.multis||[]).some(p=>/gainable|cassette|plafonnier/i.test(String(p.type||"")));
+    if(mur||!fil)out.add("tel-murale");if(fil)out.add("par41");out.add("entretien-mitsu")}
+  if(k==="drv")out.add("par41");}catch(e){}return [...out]}
+/* ---------- dessin d'une fiche mémo ---------- */
+function rich(doc,txt,x,y,w,size,col){/* texte avec **gras**, retour à la ligne : renvoie la hauteur */
+  const parts=[];String(txt).split(/(\*\*[^*]+\*\*)/).forEach(s=>{if(!s)return;const b=/^\*\*/.test(s);pt("x"+(b?s.slice(2,-2):s)).slice(1).split(/(\s+)/).forEach(w_=>{if(w_)parts.push([w_,b])})});
+  const lh=size*0.42;let cx=x,cy=y;doc.setFontSize(size);doc.setTextColor(...col);
+  parts.forEach(([w_,b])=>{if(w_==="\n"||/\n/.test(w_)){cx=x;cy+=lh;return}doc.setFont("helvetica",b?"bold":"normal");const ww=doc.getTextWidth(w_);if(cx+ww>x+w&&!/^\s+$/.test(w_)&&cx>x){cx=x;cy+=lh}if(/^\s+$/.test(w_)&&cx===x)return;doc.text(w_,cx,cy);cx+=ww});
+  return cy-y+lh}
+function drawMemo(X,m){const {doc,W,H,M,INK,G,LG}=X,C4c=[[228,103,10],[31,127,196],[142,35,68],[184,144,26]];let ci=0;
+  m.pages.forEach((pg,pi)=>{if(!X.first)doc.addPage();X.first=false;(X.memoPages=X.memoPages||new Set()).add(doc.getNumberOfPages());X.bar(0,0,W,3);
+    doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(...G);doc.text(pt(m.tag+(m.pages.length>1?" · "+(pi+1)+" / "+m.pages.length:"")),M,12,{charSpace:0.6});
+    doc.setFontSize(19);doc.setTextColor(...INK);doc.text(pt(pi&&m.sous2?m.sous2.split(" · ")[0]:m.titre),M,20);
+    doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...G);doc.text(doc.splitTextToSize(pt(pi&&m.sous2?m.sous2.split(" · ").slice(1).join(" · "):m.sous),115),M,25.5);
+    let lx=W-M;[...X.logos].reverse().forEach(l=>{const w=l.w*0.8,h=l.h*0.8;lx-=w;doc.addImage(l.src,"PNG",lx,10,w,h);lx-=5});
+    let y=34;const gap=4,full=W-2*M,half=(full-gap)/2;
+    /* hauteur d'un bloc : on le dessine « à blanc » sur une page jetable */
+    const draw=(b,x,y0,w,dry,hf)=>{const col=b.plain?LG:C4c[(b.ci!=null?b.ci:0)%4];let y=y0+6.5;const ix=x+4,iw=w-8;
+      const T_=(s,size,c,yy,bold)=>{if(dry){doc.setFontSize(size);return doc.splitTextToSize(pt(s),iw).length*size*0.42}return rich(doc,bold?"**"+s+"**":s,ix,yy,iw,size,c)};
+      if(!dry){doc.setFont("helvetica","bold");doc.setFontSize(11);doc.setTextColor(...INK);doc.text(pt(b.t),ix,y)}
+      if(b.badge&&!dry){doc.setFontSize(7.5);doc.setFont("helvetica","bold");const bw=doc.getTextWidth(pt(b.badge))+6;doc.setDrawColor(...C4c[0]);doc.setTextColor(...C4c[0]);doc.roundedRect(x+w-4-bw,y-3.6,bw,5,2.5,2.5,"S");doc.text(pt(b.badge),x+w-4-bw/2,y-0.2,{align:"center"})}
+      y+=5;
+      if(b.path){if(!dry){doc.setFillColor(243,244,246);doc.roundedRect(ix,y-3.3,iw,5,1,1,"F");doc.setFont("courier","bold");doc.setFontSize(7.8);doc.setTextColor(...INK);doc.text(pt(b.path),ix+2,y)}y+=5.5}
+      if(b.intro)y+=(dry?T_(b.intro,8.6):rich(doc,b.intro,ix,y,iw,8.6,G))+1;
+      (b.keys||[]).forEach(([k,v])=>{doc.setFont("helvetica","bold");doc.setFontSize(7.4);const kw=Math.max(12,doc.getTextWidth(pt(k))+4);const tx=ix+kw+3,tw=iw-kw-3;
+        let h;if(dry){doc.setFont("helvetica","normal");doc.setFontSize(8.6);h=doc.splitTextToSize(pt(v.replace(/\*\*/g,"")),tw).length*3.62}else{doc.setDrawColor(...col);doc.setLineWidth(0.35);doc.roundedRect(ix,y-3.4,kw,4.8,1,1,"S");doc.setTextColor(...col);doc.text(pt(k),ix+kw/2,y-0.1,{align:"center"});h=rich(doc,v,tx,y,tw,8.6,INK)}y+=Math.max(h,4.8)+2});
+      if(b.steps){b.steps.forEach((s,i)=>{const tw=iw-8;let h;if(dry){doc.setFontSize(8.6);h=doc.splitTextToSize(pt(s.replace(/\*\*/g,"")),tw).length*3.62}else{doc.setFillColor(...(b.plain?C4c[0]:col));doc.circle(ix+2.3,y-1.2,2.3,"F");doc.setFont("helvetica","bold");doc.setFontSize(7.5);doc.setTextColor(255,255,255);doc.text(String(i+1),ix+2.3,y-0.1,{align:"center"});h=rich(doc,s,ix+7,y,tw,8.6,INK)}y+=Math.max(h,4.6)+1.6})}
+      if(b.checks){const cw=(iw-6)/2;let yl=y,yr=y;b.checks.forEach((s,i)=>{const L=i%2===0,xx=L?ix:ix+cw+6;let yy=L?yl:yr,h;if(dry){doc.setFontSize(8.6);h=doc.splitTextToSize(pt(s.replace(/\*\*/g,"")),cw-5).length*3.62}else{doc.setDrawColor(46,139,87);doc.setLineWidth(0.55);doc.line(xx,yy-1.4,xx+1,yy-0.4);doc.line(xx+1,yy-0.4,xx+2.6,yy-2.8);h=rich(doc,s,xx+4,yy,cw-5,8.6,INK)}if(L)yl+=h+1.6;else yr+=h+1.6});y=Math.max(yl,yr)}
+      if(b.two){const cw=(iw-6)/2;let ym=y;b.two.forEach(([h_,L],j)=>{let yy=y;const xx=ix+j*(cw+6);if(!dry){doc.setFont("helvetica","bold");doc.setFontSize(7.6);doc.setTextColor(...G);doc.text(pt(h_),xx,yy)}yy+=4.5;L.forEach(s=>{const ck=s.startsWith("✓"),s2=s.replace(/^✓ /,"");let h;if(dry){doc.setFontSize(8.6);h=doc.splitTextToSize(pt(s2.replace(/\*\*/g,"")),cw-4).length*3.62}else{if(ck){doc.setDrawColor(46,139,87);doc.setLineWidth(0.55);doc.line(xx,yy-1.4,xx+1,yy-0.4);doc.line(xx+1,yy-0.4,xx+2.6,yy-2.8)}else{doc.setFillColor(...G);doc.circle(xx+1,yy-1.2,0.6,"F")}h=rich(doc,s2,xx+4,yy,cw-4,8.6,INK)}yy+=h+1.2});ym=Math.max(ym,yy)});y=ym}
+      if(b.boxes){const cw=(iw-6)/2;let hm=0;b.boxes.forEach(([h_,t],j)=>{doc.setFontSize(8.6);const h=doc.splitTextToSize(pt(t.replace(/\*\*/g,"")),cw-6).length*3.62+11;hm=Math.max(hm,h)});
+        if(!dry)b.boxes.forEach(([h_,t],j)=>{const xx=ix+j*(cw+6);doc.setDrawColor(...col);doc.setLineWidth(0.5);doc.roundedRect(xx,y-2,cw,hm,2,2,"S");doc.setFont("helvetica","bold");doc.setFontSize(14);doc.setTextColor(...col);doc.text(pt(h_),xx+3,y+4.5);rich(doc,t,xx+3,y+9.5,cw-6,8.6,INK)});y+=hm+2}
+      if(b.text)y+=(dry?(doc.setFontSize(8.6),doc.splitTextToSize(pt(b.text.replace(/\*\*/g,"")),iw).length*3.62+b.text.split("\n").length*1):rich(doc,b.text,ix,y,iw,8.6,INK))+1.5;
+      if(b.note){doc.setFontSize(8.3);const nh=doc.splitTextToSize(pt(b.note.replace(/\*\*/g,"")),iw-6).length*3.5+4;if(!dry){const tint=col.map(c=>Math.round(c+(255-c)*0.9));doc.setFillColor(...tint);doc.roundedRect(ix,y-2.5,iw,nh,1.5,1.5,"F");rich(doc,b.note,ix+3,y+1,iw-6,8.3,INK)}y+=nh+1}
+      const h=y-y0+2;if(!dry){doc.setDrawColor(...LG);doc.setLineWidth(0.3);doc.roundedRect(x,y0,w,hf||h,2.5,2.5,"S");if(!b.plain){doc.setFillColor(...col);doc.rect(x+1.2,y0,w-2.4,1.1,"F")}}return h};
+    let i=0;const B=pg.map(b=>({...b,ci:b.plain?null:(ci++)}));
+    while(i<B.length){const b=B[i];if(b.w==="half"&&B[i+1]&&B[i+1].w==="half"){const h=Math.max(draw(b,M,y,half,1),draw(B[i+1],M,y,half,1));draw(b,M,y,half,0,h);draw(B[i+1],M+half+gap,y,half,0,h);
+        /* égaliser les hauteurs : on redessine le cadre */doc.setDrawColor(...LG);y+=h+gap;i+=2}
+      else{const h=draw(b,M,y,full,1);draw(b,M,y,full);y+=h+gap;i++}}
+    doc.setDrawColor(...LG);doc.setLineWidth(0.3);doc.line(M,H-14,W-M,H-14);doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(...INK);
+    doc.text(pt(m.pied||"Un souci ? Appelez-nous"),M,H-9);const pw=doc.getTextWidth(pt(m.pied||""))+3;doc.setFont("helvetica","normal");doc.setTextColor(...G);
+    doc.text(pt("· Artik 05 65 59 15 12 · Chassaing Technologies 05 65 62 38 33"),M+pw,H-9);doc.text("contact@artikfrigoriste.fr",W-M,H-9,{align:"right"})})}
+/* ---------- le livret client ---------- */
+async function pdfLivret(items,ctx){const ids=[...new Set(items.flatMap(([k,d])=>memosFor(k,d)))];
+  const X=await pdfStart(ctx.soc||"groupe","livret");X.noFoot=true;
+  /* page 1 : votre installation */
+  X.page("Votre installation",ctx.nom||"");X.client(ctx,{titre:"Installation"});
+  X.title("Votre matériel");const rows=[];items.forEach(([k,d])=>{const sp=specOf(T(k),d),g=(sp.regu||[]).find(g=>/Unités posées|Fluide/.test(g.t));
+    if(g&&g.rows.length)g.rows.forEach(r=>rows.push([T(k).n,Array.isArray(r)?r.filter(Boolean).slice(0,3).join(" · "):""]));else rows.push([T(k).n,d.nom||""])});
+  X.table(["Installation","Détail"],rows,{cols:{0:{cellWidth:50}}});
+  X.title("Mise en service");X.table(null,[["Date de mise en service",""],["Technicien",""],["Fluide et charge",""],["Garantie jusqu'au",""]],{cols:{0:{textColor:X.G,cellWidth:70}}});
+  X.title("Vos fiches mémo");X.text(ids.length?ids.map(id=>"- "+(MEMOS.find(m=>m.id===id)||{}).titre).join("\n"):"Pas encore de fiche pour ce type d'installation.",{s:9.5});
+  X.title("Nous joindre");X.text("Artik : 05 65 59 15 12 · Chassaing Technologies : 05 65 62 38 33 · contact@artikfrigoriste.fr\nPour un dépannage, notez le code ou le voyant affiché, le modèle de l'appareil et la date de mise en service.",{s:9.5});
+  const L=await Promise.all([0,1].map(async i=>{const [w,h]=await imgSize(LOGOS[i]);return {src:LOGOS[i],w:Math.min(44,11*w/h),h:Math.min(44,11*w/h)*h/w}}));X.logos=X.S.logos?L:[L[X.S.logo]];
+  ids.forEach(id=>{const m=MEMOS.find(x=>x.id===id);if(m)drawMemo(X,m)});
+  /* carnet d'entretien */
+  X.page("Carnet d'entretien",ctx.nom||"");X.text("Une visite par an conserve la garantie et limite les pannes. Le technicien remplit une ligne à chaque passage.",{s:9.5});
+  X.table(["Date","Technicien","Travaux réalisés / observations","Visa"],Array.from({length:12},()=>["","","",""]),{cols:{0:{cellWidth:24},1:{cellWidth:32},3:{cellWidth:20}},fs:11});
+  return X.end("Livret client - "+(ctx.nom||ctx.client||"installation"),"Document à conserver avec votre installation.")}
+document.addEventListener("click",async ev=>{const b=ev.target.closest("[data-livret]");if(!b)return;const old=b.textContent;b.disabled=true;b.textContent="Préparation…";
+  try{const d0=cur();if(TOOL==="projet"){const items=TOOLS.filter(t=>t.k!=="projet").flatMap(t=>(DOS[t.k]||[]).filter(x=>x.proj===d0.id).map(x=>[t.k,x]));await pdfLivret(items,d0)}
+    else{const pj=d0.proj&&(DOS.projet||[]).find(x=>x.id===d0.proj)||{};await pdfLivret([[TOOL,d0]],{...d0,client:d0.client||pj.client||"",chantier:d0.chantier||pj.chantier||"",soc:d0.soc||pj.soc})}}catch(e){toast("PDF impossible : "+e.message)}b.disabled=false;b.textContent=old});
 </script>
 <script>start()</script>
 
