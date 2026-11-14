@@ -29,6 +29,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-b)}
 .mood{font-weight:600;margin-top:6px}
 .jour{border-top:1px solid var(--line);padding:12px 22px 16px;display:grid;gap:10px}
 .jour .jl{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted);font-size:14.5px}.jour .jl b{color:var(--ink)}.jour .fete{color:var(--b1)!important}
+.ephem{display:flex;gap:8px;font-size:14.5px;color:var(--ink);line-height:1.4}.ephem a{color:var(--b1);font-weight:700;white-space:nowrap}
 .dicton{margin:0;display:flex;gap:12px;align-items:center;background:color-mix(in srgb,var(--b1) 7%,var(--surface));border-radius:14px;padding:10px 14px}
 .dicton .di{font-size:30px;flex:none}.dicton div{min-width:0}
 .dicton figcaption{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--b1)}
@@ -331,8 +332,21 @@ function chargeMeteo(){if(METEO_ON)return;METEO_ON=true;
   fetch("https://api.open-meteo.com/v1/forecast?latitude=44.098&longitude=3.078&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FParis&forecast_days=1")
    .then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.current)return;METEO={t:j.current.temperature_2m,code:j.current.weather_code,min:j.daily.temperature_2m_min[0],max:j.daily.temperature_2m_max[0],pluie:(j.daily.precipitation_probability_max||[0])[0]||0};
     try{sessionStorage.setItem("acc-meteo",JSON.stringify({at:Date.now(),m:METEO}))}catch(e){}const el=document.getElementById("meteo");if(el){el.innerHTML=meteoHTML();el.hidden=false}}).catch(()=>{})}
-function jourHTML(nom){const s=saintDuJour(),dc=dictonDuJour(),fete=bonneFete(nom);chargeMeteo();
+var EPHEM=null,EPHEM_ON=false;
+function ephemHTML(){if(!EPHEM)return "";const n=new Date().getFullYear()-EPHEM.y;
+  return `📜 <span><b>${EPHEM.y<0?"En "+(-EPHEM.y)+" av. J.-C.":"Il y a "+n+" ans, en "+EPHEM.y}</b> : ${esc(EPHEM.t)}${EPHEM.u?` <a href="${esc(EPHEM.u)}" target="_blank" rel="noopener">En savoir plus</a>`:""}</span>`}
+function chargeEphem(){if(EPHEM_ON)return;EPHEM_ON=true;const d=new Date(),mm=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0"),k="acc-ephem-"+mm+dd;
+  try{const c=JSON.parse(localStorage.getItem(k)||"null");if(c&&c.an===d.getFullYear()){EPHEM=c.e;return}}catch(e){}
+  const triste=/\b(mort|morts|meurt|tu[ée]s?|massacre|attentat|guerre|bataille|assassin|bombard|g[ée]nocide|catastrophe|s[ée]isme|tremblement|naufrage|ex[ée]cut|crash|accident|incendie|explosion|invasion|d[ée]c[èe]s|victimes|fusill|pendu|guillotin|famine|[ée]pid[ée]mie|terroris|otage|exterminat|d[ée]port)/i;
+  const pick=L=>{L=(L||[]).filter(x=>x&&x.text&&x.year!=null&&x.text.length<260);const ok=L.filter(x=>!triste.test(x.text)),pool=ok.length?ok:[];if(!pool.length)return null;
+    const fr=pool.filter(x=>/france|fran[çc]ais|paris|aveyron|millau|toulouse|lyon|marseille/i.test(x.text)),P=fr.length&&d.getFullYear()%2===0?fr:pool,x=P[d.getFullYear()%P.length],pg=(x.pages||[])[0];
+    return {y:x.year,t:x.text.replace(/\s+/g," ").trim(),u:pg&&pg.content_urls&&pg.content_urls.desktop?pg.content_urls.desktop.page:""}};
+  const get=t=>fetch("https://fr.wikipedia.org/api/rest_v1/feed/onthisday/"+t+"/"+mm+"/"+dd).then(r=>r.ok?r.json():null).catch(()=>null);
+  get("selected").then(j=>pick(j&&j.selected)||get("events").then(j2=>pick(j2&&j2.events))).then(e=>{if(!e)return;EPHEM=e;
+    try{localStorage.setItem(k,JSON.stringify({an:d.getFullYear(),e}))}catch(x){}const el=document.getElementById("ephem");if(el){el.innerHTML=ephemHTML();el.hidden=false}})}
+function jourHTML(nom){const s=saintDuJour(),dc=dictonDuJour(),fete=bonneFete(nom);chargeMeteo();chargeEphem();
   return `<div class="jour"><div class="jl">${s?`<span>🕊️ ${esc(s)}${fete?` · <b class="fete">🎉 Bonne fête ${esc(String(nom).split(/\s+/)[0])} !</b>`:""}</span>`:""}<span id="meteo"${METEO?"":" hidden"}>${meteoHTML()}</span></div>
+   <div class="ephem" id="ephem"${EPHEM?"":" hidden"}>${ephemHTML()}</div>
    <figure class="dicton"><span class="di" aria-hidden="true">${dc.ic}</span><div><figcaption>${esc(dc.th)} · le mot du jour</figcaption><blockquote>${esc(dc.t)}</blockquote></div></figure></div>`}
 /* ---------- affichage ---------- */
 function go(k,file){if(EMBED&&window.parent!==window){window.parent.postMessage({go:k},"*")}else location.href=file}
