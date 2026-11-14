@@ -246,7 +246,14 @@ select,input,textarea{font:inherit;font-size:15px;color:var(--ink);background:va
 .mrow{display:grid;grid-template-columns:30px minmax(0,1fr);gap:6px;align-items:start}
 .mrow .chk{padding-top:10px;display:flex;justify-content:center}
 .mrow .chk input,.task input{width:20px;height:20px;min-height:0;accent-color:var(--ok);cursor:pointer}
-.mrow.ok .ditem{opacity:.6}
+.mrow.ok .ditem{opacity:.45;filter:saturate(.25)}
+.mrow.ok .ditem b,.mrow.ok .ditem .dt{text-decoration:line-through;text-decoration-thickness:2px}
+/* fait = grisé, barré, coche verte : simple à voir */
+.ev.fait,.dev.fait{background:color-mix(in srgb,var(--cc) 22%,#9AA1A8)!important;opacity:.75;animation:none!important;box-shadow:none!important}
+.ev.fait .et b,.dev.fait b{text-decoration:line-through;text-decoration-thickness:2px}
+.ev.fait::after,.dev.fait::after{content:"✓";position:absolute;top:3px;right:4px;width:18px;height:18px;border-radius:50%;background:var(--ok);color:#fff;font:800 12px/18px sans-serif;text-align:center}
+.bt.done,.task.done{opacity:.5}
+.bt.done span,.task.done span{text-decoration-thickness:2px}
 .mcol{display:flex;flex-direction:column;gap:4px;min-width:0}
 .okk{background:var(--okbg)!important;color:var(--ok)!important}
 .tlist{display:flex;flex-direction:column;gap:3px;margin:0 0 4px 0;padding-left:10px;border-left:2px solid var(--soft)}
@@ -796,7 +803,8 @@ function evHTML(o,row){
   const e=o.e,c=catOf(e.cat),oth=who(e).filter(n=>n!==row);const rec=e.rec&&e.rec.freq&&e.rec.freq!=="none";
   const time=e.allDay?(e.dateFin&&e.dateFin>e.date?(o.first?"dès aujourd'hui":o.last?"dernier jour":"toute la journée"):"journée"):`${esc(e.debut)}–${esc(e.fin)}`;
   const dur=e.allDay?0:Math.max(.25,(hm(e.fin)-hm(e.debut))/60);
-  return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}${dur?`;--dh:${dur.toFixed(2)}`:""}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${withHTML(oth)}${rappel(e)}</span></div>`;
+  const fait_=isDone(e,o.d);
+  return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${fait_?" fait":prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}${dur?`;--dh:${dur.toFixed(2)}`:""}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${withHTML(oth)}${rappel(e)}</span></div>`;
 }
 const HOR=()=>Object.assign({},DEF.horaires,cfg.horaires||{});
 /* frise de la semaine : la pause de midi est réduite à une fine bande, le reste est à l'échelle */
@@ -1044,7 +1052,7 @@ function dayHTML(){
   ppl.forEach(p=>{const mine=occ.filter(o=>who(o.e).includes(p.nom));
     h+=`<div class="dcol${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}"><div class="adlist">${mine.filter(o=>o.e.allDay).map(o=>evHTML(o,p.nom)).join("")}</div><div style="position:relative">${[...Array(H1-H0)].map((_,i)=>`<div class="hl" data-h="${H0+i}"></div>`).join("")}${(()=>{const Hh=HOR(),a=Math.max(hm(Hh.midiDeb),H0*60),b=Math.min(hm(Hh.midiFin),H1*60);return b>a?`<div class="midi" style="top:${(a-H0*60)/60*48}px;height:${(b-a)/60*48}px"><span>🍽 Pause de midi</span></div>`:""})()}
     ${lanes(mine.filter(o=>!o.e.allDay)).map(o=>{const a=Math.max(hm(o.e.debut),H0*60),b=Math.min(Math.max(hm(o.e.fin),a+20),H1*60),c=catOf(o.e.cat);
-      return `<div class="dev${prioCls(o.e)}" data-ev="${o.e.id}" data-d="${s}" style="top:${(a-H0*60)/60*48}px;height:${Math.max(22,(b-a)/60*48-2)}px;left:calc(4px + (100% - 8px) * ${o.lane}/${o.nl});right:auto;width:calc((100% - 8px) / ${o.nl} - ${o.nl>1?3:0}px);--cc:${evColor(o.e,p.nom)};--pc:${col(p.couleur)}" data-row="${esc(p.nom)}">${badge(o.e)}${c.icone} <b>${esc(o.e.titre||c.nom)}</b><small>${esc(o.e.debut)}–${esc(o.e.fin)}${o.e.lieu?" · "+esc(o.e.lieu):""}</small>${withHTML(who(o.e).filter(n=>n!==p.nom))}${rappel(o.e)}${canEdit(o.e)?'<span class="rz" aria-hidden="true"></span>':""}</div>`}).join("")}
+      return `<div class="dev${isDone(o.e,s)?" fait":prioCls(o.e)}" data-ev="${o.e.id}" data-d="${s}" style="top:${(a-H0*60)/60*48}px;height:${Math.max(22,(b-a)/60*48-2)}px;left:calc(4px + (100% - 8px) * ${o.lane}/${o.nl});right:auto;width:calc((100% - 8px) / ${o.nl} - ${o.nl>1?3:0}px);--cc:${evColor(o.e,p.nom)};--pc:${col(p.couleur)}" data-row="${esc(p.nom)}">${badge(o.e)}${c.icone} <b>${esc(o.e.titre||c.nom)}</b><small>${esc(o.e.debut)}–${esc(o.e.fin)}${o.e.lieu?" · "+esc(o.e.lieu):""}</small>${withHTML(who(o.e).filter(n=>n!==p.nom))}${rappel(o.e)}${canEdit(o.e)?'<span class="rz" aria-hidden="true"></span>':""}</div>`}).join("")}
     ${s===ymd(new Date())?(()=>{const n=new Date(),m=n.getHours()*60+n.getMinutes();return m>=H0*60&&m<=H1*60?`<div class="nowline" style="top:${(m-H0*60)/60*48}px"></div>`:""})():""}</div></div>`});
   return h+`</div></div>`+legendHTML();
 }
