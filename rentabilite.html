@@ -108,6 +108,9 @@ input.num{text-align:right;font-variant-numeric:tabular-nums}
 .gw svg{width:100%;max-width:300px;height:auto}
 .gw .mood{font-size:34px;line-height:1;margin-top:-6px}
 .gw .gv{font:700 34px/1 var(--f-d);font-variant-numeric:tabular-nums}
+.obj .adj{color:var(--ink)}.obj{flex-direction:column;gap:2px!important;text-align:center}.obj .objd{font-size:12px;line-height:1.35}
+.h3t{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:16px;margin:18px 0 4px}.h3t .switch{font-size:13px;font-weight:600;display:inline-flex;gap:6px;align-items:center}
+.typt td,.typt th{vertical-align:top}.typt small{color:var(--muted);font-weight:500}.typt td input{display:inline-block}
 .obj{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 .obj b{color:var(--ink)}
 .tips{display:flex;flex-direction:column;gap:8px}
@@ -296,11 +299,12 @@ const STATUTS=[["brouillon","Brouillon"],["envoye","Envoyé"],["accepte","Accept
 const MOTIFS=["Prix","Délai","Concurrent","Projet abandonné","Sans réponse","Autre"];
 const OWNER="Dimitri",TOUT_VOIR=["Dimitri","Karim"];
 const DEF={act:[{n:"MO Chantier CVC",t:50},{n:"MO Chantier Froid",t:55},{n:"MO SAV",t:57.5}],coutH:{artik:81,chassaing:97},charges:["Dimitri","Karim","Guilhem","Samuel","Laurent","Alexis"],
+  typo:{on:true,seuils:[10000,30000,60000],mat:65,mo:35,grille:[[-2,3,5],[-4,0,2],[-7,-3,0],[-10,-6,-3]]},
   niveau:"normal",niveaux:{faible:{n:"Peu de travail d'avance",m:20},normal:{n:"Carnet normal",m:25},plein:{n:"Carnet plein",m:32}},
   tolBas:4,tolHaut:12,coefMin:1.25,ratioMO:1.5,partAch:70};
 const LS=k=>{try{return JSON.parse(localStorage.getItem("rd-"+k)||"null")}catch(e){return null}};
 const SS=(k,v)=>{try{localStorage.setItem("rd-"+k,JSON.stringify(v))}catch(e){}};
-let P=Object.assign(JSON.parse(JSON.stringify(DEF)),LS("params3")||{});
+let P=Object.assign(JSON.parse(JSON.stringify(DEF)),LS("params3")||{});if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));
 let DEVIS=LS("devis2")||[];
 let F=Object.assign({q:"",charge:"",cat:"",statut:"actifs",soc:"",du:"",au:"",perdus:false,sk:"date",sd:-1},LS("filtres")||{});
 let VUE=LS("vue")||OWNER;
@@ -329,6 +333,12 @@ const save=()=>{if(!RD)SS("devis2",DEVIS)},saveP=()=>{if(RD)RD.saveParams(P);els
 const blank=()=>({id:"d"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ref:"",client:"",adresse:"",info:"",date:today(),charge:seeAll()?(P.charges[0]||""):VUE,soc:"artik",cat:"clim",act:0,statut:"brouillon",dEnvoi:"",dDecision:"",motif:"",
   prix:"",achats:"",moV:"",hPrev:"",planning:null,reel:{h:[],cmd:[]},maj:""});
 const objectif=()=>(+((P.niveaux[P.niveau]||{}).m)||0)/100;
+/* marge visée selon la typologie du devis : montant (tranche) × composition (part du matériel dans le prix) */
+const TYPC=["Surtout matériel","Mixte","Surtout main-d'œuvre"];
+function trancheLib(i){const S=P.typo.seuils,k=v=>(v>=1000?Math.round(v/1000)+" k":v)+" €";return i===0?"Moins de "+k(S[0]):i>=S.length?"Plus de "+k(S[S.length-1]):k(S[i-1])+" à "+k(S[i])}
+function typoOf(prix,ach){const T=P.typo;if(!T||!T.on||!(prix>0))return null;let i=0;while(i<T.seuils.length&&prix>=T.seuils[i])i++;
+  const part=ach/prix*100,j=part>=T.mat?0:part<T.mo?2:1,adj=+((T.grille[i]||[])[j])||0;return {i,j,adj,part,lib:trancheLib(i)+" · "+TYPC[j].toLowerCase()}}
+function objectifD(prix,ach){const b=objectif(),t=typoOf(prix,ach);return Math.max(.03,b+(t?t.adj/100:0))}
 
 /* ---------- calcul : même schéma que la fiche Excel ----------
    heures vendues = prix de vente MO / taux de vente de l'activité
@@ -339,11 +349,11 @@ function calc(d,x){x=x||{h:0,prix:0,ach:0,mo:0};const A=P.act[+d.act]||P.act[0]|
   const vide=d.prix==="";
   const prix=num(d.prix)+x.prix,ach=num(d.achats)+x.ach,moV=num(d.moV)+x.mo,hp=Math.max(0,num(d.hPrev)+x.h);
   const hv=A.t>0?moV/A.t:NaN,coutMO=hp*ch,M=prix-ach-coutMO,pct=prix>0?M/prix:NaN,ecart=hv-hp;
-  const o=objectif(),tb=P.tolBas/100,th=P.tolHaut/100;
+  const ty=typoOf(prix,ach),o=objectifD(prix,ach),tb=P.tolBas/100,th=P.tolHaut/100;
   const zone=vide?"vide":M<0?"ko":pct<o-tb?"mid":pct>o+th?"hi":"ok";
   const hR=d.reel.h.reduce((a,y)=>a+num(y.h),0),cmdR=d.reel.cmd.reduce((a,y)=>a+num(y.m),0);
   const mProj=prix-Math.max(ach,cmdR)-Math.max(hp,hR)*ch;
-  return {A,ch,prix,ach,moV,hp,hv,coutMO,M,pct,ecart,zone,o,tb,th,vide,hR,cmdR,mProj,pProj:prix>0?mProj/prix:NaN,
+  return {A,ch,prix,ach,moV,hp,hv,coutMO,M,pct,ecart,zone,o,ty,tb,th,vide,hR,cmdR,mProj,pProj:prix>0?mProj/prix:NaN,
     prixObj:(ach+coutMO)/(1-o),coefMat:ach>0?(prix-moV)/ach:NaN}}
 function verdict(R){if(R.zone==="vide")return ["✏️","Remplis la saisie du devis pour voir le verdict"];
   if(R.zone==="ko")return ["😱","Attention : chantier à perte"];
@@ -406,7 +416,7 @@ function listeHTML(){const L=filtered().sort((a,b)=>{const f=SORTK[F.sk]||SORTK.
   const acc=base.filter(d=>d.statut==="accepte").length,per=base.filter(d=>d.statut==="perdu").length,nPerdus=mesDevis().filter(d=>d.statut==="perdu").length;
   const th=(k,l,n)=>`<th class="${n?"n":""}"><button type="button" data-sort="${k}"${F.sk===k?` aria-sort="${F.sd>0?"ascending":"descending"}"`:""}>${l}${F.sk===k?(F.sd>0?" ▲":" ▼"):""}</button></th>`;
   const opt=(v,l,s)=>`<option value="${esc(v)}"${s===v?" selected":""}>${esc(l)}</option>`;
-  const gm=tot?mg/tot:NaN,gz=!isFinite(gm)?"":mg<0?"ko":gm<objectif()-P.tolBas/100?"mid":gm>objectif()+P.tolHaut/100?"hi":"ok";
+  const gm=tot?mg/tot:NaN,go=tot?R.reduce((a,r)=>a+r.o*r.prix,0)/tot:objectif(),gz=!isFinite(gm)?"":mg<0?"ko":gm<go-P.tolBas/100?"mid":gm>go+P.tolHaut/100?"hi":"ok";
   return `<section class="card">
    ${seeAll()?"":`<div class="lock">👤 Tu vois uniquement tes devis, ${esc(VUE)}.</div>`}
    <div class="tools">
@@ -419,7 +429,7 @@ function listeHTML(){const L=filtered().sort((a,b)=>{const f=SORTK[F.sk]||SORTK.
     <label class="chk"><input type="checkbox" data-fl="perdus"${F.perdus?" checked":""}> Voir les perdus (${nPerdus})</label>
    </div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn pri" data-new>➕ Nouvelle analyse</button>${(F.q||(seeAll()&&F.charge)||F.cat||F.soc||F.du||F.au||F.statut!=="actifs"||F.perdus)?`<button type="button" class="btn sm" data-reset>Effacer les filtres</button>`:""}
-    <span class="hint" style="margin-left:auto">🎯 Marge visée en ce moment : <b>${Math.round(objectif()*100)} %</b> (${esc((P.niveaux[P.niveau]||{}).n||"")}) · clic sur un titre de colonne pour trier</span></div>
+    <span class="hint" style="margin-left:auto">🎯 Marge visée de base : <b>${Math.round(objectif()*100)} %</b> (${esc((P.niveaux[P.niveau]||{}).n||"")})${P.typo&&P.typo.on?", ajustée devis par devis selon le montant et la part de matériel":""} · clic sur un titre de colonne pour trier</span></div>
    <div class="kpis">
     <div class="kpi"><span>Devis affichés</span><b>${L.length}</b></div>
     <div class="kpi"><span>Prix HT cumulé</span><b>${eur(tot)}</b></div>
@@ -491,7 +501,7 @@ function refresh(){if(view!=="fiche"||!cur)return;const pl=RD&&cur.planning?RD.p
   z("z-tips",tips(d,R).map(t=>`<div class="tip" style="--tc:${t.tc}"><span class="ic">${t.ic}</span><div><b>${esc(t.t)}</b><p>${esc(t.p)}</p>${t.fix.length?`<div class="fix">${t.fix.map(([l,x])=>`<button type="button" class="chip" data-try='${JSON.stringify(x)}'>🧪 ${esc(l)}</button>`).join("")}</div>`:""}</div></div>`).join(""));
   z("z-res",`<div class="gw">${gaugeSVG(R,Rx)}<div class="mood" aria-hidden="true">${v[0]}</div><div class="gv mg ${R.zone}">${pc(R.pct)}</div></div>
     <div class="verdict ${R.zone==="vide"?"mid":R.zone}"><b style="font-size:18px">${esc(v[1])}</b></div>
-    <div class="obj">🎯 Marge visée <b>${Math.round(R.o*100)} %</b> · ${esc((P.niveaux[P.niveau]||{}).n||"")}</div>
+    <div class="obj"><span>🎯 Marge visée <b>${Math.round(R.o*100)} %</b></span>${R.ty?`<small class="objd">${esc((P.niveaux[P.niveau]||{}).n||"")} ${inV(objectif()*100)} % <b class="adj">${R.ty.adj>=0?"+":"−"} ${inV(Math.abs(R.ty.adj))} pt${Math.abs(R.ty.adj)>1?"s":""}</b> · ${esc(R.ty.lib)} (${Math.round(R.ty.part)} % de matériel)</small>`:`<small class="objd">${esc((P.niveaux[P.niveau]||{}).n||"")}</small>`}</div>
     <div class="kv"><span>💶 Prix HT devis</span><b>${R.vide?"—":eur(R.prix)}</b></div>
     <div class="kv"><span>👷 Coût réel main-d'œuvre</span><b>${d.hPrev===""?"—":eur(R.coutMO)}</b></div>
     <div class="kv tot"><span>💰 Marge nette</span><b class="mg ${R.zone}">${R.vide?"—":eur(R.M)}</b></div>
@@ -527,6 +537,11 @@ function paramsHTML(){const lk=!isOwner(),dis=lk?" disabled":"";
    <p class="hint">Clique sur la situation du moment : la cible change pour toutes les analyses. Ajuste chaque niveau ci-dessous.</p>
    <div class="tbl"><table><thead><tr><th>Situation</th><th>Marge visée (%)</th></tr></thead><tbody>${Object.entries(P.niveaux).map(([k,n])=>`<tr><td><input type="text" data-nn="${k}" value="${esc(n.n)}"${dis}></td><td>${nI(`data-nm="${k}"`,n.m)}</td></tr>`).join("")}</tbody></table></div>
    <div class="row2"><label class="f"><span>Tolérance sous la cible (points)</span>${nI('data-pp="tolBas"',P.tolBas,"100%")}</label><label class="f"><span>Au-dessus : « marge trop haute » (points)</span>${nI('data-pp="tolHaut"',P.tolHaut,"100%")}</label></div>
+   <h3 class="h3t">📦 Ajustement selon le type de devis <label class="switch"><input type="checkbox" data-typon${P.typo.on?" checked":""}${dis}> activé</label></h3>
+   <p class="hint">Points ajoutés ou retirés à la marge visée ci-dessus, selon le montant HT et la part du matériel dans le prix. Un gros devis surtout matériel vise moins haut pour rester dans le prix ; un petit devis surtout main-d'œuvre vise plus haut.</p>
+   <div class="tbl"><table class="typt"><thead><tr><th>Montant HT</th>${TYPC.map((c,j)=>`<th class="n">${c}<br><small>${j===0?"matériel ≥ "+inV(P.typo.mat)+" %":j===2?"matériel < "+inV(P.typo.mo)+" %":"entre les deux"}</small></th>`).join("")}</tr></thead>
+    <tbody>${P.typo.grille.map((r,i)=>`<tr><td>${i===0?"Moins de ":"De "}${i===0?nI(`data-tys="0"`,P.typo.seuils[0],80):`${esc(Number(P.typo.seuils[i-1]).toLocaleString("fr-FR"))} €`+(i<P.typo.seuils.length?" à "+nI(`data-tys="${i}"`,P.typo.seuils[i],80):" et plus")} ${i<P.typo.seuils.length||i===0?"€":""}</td>${r.map((v,j)=>`<td class="n">${nI(`data-tyg="${i}-${j}"`,v,60)} <small>pts</small><br><small class="tyx">→ ${inV(Math.max(3,objectif()*100+(+v||0)))} %</small></td>`).join("")}</tr>`).join("")}</tbody></table></div>
+   <div class="row2"><label class="f"><span>« Surtout matériel » si le matériel fait au moins … % du prix</span>${nI('data-typ="mat"',P.typo.mat,"100%")}</label><label class="f"><span>« Surtout main-d'œuvre » si le matériel fait moins de … % du prix</span>${nI('data-typ="mo"',P.typo.mo,"100%")}</label></div>
    <p class="hint">Exemple avec ${inV(objectif()*100)} % : vert de ${inV(objectif()*100-P.tolBas)} à ${inV(objectif()*100+P.tolHaut)} %, orange en dessous, bleu au-dessus.</p></section>
   <section class="card"><h2>🧭 Règles du guide</h2>
    <label class="f"><span>Alerte « trop de temps » si le coût MO dépasse … fois les achats</span>${nI('data-pp="ratioMO"',P.ratioMO,"100%")}</label>
@@ -600,6 +615,10 @@ document.addEventListener("input",e=>{const t=e.target,d=t.dataset;
     if(d.at!==undefined){P.act[+d.at].t=num(t.value);saveP();return}
     if(d.pc){P.coutH[d.pc]=num(t.value);saveP();return}
     if(d.pp){P[d.pp]=num(t.value);saveP();return}
+    if(d.typon!==undefined){P.typo.on=t.checked;saveP();render();return}
+    if(d.tys!==undefined){const i=+d.tys,v=num(t.value);if(v>0){P.typo.seuils[i]=v;P.typo.seuils.sort((x,y)=>x-y);saveP()}return}
+    if(d.tyg!==undefined){const [i,j]=d.tyg.split("-").map(Number);P.typo.grille[i][j]=num(t.value);saveP();const x=t.parentElement.querySelector(".tyx");if(x)x.textContent="→ "+inV(Math.max(3,objectif()*100+num(t.value)))+" %";return}
+    if(d.typ){P.typo[d.typ]=num(t.value);saveP();return}
     if(d.nm){P.niveaux[d.nm].m=num(t.value);saveP();return}
     if(d.nn){P.niveaux[d.nn].n=t.value;saveP();return}
     if(d.pch!==undefined){P.charges=t.value.split(",").map(x=>x.trim()).filter(Boolean);saveP();return}}
@@ -616,7 +635,7 @@ document.addEventListener("change",e=>{const t=e.target;
   if(t.id==="vue"){VUE=t.value;SS("vue",VUE);if(cur&&!seeAll()&&cur.charge!==VUE){cur=null;if(view==="fiche")view="liste"}F.charge="";render();toast("Tu vois le site comme "+VUE);return}
   if(t.dataset.dv&&t.tagName==="SELECT"){keepFocus(render);return}
 });
-(async()=>{if(RD){try{const x=await RD.load();ME=x.me;VUE=ME.nom;DEVIS=x.devis||[];if(x.params)P=Object.assign(JSON.parse(JSON.stringify(DEF)),x.params);if(!ME.seeAll)F.charge=""}catch(e){if(e.message!=="redirect"&&e.message!=="stop"){const g=document.getElementById("gate");if(g){g.innerHTML=`<div class="gatecard"><h2>Lecture impossible</h2><p>${esc(e.message)}</p></div>`;g.hidden=false}}return}}render()})();
+(async()=>{if(RD){try{const x=await RD.load();ME=x.me;VUE=ME.nom;DEVIS=x.devis||[];if(x.params)P=Object.assign(JSON.parse(JSON.stringify(DEF)),x.params);if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));if(!ME.seeAll)F.charge=""}catch(e){if(e.message!=="redirect"&&e.message!=="stop"){const g=document.getElementById("gate");if(g){g.innerHTML=`<div class="gatecard"><h2>Lecture impossible</h2><p>${esc(e.message)}</p></div>`;g.hidden=false}}return}}render()})();
 </script>
 
 </body>
