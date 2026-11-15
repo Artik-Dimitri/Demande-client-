@@ -127,6 +127,27 @@ td input[type=checkbox]{width:20px;height:20px;accent-color:var(--c-orange);curs
 .rgp{display:flex;flex-wrap:wrap;gap:8px}
 .rgc{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;background:var(--surface)}
 </style>
+<style>
+.idh{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.idfil{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.idfil button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 11px;font-weight:600;font-size:13.5px;cursor:pointer}
+.idfil button small{color:var(--muted)}
+.idfil button[aria-pressed=true]{border-color:var(--c-ocre);background:color-mix(in srgb,var(--c-ocre) 14%,var(--surface))}
+.idc2{border-left:5px solid var(--ic)}
+.idc2 h2{margin:0 0 4px}
+.idtag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12.5px;font-weight:700;background:color-mix(in srgb,var(--ic) 15%,var(--surface))}
+.idres{margin:10px 0 0;font-size:15.5px}
+.idlk{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.idlk a{text-decoration:none}
+.idbt{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.idc2 details{margin-top:10px}.idc2 summary{cursor:pointer;font-weight:700}
+.iddet{white-space:pre-wrap;margin-top:8px;line-height:1.5;font-size:14.5px}
+.idf{display:flex;flex-direction:column;gap:10px}
+.idl{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:13.5px;color:var(--muted)}
+.idl input,.idl textarea,.idl select{font:inherit;font-weight:500;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.idrow{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}.idrow .idl{flex:1;min-width:200px}
+.idc{display:flex;gap:8px;align-items:center;font-weight:600;padding-bottom:8px}
+</style>
 </head>
 <body>
 <div class="brandline" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -221,7 +242,7 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
    ===================================================================== */
 const CONFIG={tenantId:"14b03bce-aec8-408e-9686-c43ea4a503d8",clientId:"f66f2711-d9e4-4fd3-be11-57367c333c87",site:"root",liste:"Portail acces"};
 const OWNER="d.blin@chassaing-technologies.fr";   // seul à gérer les paramètres
-const BUILD_V="202611140808"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
+const BUILD_V="202611151530"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
 const MODULES=[
   {k:"accueil",ic:"🏠",lab:"Accueil",sh:"Accueil",url:"accueil.html?embed=1",tc:"var(--c-blue)",tous:true,g:"quot"},
   {k:"agenda",ic:"📅",lab:"Agenda",sh:"Agenda",url:"agenda.html?embed=1",tc:"var(--c-orange)",g:"quot"},
@@ -232,6 +253,7 @@ const MODULES=[
   
   
   {k:"evts",ic:"🎪",lab:"Événements",sh:"Événements",url:"evenements.html?embed=1",tc:"var(--c-bordeaux)",g:"com"},
+  {k:"prospect",ic:"🎯",lab:"Prospection",sh:"Prospection",url:"prospection.html?embed=1",tc:"var(--c-blue)",g:"com"},
   {k:"planning",ic:"🏗️",lab:"Planning chantiers",sh:"Chantiers",url:"planning.html?embed=1",tc:"var(--c-ocre)",g:"chan"},
   {k:"suivi",ic:"📈",lab:"Suivi de chantier",sh:"Suivi",url:"suivi.html?embed=1",tc:"var(--c-orange)",g:"chan"},
   {k:"terrain",ic:"👷",lab:"Mes chantiers (techs)",sh:"Terrain",url:"suivi.html?embed=1&mode=terrain",tc:"var(--c-blue)",g:"chan"},
@@ -299,9 +321,9 @@ function renderTabs(){
   const nav=$("#tabs");nav.classList.toggle("mini",navMini);
   nav.innerHTML=groups.map(g=>single?`<div class="grp"><div class="items">${g.tabs.map(btn).join("")}</div></div>`
     :`<div class="grp${navClosed.has(g.k)&&!g.tabs.some(m=>m.k===tab)?" closed":""}"><button type="button" class="gh" data-g="${g.k}" aria-expanded="${!navClosed.has(g.k)}" title="${esc(g.n)}"><span class="gi">${g.ic}</span><span class="gl">${esc(g.n)}</span><span class="cnt">(${g.tabs.length})</span><span class="chev">▼</span></button><div class="items">${g.tabs.map(btn).join("")}</div></div>`).join("")
-    +`<div class="bottomtools">${isOwner()?`<button class="tab params" role="tab" type="button" data-t="params" style="--tc:var(--muted)" aria-selected="${tab==="params"}" title="Paramètres"><span class="ic">⚙️</span><span class="lb">Paramètres</span></button>`:""}<button type="button" class="tab" id="mini" title="${navMini?"Agrandir le menu":"Réduire le menu"}"><span class="ic">${navMini?"»":"«"}</span><span class="lb">Réduire le menu</span></button></div>`;
+    +`<div class="bottomtools">${isOwner()?`<button class="tab params" role="tab" type="button" data-t="idees" style="--tc:var(--c-ocre)" aria-selected="${tab==="idees"}" title="Boîte à idées"><span class="ic">💡</span><span class="lb">Boîte à idées</span></button><button class="tab params" role="tab" type="button" data-t="params" style="--tc:var(--muted)" aria-selected="${tab==="params"}" title="Paramètres"><span class="ic">⚙️</span><span class="lb">Paramètres</span></button>`:""}<button type="button" class="tab" id="mini" title="${navMini?"Agrandir le menu":"Réduire le menu"}"><span class="ic">${navMini?"»":"«"}</span><span class="lb">Réduire le menu</span></button></div>`;
   /* téléphone : 4 favoris + « Plus » */
-  const all=list.concat(isOwner()?[{k:"params",ic:"⚙️",lab:"Paramètres",sh:"Réglages",tc:"var(--muted)",g:"gest"}]:[]);
+  const all=list.concat(isOwner()?[{k:"idees",ic:"💡",lab:"Boîte à idées",sh:"Idées",tc:"var(--c-ocre)",g:"gest"},{k:"params",ic:"⚙️",lab:"Paramètres",sh:"Réglages",tc:"var(--muted)",g:"gest"}]:[]);
   const fav=FAVS.filter(k=>all.some(m=>m.k===k)).slice(0,all.length>5?4:5),more=all.length>fav.length;
   const short=m=>esc(m.sh||m.lab);
   $("#bbar").style.gridTemplateColumns=`repeat(${fav.length+(more?1:0)},1fr)`;
@@ -312,10 +334,11 @@ function renderTabs(){
     ${gs.map(g=>`<h3>${g.ic} ${esc(g.n)}</h3><div class="sgrid">${g.tabs.map(m=>`<button type="button" data-t="${m.k}" aria-selected="${tab===m.k}" style="--tc:${m.tc}"><span class="ic">${m.ic}</span>${esc(m.lab)}</button>`).join("")}</div>`).join("")}</div></div>`:"";
 }
 function show(k){
-  const ok=mine();if(k!=="params"&&!ok.includes(k))k=ok[0]||(isOwner()?"params":null);
+  const ok=mine();if(k==="idees"&&!isOwner())k="";if(k!=="params"&&k!=="idees"&&!ok.includes(k))k=ok[0]||(isOwner()?"params":null);
   tab=k;ls("tab",k||"");if(k)history.replaceState(null,"","#"+k);renderTabs();
   const main=$("#main");main.querySelectorAll("iframe,.panel").forEach(el=>el.hidden=true);
   if(!k){main.insertAdjacentHTML("beforeend",`<div class="panel"><div class="card"><h2>Pas encore d'accès</h2><p class="hint">Votre compte (${esc(account.username)}) n'a encore aucun onglet ouvert. Demandez à Dimitri.</p></div></div>`);return}
+  if(k==="idees"){let p=main.querySelector(".panel.idees");if(!p){p=document.createElement("div");p.className="panel idees";main.appendChild(p)}p.hidden=false;renderIdees(p);return}
   if(k==="params"){let p=main.querySelector(".panel.params");if(!p){p=document.createElement("div");p.className="panel params";main.appendChild(p)}p.hidden=false;renderParams(p);return}
   if(!frames[k]){const m=MODULES.find(z=>z.k===k);const f=document.createElement("iframe");f.src=m.url+(m.url.includes("?")?"&":"?")+"v="+BUILD_V;f.title=m.lab;f.allow="geolocation; camera";main.appendChild(f);frames[k]=f}
   frames[k].hidden=false;
@@ -388,6 +411,82 @@ function renderParams(p){
         const [a]=L[dragged.n].splice(dragged.i,1);if(dragged.n===t&&dragged.i<pos)pos--;(L[t]=L[t]||[]).splice(pos,0,a);dragged=null;redraw()})});
     $("#tk-save").onclick=async()=>{reglages={...reglages,taches:JSON.parse(JSON.stringify(tedit))};try{await saveReglages();tdirty=false;renderParams(p);toast("Tâches enregistrées : elles arrivent chez chacun au prochain rafraîchissement")}catch(e){toast("Enregistrement impossible : "+e.message,true)}};
   }
+}
+/* ---------- Boîte à idées (vous seul) : liste SharePoint « Boîte à idées », une ligne par idée ---------- */
+const IDEES_LISTE="Boîte à idées";
+const IST=[["idee","💭 Idée","var(--muted)"],["proposer","📣 À proposer","var(--c-ocre)"],["proposee","🗣️ Proposée","var(--c-blue)"],["go","✅ On y va","var(--c-orange)"],["fait","🏁 Faite","#2E7D4F"],["non","🗄️ Mise de côté","var(--muted)"]];
+let idL=null,idees=null,idEdit=null,idFil="actives",idDel=null;
+const IDEE_POINTAGE={titre:"Saisie des heures sur le site + tickets resto",statut:"proposer",coeur:true,date:"2026-11-15",
+ resume:"Les gars saisissent sur le site ce qui n'est pas un chantier (trajet, dépôt, fournisseur, atelier, pause repas, école). Les chantiers restent dans Organilog. Fini les codes ZZZ qui encombrent Organilog.",
+ detail:`Ce que fait la maquette
+- Saisie libre : un type, un début, une fin. Le début est déjà rempli avec la fin de la saisie d'avant.
+- Croisements avec Organilog : au calcul, Organilog gagne. Chevauchements en rouge et trous signalés, correction en un clic.
+- Astreinte et récup saisies par période « du … au … », par le tech ou par le bureau.
+- École des apprentis reprise toute seule depuis les dates d'école du planning.
+- Pause repas : panier, resto en compte ou resto sans compte.
+- Restos en compte : liste par société, recherche en tapant la ville ou le nom. Fin de mois : repas pointés comparés à la facture du resto.
+- Restos sans compte : photo du ticket obligatoire, remboursé en fin de mois avec la paie, plafond par repas. Magali valide et peut baisser le montant.
+- Chaque salarié est rattaché à Artik ou Chassaing : ses saisies partent dans la page Heures de sa société.
+
+Pour passer en vrai
+- Listes SharePoint : Saisies heures, Astreintes et récups, Restos en compte, Factures restos, Tickets resto (+ photos par mois).
+- Brancher la page Heures (Artik, puis Chassaing) sur ces listes en plus d'Organilog.
+- Transition de quelques semaines : lire à la fois les ZZZ d'Organilog et les saisies du site, et signaler les doublons.
+- Chassaing : il faut l'accès API de son Organilog.
+
+À trancher
+- Montant du plafond par repas.
+- Rapprochement des restos en compte au nombre de repas, ou aussi au montant de chaque repas.`,
+ liens:[{lab:"Maquette à montrer aux équipes",url:"https://claude.ai/artifact/3evUrHkbbyQtoovLqPnzh4"}]};
+async function loadIdees(){
+  let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`,f=null;
+  while(url&&!f){const r=await gx("GET",url);f=(r.value||[]).find(l=>l.displayName===IDEES_LISTE);url=r["@odata.nextLink"]}
+  let neuve=false;
+  if(!f){const l=await gx("POST",`/sites/${siteId}/lists`,{displayName:IDEES_LISTE,list:{template:"genericList"},columns:[{name:"Valeur",text:{allowMultipleLines:true,textType:"plain"}}]},SCA);idL=l.id;neuve=true}else idL=f.id;
+  idees=[];let u=`/sites/${siteId}/lists/${idL}/items?$expand=fields($select=Title,Valeur)&$top=200`;
+  while(u){const r=await gx("GET",u);(r.value||[]).forEach(i=>{let v={};try{v=JSON.parse(i.fields.Valeur||"{}")}catch(e){}idees.push({...v,id:i.id,titre:i.fields.Title||v.titre||""})});u=r["@odata.nextLink"]}
+  if(neuve&&!idees.length)await saveIdee({...IDEE_POINTAGE});
+}
+async function saveIdee(x){const {id,...v}=x;const fields={Title:v.titre||"Sans titre",Valeur:JSON.stringify(v)};
+  if(id){await gx("PATCH",`/sites/${siteId}/lists/${idL}/items/${id}/fields`,fields);const i=idees.findIndex(z=>z.id===id);idees[i]={...x}}
+  else{const r=await gx("POST",`/sites/${siteId}/lists/${idL}/items`,{fields});idees.push({...v,id:r.id})}}
+const idSt=k=>IST.find(s=>s[0]===k)||IST[0];
+const linkify=t=>esc(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+async function renderIdees(p){
+  if(!idees){p.innerHTML=`<div class="card"><p class="hint">Ouverture de la boîte à idées…</p></div>`;try{await loadIdees()}catch(e){if(e.message==="redirect")return;p.innerHTML=`<div class="card"><h2>Boîte à idées illisible</h2><p class="hint">${esc(e.message)}</p></div>`;return}}
+  const act=x=>!["fait","non"].includes(x.statut);
+  const L=idees.filter(x=>idFil==="tout"||(idFil==="actives"?act(x):x.statut===idFil)).sort((a,b)=>(b.coeur?1:0)-(a.coeur?1:0)||String(b.date||"").localeCompare(String(a.date||"")));
+  const cnt=k=>idees.filter(x=>k==="tout"||(k==="actives"?act(x):x.statut===k)).length;
+  const fil=[["actives","En cours"],...IST.map(s=>[s[0],s[1]]),["tout","Toutes"]];
+  const form=x=>`<div class="card idf"><h2>${x.id?"✏️ Modifier l'idée":"💡 Nouvelle idée"}</h2>
+    <label class="idl">Titre<input id="id-t" value="${esc(x.titre||"")}" placeholder="En quelques mots"></label>
+    <div class="idrow"><label class="idl">Où on en est<select id="id-s">${IST.map(s=>`<option value="${s[0]}"${(x.statut||"idee")===s[0]?" selected":""}>${s[1]}</option>`).join("")}</select></label>
+      <label class="idc"><input type="checkbox" id="id-c"${x.coeur?" checked":""}> ⭐ Coup de cœur</label></div>
+    <label class="idl">En une phrase<textarea id="id-r" rows="2" placeholder="L'idée, simplement">${esc(x.resume||"")}</textarea></label>
+    <label class="idl">Le détail<textarea id="id-d" rows="10" placeholder="Comment ça marcherait, ce qu'il faut pour le faire, ce qui reste à trancher…">${esc(x.detail||"")}</textarea></label>
+    <label class="idl">Liens (un par ligne : nom | adresse)<textarea id="id-l" rows="2" placeholder="Maquette | https://…">${esc((x.liens||[]).map(l=>l.lab+" | "+l.url).join("\n"))}</textarea></label>
+    <div class="idbt"><button class="btn" type="button" id="id-x">Annuler</button><button class="btn primary" type="button" id="id-ok">Enregistrer</button></div></div>`;
+  const card=x=>{const s=idSt(x.statut);return `<div class="card idc2" style="--ic:${s[2]}">
+    <div class="idh"><div style="min-width:0;flex:1"><h2>${x.coeur?"⭐ ":""}${esc(x.titre)}</h2><span class="idtag">${s[1]}</span>${x.date?`<span class="hint" style="margin-left:8px">depuis le ${new Date(x.date+"T12:00").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}</span>`:""}</div>
+      <div class="idbt"><button class="btn small" type="button" data-iedit="${x.id}">Modifier</button>${idDel===x.id?`<button class="btn small danger" type="button" data-idel2="${x.id}">Confirmer la suppression</button>`:`<button class="btn small" type="button" data-idel="${x.id}" title="Supprimer" aria-label="Supprimer">🗑️</button>`}</div></div>
+    ${x.resume?`<p class="idres">${linkify(x.resume)}</p>`:""}
+    ${(x.liens||[]).length?`<div class="idlk">${x.liens.map(l=>`<a class="btn small" href="${esc(l.url)}" target="_blank" rel="noopener">🔗 ${esc(l.lab||l.url)}</a>`).join("")}</div>`:""}
+    ${x.detail?`<details${L.length===1?" open":""}><summary>Le détail</summary><div class="iddet">${linkify(x.detail)}</div></details>`:""}</div>`};
+  p.innerHTML=`<div class="card"><div class="idh"><div style="flex:1;min-width:0"><h2>💡 Boîte à idées</h2><p class="hint" style="margin:4px 0 0">Les idées à garder sous le coude, à proposer aux équipes ou à lancer plus tard. Vous seul voyez cet onglet.</p></div><button class="btn primary" type="button" id="id-new">+ Nouvelle idée</button></div>
+    <div class="idfil">${fil.map(([k,l])=>`<button type="button" data-ifil="${k}" aria-pressed="${idFil===k}">${l} <small>${cnt(k)}</small></button>`).join("")}</div></div>
+    ${idEdit?form(idEdit):""}
+    ${L.map(card).join("")||`<div class="card"><p class="hint" style="margin:0">Rien ici pour le moment.</p></div>`}`;
+  p.onclick=async e=>{const b=e.target.closest("button");if(!b)return;const d=b.dataset;
+    if(b.id==="id-new"){idEdit={statut:"idee",date:new Date().toISOString().slice(0,10)};renderIdees(p);setTimeout(()=>{const t=$("#id-t");if(t)t.focus()},30);return}
+    if(b.id==="id-x"){idEdit=null;renderIdees(p);return}
+    if(d.ifil){idFil=d.ifil;renderIdees(p);return}
+    if(d.iedit){idEdit={...idees.find(x=>x.id===d.iedit)};idDel=null;renderIdees(p);p.scrollIntoView({block:"start"});return}
+    if(d.idel){idDel=d.idel;renderIdees(p);return}
+    if(d.idel2){try{await gx("DELETE",`/sites/${siteId}/lists/${idL}/items/${d.idel2}`);idees=idees.filter(x=>x.id!==d.idel2);idDel=null;toast("Idée supprimée");renderIdees(p)}catch(er){toast("Suppression impossible : "+er.message,true)}return}
+    if(b.id==="id-ok"){const t=$("#id-t").value.trim();if(!t){toast("Donnez un titre à l'idée",true);return}
+      const liens=$("#id-l").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{const i=l.lastIndexOf("|");return i>0?{lab:l.slice(0,i).trim(),url:l.slice(i+1).trim()}:{lab:l,url:l}});
+      const x={...idEdit,titre:t,statut:$("#id-s").value,coeur:$("#id-c").checked,resume:$("#id-r").value.trim(),detail:$("#id-d").value.replace(/\s+$/,""),liens};
+      b.disabled=true;try{await saveIdee(x);idEdit=null;toast("Idée enregistrée");renderIdees(p)}catch(er){b.disabled=false;toast("Enregistrement impossible : "+er.message,true)}}};
 }
 const rowHTML=p=>`<tr><td><input type="text" data-n value="${esc(p.nom)}" placeholder="Prénom"></td><td><input type="email" data-e value="${esc(p.email)}" placeholder="adresse@…"></td>${MODULES.filter(m=>!m.tous).map(m=>`<td class="c"><input type="checkbox" data-k="${m.k}"${(p.onglets||[]).includes(m.k)?" checked":""} aria-label="${m.lab}"></td>`).join("")}<td><button class="btn danger" type="button" data-del>Retirer</button></td></tr>`;
 
