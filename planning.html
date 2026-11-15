@@ -241,7 +241,10 @@ legend::before{content:"";width:14px;height:3px;background:var(--orange)}
 .al.danger{background:var(--alertbg)}.al b{white-space:nowrap}.al span{font-size:13.5px}.al.danger span{color:var(--alert)}.al.warn span{color:var(--warn)}
 .dlt{color:var(--alert);font-weight:600}
 .eco{position:absolute;top:0;bottom:0;font-size:10px;color:#1F7FC4;font-weight:700;padding:3px 0 0 4px;text-transform:uppercase;letter-spacing:.04em;background:repeating-linear-gradient(135deg,rgba(31,127,196,.16) 0 6px,transparent 6px 12px);border-left:1px solid rgba(31,127,196,.25);pointer-events:none}
-.trow.sav{background:var(--soft)}
+.eco.off{color:var(--muted)}
+.eco.off.sav{color:#C0560A;background:repeating-linear-gradient(135deg,rgba(228,103,10,.13) 0 6px,transparent 6px 12px);border-left-color:rgba(228,103,10,.25)}
+.eco.off.bur{color:#5c5a5b;background:repeating-linear-gradient(135deg,rgba(92,90,91,.12) 0 6px,transparent 6px 12px);border-left-color:rgba(92,90,91,.22)}
+.showbur{display:inline-flex;gap:6px;align-items:center;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer}
 .eco.abs{color:#8E2344;background:repeating-linear-gradient(135deg,rgba(142,35,68,.14) 0 6px,transparent 6px 12px);border-left-color:rgba(142,35,68,.3);pointer-events:auto;cursor:pointer}
 .eco.abs.maladie{color:#B3302A;background:repeating-linear-gradient(135deg,rgba(179,48,42,.16) 0 6px,transparent 6px 12px)}
 .eco.abs.formation{color:#9A6512;background:repeating-linear-gradient(135deg,rgba(184,144,26,.18) 0 6px,transparent 6px 12px)}
@@ -314,6 +317,7 @@ html.embed header.top{margin-bottom:8px;min-height:0}
   </div>
   <div class="filters" id="nav">
     <div class="zoom" id="mode" role="group" aria-label="Affichage"><button type="button" data-m="chantiers">Par chantier</button><button type="button" data-m="techniciens">Par technicien</button><button type="button" data-m="equipes">Par équipe</button></div>
+    <label class="showbur" id="showbur-l" hidden><input type="checkbox" id="showbur"> Afficher le bureau</label>
     <div class="zoom" id="zoom" role="group" aria-label="Zoom"><button type="button" data-z="jour">Jour</button><button type="button" data-z="semaine">Semaine</button><button type="button" data-z="deux">2 semaines</button><button type="button" data-z="mois" title="Prévisionnel : vue par chantier, sans technicien">Mois</button><button type="button" data-z="six" title="Prévisionnel : vue par chantier, sans technicien">6 mois</button></div>
     <div class="nav">
       <button class="btn small" type="button" id="prev" aria-label="Période précédente">←</button>
@@ -669,7 +673,11 @@ function expand(list){return list.flatMap(x=>x.debut?partsOf(x):[x])}
 function baseId(id){return String(id||"").split("~")[0]}
 function getItem(id){const b=items.find(i=>i.id===baseId(id));if(!b)return null;if(!String(id).includes("~"))return b.phases&&b.phases.length?partsOf(b)[0]:b;return partsOf(b).find(q=>q.id===id)||null}
 function propSlots(h,nt){const jh=Number(cfg.journee)||8;return h?Math.max(2,Math.ceil(h/(Math.max(1,nt)*jh))*2):2}
-function techList(){return (cfg.techniciens||[]).map(t=>typeof t==="string"?{nom:t,heures:35,societe:"artik",apprenti:false,depanneur:false,ecole:[]}:{nom:t.nom,heures:Number(t.heures)||35,societe:t.societe==="chassaing"?"chassaing":"artik",apprenti:!!t.apprenti,depanneur:!!t.depanneur,ecole:t.ecole||[]})}
+/* poste : chantier (technicien), depanneur (SAV), charge (chargé d'affaires) ou admin (bureau).
+   Dépanneurs et gens du bureau ne comptent dans la capacité que les jours où ils sont mis sur un chantier. */
+const POSTES={chantier:"Technicien chantier",depanneur:"Dépanneur (SAV)",charge:"Chargé d'affaires",admin:"Administratif / bureau"};
+function techList(){return (cfg.techniciens||[]).map(t=>{if(typeof t==="string")t={nom:t};const po=POSTES[t.poste]?t.poste:(t.depanneur?"depanneur":"chantier");
+  return {nom:t.nom,heures:Number(t.heures)||35,societe:t.societe==="chassaing"?"chassaing":"artik",apprenti:!!t.apprenti,poste:po,depanneur:po==="depanneur",bureau:po==="charge"||po==="admin",horsChantier:po!=="chantier",ecole:t.ecole||[]}})}
 /* ---------- apprentis (jours d'école) et dépanneurs ----------
    Un apprenti n'est jamais compté les jours d'école. Un dépanneur ne compte dans la capacité que les jours où il est mis sur un chantier. */
 const WSD=new Map();function wsDate(ws){if(!WSD.has(ws))WSD.set(ws,fromSlot(ws).debut);return WSD.get(ws)}
@@ -720,7 +728,7 @@ function couverture(x){if(!x.debut||!x.heures)return null;let pl=0;partsOf(x).fo
   const H=Number(x.heures);return {H,pl:Math.round(pl),reste:Math.max(0,Math.round(H-pl)),sansTech:!partsOf(x).some(q=>(q.techs||[]).length)}}
 function capArray(list,s0,n,techs){const out=new Array(n).fill(0),busy=new Array(n).fill(null).map(()=>new Set());
   list.forEach(x=>{if(!active(x))return;const s=slotOf(x.debut,x.pm),len=slotsOf(x);for(let i=0;i<len;i++){const k=s+i-s0;if(k>=0&&k<n)(x.techs||[]).forEach(t=>{if(onDay(x,t,s+i))busy[k].add(t)})}});
-  (techs||techsVisible()).forEach(t=>{const h=t.heures/10;for(let k=0;k<n;k++){const ws=s0+k;if(isEcole(t.nom,ws)||isAbsent(t.nom,ws))continue;if(t.depanneur&&!busy[k].has(t.nom))continue;out[k]+=h}});
+  (techs||techsVisible()).forEach(t=>{const h=t.heures/10;for(let k=0;k<n;k++){const ws=s0+k;if(isEcole(t.nom,ws)||isAbsent(t.nom,ws))continue;if(t.horsChantier&&!busy[k].has(t.nom))continue;out[k]+=h}});
   if(!techList().length)return out.fill((cfg.capacite||DEF.capacite)/10);return out}
 function loadTeam(list,s0,n){const out=new Array(n).fill(0);list.forEach(x=>{if(!active(x))return;const s=slotOf(x.debut,x.pm),len=slotsOf(x);for(let i=0;i<len;i++){const k=s+i-s0;if(k>=0&&k<n)out[k]+=slotWork(x,s+i).tot}});return out}
 function renderStats(){
@@ -871,7 +879,9 @@ function planningHTML(){
       groups=eqs.map(e=>({t:e.nom,h:e.heures,soc:e.societe,sub:`${e.membres.length} tech. · ${esc(e.membres.join(", "))}`,list:rows.filter(x=>x.equipe===e.nom)}));
       groups.push({t:"",h:0,list:rows.filter(x=>!x.equipe||!eqs.some(e=>e.nom===x.equipe))});
     }else{
-      groups=techs.slice().sort((a,b)=>(a.depanneur?1:0)-(b.depanneur?1:0)).map(t=>({t:t.nom,h:t.heures,soc:t.societe,ti:t,sub:[t.apprenti?"apprenti":"",t.depanneur?"dépanneur":"",equipeOf(t.nom)?esc(equipeOf(t.nom)):""].filter(Boolean).join(" · "),list:rows.filter(x=>(x.techs||[]).includes(t.nom))}));
+      {const l=$("#showbur-l");if(l)l.hidden=!techList().some(t=>t.bureau)}
+      const ordre=t=>t.bureau?2:t.depanneur?1:0;
+      groups=techs.filter(t=>!t.bureau||showBur||rows.some(x=>(x.techs||[]).includes(t.nom))).sort((a,b)=>ordre(a)-ordre(b)).map(t=>({t:t.nom,h:t.heures,soc:t.societe,ti:t,sub:[t.apprenti?"apprenti":"",t.depanneur?"dépanneur":"",t.poste==="charge"?"chargé d'affaires":"",t.poste==="admin"?"administratif":"",equipeOf(t.nom)?esc(equipeOf(t.nom)):""].filter(Boolean).join(" · "),list:rows.filter(x=>(x.techs||[]).includes(t.nom))}));
       groups.push({t:"",h:0,list:rows.filter(x=>!(x.techs||[]).length)});
     }
     groups.forEach(gr=>{
@@ -881,15 +891,17 @@ function planningHTML(){
       /* heures affectées à ce technicien (ou à cette équipe) sur la période affichée */
       let hrs=0;iv.forEach(o=>{if(!active(o.x))return;for(let i=Math.max(o.s,g.s0);i<Math.min(o.e,g.s1+1);i++){const w=slotWork(o.x,i);if(team){hrs+=w.tot;continue}hrs+=w.per[gr.t]||0}});
       let cap=gr.h/10*nWork;
-      if(gr.ti){cap=0;for(let k=0;k<nWork;k++){const ws=g.s0+k;if(isEcole(gr.t,ws)||isAbsent(gr.t,ws))continue;if(gr.ti.depanneur&&!iv.some(o=>active(o.x)&&o.s<=ws&&ws<o.e&&onDay(o.x,gr.t,ws)))continue;cap+=gr.h/10}}
+      if(gr.ti){cap=0;for(let k=0;k<nWork;k++){const ws=g.s0+k;if(isEcole(gr.t,ws)||isAbsent(gr.t,ws))continue;if(gr.ti.horsChantier&&!iv.some(o=>active(o.x)&&o.s<=ws&&ws<o.e&&onDay(o.x,gr.t,ws)))continue;cap+=gr.h/10}}
       else if(team){const eq=equipeList().find(q=>q.nom===gr.t);if(eq){cap=capArray(rows,g.s0,nWork,techList().filter(t=>eq.membres.includes(t.nom))).reduce((a,b)=>a+b,0)}}
       const occ=cap?Math.round(hrs/cap*100):0;
       const eco=gr.ti?g.work.map(c=>{if(gr.ti.apprenti&&isEcole(gr.t,c.ws))return `<span class="eco" style="left:${c.x}px;width:${c.w}px" title="École">${c.w>=40&&!(c.ws%2)?"école":""}</span>`;
-        const a=isAbsent(gr.t,c.ws);return a?`<span class="eco abs ${a}" data-absd="${esc(gr.t)}|${wsDate(c.ws)}" style="left:${c.x}px;width:${c.w}px" title="${ABS_T[a]||"Absent"}">${c.w>=40&&!(c.ws%2)?(ABS_T[a]||"Absent"):""}</span>`:""}).join(""):"";
+        const a=isAbsent(gr.t,c.ws);if(a)return `<span class="eco abs ${a}" data-absd="${esc(gr.t)}|${wsDate(c.ws)}" style="left:${c.x}px;width:${c.w}px" title="${ABS_T[a]||"Absent"}">${c.w>=40&&!(c.ws%2)?(ABS_T[a]||"Absent"):""}</span>`;
+        if(gr.ti.horsChantier&&!iv.some(o=>active(o.x)&&o.s<=c.ws&&c.ws<o.e&&onDay(o.x,gr.t,c.ws))){const lb=gr.ti.depanneur?"SAV":"Bureau";return `<span class="eco off ${gr.ti.depanneur?"sav":"bur"}" style="left:${c.x}px;width:${c.w}px" title="${gr.ti.depanneur?"Au SAV":"Au bureau"}">${c.w>=40&&!(c.ws%2)?lb:""}</span>`}
+        return ""}).join(""):"";
       const lanes=Math.max(1,ends.length),hgt=Math.max(team?56:48,8+lanes*38);
       const empty=team?"Glisser une barre sur une équipe pour l'affecter":"Glisser une barre sur un technicien pour l'affecter";
-      labs+=`<div class="lab" style="height:${hgt}px"><b>${gr.t?`<span class="sw" style="--bc:var(--${gr.soc==="chassaing"?"blue":"orange"})"></span>`+esc(gr.t):(team?"Sans équipe":"Sans technicien")}${iv.some(o=>o.conflit)?' <span class="chip" style="background:var(--alertbg);color:var(--alert)">Conflit</span>':""}</b><small>${gr.t?(gr.ti&&gr.ti.depanneur&&!cap?`${gr.h} h · au SAV${gr.sub?" · "+gr.sub:""}`:`${gr.h} h · <span class="occ${occ>100?" over":""}"><i style="width:${Math.min(occ,100)}%"></i></span>${occ} %${gr.sub?" · "+gr.sub:""}`):empty}</small></div>`;
-      trs+=`<div class="trow${gr.ti&&gr.ti.depanneur?" sav":""}" data-tech="${esc(gr.t)}" style="height:${hgt}px">${eco}${iv.map(o=>barHTML(o.x,g,8+o.lane*38,gr.t,o.conflit)).join("")}</div>`;
+      labs+=`<div class="lab" style="height:${hgt}px"><b>${gr.t?`<span class="sw" style="--bc:var(--${gr.soc==="chassaing"?"blue":"orange"})"></span>`+esc(gr.t):(team?"Sans équipe":"Sans technicien")}${iv.some(o=>o.conflit)?' <span class="chip" style="background:var(--alertbg);color:var(--alert)">Conflit</span>':""}</b><small>${gr.t?(gr.ti&&gr.ti.horsChantier&&!cap?`${gr.h} h · ${gr.ti.depanneur?"au SAV":"au bureau"}${gr.sub?" · "+gr.sub:""}`:`${gr.h} h · <span class="occ${occ>100?" over":""}"><i style="width:${Math.min(occ,100)}%"></i></span>${occ} %${gr.sub?" · "+gr.sub:""}`):empty}</small></div>`;
+      trs+=`<div class="trow" data-tech="${esc(gr.t)}" style="height:${hgt}px">${eco}${iv.map(o=>barHTML(o.x,g,8+o.lane*38,gr.t,o.conflit)).join("")}</div>`;
     });
     if(team&&!equipesVisible().length)labs+=`<div class="lab" style="height:48px"><small>Créez vos équipes dans l'onglet Suivi &amp; facturation.</small></div>`,trs+=`<div class="trow" style="height:48px"></div>`;
     if(!team&&!techs.length)labs+=`<div class="lab" style="height:48px"><small>Ajoutez vos techniciens dans Réglages.</small></div>`,trs+=`<div class="trow" style="height:48px"></div>`;
@@ -900,12 +912,12 @@ function planningHTML(){
   if(zoom==="six"){for(let w=0;w<g.days/7;w++){const d=addW(g.start,w);const ws=g.work.filter(c=>c.d>=d&&c.d<addW(d,1));if(ws.length)groupsC.push(ws)}}
   else if(zoom==="jour")g.work.forEach(c=>groupsC.push([c]));
   else{let cur=[];g.work.forEach(c=>{if(cur.length&&ymd(cur[0].d)!==ymd(c.d)){groupsC.push(cur);cur=[]}cur.push(c)});if(cur.length)groupsC.push(cur)}
-  const capA=capArray(expand(f),g.s0,g.work.length),capSlot=techList().length?techsVisible().filter(t=>!t.depanneur).reduce((a,t)=>a+t.heures,0)/10:(cfg.capacite||DEF.capacite)/10;
+  const capA=capArray(expand(f),g.s0,g.work.length),capSlot=techList().length?techsVisible().filter(t=>!t.horsChantier).reduce((a,t)=>a+t.heures,0)/10:(cfg.capacite||DEF.capacite)/10;
   const vals=groupsC.map(cs=>({x:cs[0].x,w:cs[cs.length-1].x+cs[cs.length-1].w-cs[0].x,v:cs.reduce((a,c)=>a+load[c.ws-g.s0],0),cap:cs.reduce((a,c)=>a+capA[c.ws-g.s0],0)}));
   const max=Math.max(1,...vals.map(v=>Math.max(v.v,v.cap)));
   const chg=vals.map(v=>{const pc=v.v/(v.cap||1);return `<div class="ch${pc>1?" over":pc>.85?" mid":""}" style="left:${v.x}px;width:${v.w}px" title="${Math.round(v.v)} h sur ${Math.round(v.cap)} h">${v.v&&v.w>=24?Math.round(v.v):""}<i style="height:${Math.round(v.v/max*40)}px"></i></div>`}).join("");
   const unit={jour:"demi-journée",semaine:"jour",deux:"jour",mois:"jour",six:"semaine"}[zoom];
-  labs+=`<div class="lab chg"><b>Charge équipe (h)</b><small>capacité ${Math.round(capSlot*(zoom==="six"?10:zoom==="jour"?1:2))} h / ${unit}${techList().some(t=>t.depanneur||t.apprenti)?" (sans dépanneurs ni école)":""}</small></div>`;
+  labs+=`<div class="lab chg"><b>Charge équipe (h)</b><small>capacité ${Math.round(capSlot*(zoom==="six"?10:zoom==="jour"?1:2))} h / ${unit}${techList().some(t=>t.horsChantier||t.apprenti)?" (techniciens chantier, hors école)":""}</small></div>`;
   h+=`<div class="gantt-wrap"><div class="gantt2" style="--labw:${labW()}px">
     <div class="labels">${labs}</div>
     <div class="track" style="width:${g.total}px"><div class="thead">${hd.head}</div><div class="layer">${hd.layer}</div>${trs}<div class="tcharge">${chg}</div></div>
@@ -1147,9 +1159,9 @@ function paramsHTML(){
    <div class="ttable" id="r-couts">${(co.length?co:[{date:ymd(new Date()),artik:"",chassaing:""}]).map(coutRow).join("")}</div>
    <div class="actions" style="justify-content:flex-start"><button class="btn small" type="button" id="r-coutadd">+ Nouveau taux</button></div>
   </div>
-  <div class="panel"><h3>Techniciens</h3>
+  <div class="panel"><h3>Équipe : techniciens et bureau</h3>
    <div class="ttable" id="r-techs">${techs.map((t,i)=>techRow(t,i)).join("")}</div>
-   <div class="actions" style="justify-content:space-between"><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" type="button" id="r-add">+ Ajouter un technicien</button><label class="btn small" style="cursor:pointer">Importer des dates d'école<input type="file" id="r-ecoimp" accept=".json,application/json" hidden></label></span><span class="hint" id="r-tot">Capacité chantier : ${techs.filter(t=>t.societe==="artik"&&!t.depanneur).reduce((a,b)=>a+b.heures,0)} h Artik + ${techs.filter(t=>t.societe==="chassaing"&&!t.depanneur).reduce((a,b)=>a+b.heures,0)} h Chassaing par semaine${techs.some(t=>t.depanneur)?` · dépanneurs : ${techs.filter(t=>t.depanneur).reduce((a,b)=>a+b.heures,0)} h, comptées seulement quand ils sont sur un chantier`:""}</span></div>
+   <div class="actions" style="justify-content:space-between"><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" type="button" id="r-add">+ Ajouter une personne</button><label class="btn small" style="cursor:pointer">Importer des dates d'école<input type="file" id="r-ecoimp" accept=".json,application/json" hidden></label></span><span class="hint" id="r-tot">Capacité chantier : ${techs.filter(t=>t.societe==="artik"&&!t.horsChantier).reduce((a,b)=>a+b.heures,0)} h Artik + ${techs.filter(t=>t.societe==="chassaing"&&!t.horsChantier).reduce((a,b)=>a+b.heures,0)} h Chassaing par semaine${techs.some(t=>t.horsChantier)?` · dépanneurs et bureau : ${techs.filter(t=>t.horsChantier).reduce((a,b)=>a+b.heures,0)} h, comptées seulement quand ils sont sur un chantier`:""}</span></div>
   </div>
   <div class="panel"><h3>Équipes fixes</h3>
    <div class="ttable" id="r-eqs">${(cfg.equipes||[]).map((e,i)=>eqRow(e,i,techs)).join("")}</div>
@@ -1171,7 +1183,7 @@ function ecoleRanges(L){const d=[...L].sort(),out=[];let a=null,b=null;const nex
 function parseRanges(txt){const out=new Set(),toIso=x=>{const m=x.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:null};
   String(txt).split(/\n+/).forEach(l=>{const pr=l.split(/→|->|\s-\s|\s+au\s+/).map(z=>z.trim()).filter(Boolean);const a=toIso(pr[0]||""),b=toIso(pr[1]||pr[0]||"");if(!a||!b)return;let d=parse(a);const e=parse(b);while(d<=e){if(!isWE(d))out.add(ymd(d));d=addD(d,1)}});return [...out].sort()}
 function techRow(t,i){const eco=t.ecole||[];return `<div class="trowedit" data-ecole="${esc(JSON.stringify(eco))}"><input type="text" data-tn="${i}" value="${esc(t.nom)}" aria-label="Nom du technicien" placeholder="Prénom Nom"><select data-ts="${i}" aria-label="Société"><option value="artik"${t.societe!=="chassaing"?" selected":""}>Artik</option><option value="chassaing"${t.societe==="chassaing"?" selected":""}>Chassaing</option></select><select data-th="${i}" aria-label="Heures de contrat">${[35,37,39,40,42].map(h=>`<option value="${h}"${h===t.heures?" selected":""}>${h} h / sem</option>`).join("")}</select><button class="btn small danger" type="button" data-tdel="${i}" aria-label="Retirer">Retirer</button>
-  <div class="flags"><label><input type="checkbox" data-tap${t.apprenti?" checked":""}> Apprenti</label><label><input type="checkbox" data-tdp${t.depanneur?" checked":""}> Dépanneur (SAV)</label><span class="ecosum"${t.apprenti?"":" hidden"}>${eco.length?`École : ${eco.length} jours, du ${fd(parse(eco[0]))} au ${fd(parse(eco[eco.length-1]))}`:"École : aucune date"} <button class="btn small" type="button" data-teco>Dates d'école</button></span></div>
+  <div class="flags"><label><input type="checkbox" data-tap${t.apprenti?" checked":""}> Apprenti</label><label>Poste <select data-tpo>${Object.entries(POSTES).map(([k,n])=>`<option value="${k}"${(t.poste||(t.depanneur?"depanneur":"chantier"))===k?" selected":""}>${n}</option>`).join("")}</select></label><span class="ecosum"${t.apprenti?"":" hidden"}>${eco.length?`École : ${eco.length} jours, du ${fd(parse(eco[0]))} au ${fd(parse(eco[eco.length-1]))}`:"École : aucune date"} <button class="btn small" type="button" data-teco>Dates d'école</button></span></div>
   <div class="ecoedit" hidden><textarea data-tecot aria-label="Dates d'école, une plage par ligne">${esc(ecoleRanges(eco))}</textarea><small class="hint">Une plage par ligne : 21/09/2026 → 25/09/2026, ou un seul jour : 02/10/2026. Week-ends ignorés.</small></div></div>`}
 function bindListe(){
   const s=$("#r-save");if(!s)return;
@@ -1182,8 +1194,8 @@ function bindListe(){
   const box=$("#r-techs");
   const readTechs=()=>[...box.querySelectorAll(".trowedit")].map(r=>{const ta=r.querySelector("[data-tecot]"),ap=r.querySelector("[data-tap]").checked;
     let eco=[];try{eco=JSON.parse(r.dataset.ecole||"[]")}catch(e){}if(ta&&!r.querySelector(".ecoedit").hidden)eco=parseRanges(ta.value);
-    return {nom:r.querySelector("input").value.trim(),societe:r.querySelector("[data-ts]").value,heures:Number(r.querySelector("[data-th]").value),apprenti:ap,depanneur:r.querySelector("[data-tdp]").checked,ecole:ap?eco:[]}}).filter(t=>t.nom);
-  const upd=()=>{$("#r-tot").textContent="Capacité chantier : "+readTechs().filter(t=>!t.depanneur).reduce((a,b)=>a+b.heures,0)+" h par semaine, dépanneurs à part (non enregistré)"};
+    return {nom:r.querySelector("input").value.trim(),societe:r.querySelector("[data-ts]").value,heures:Number(r.querySelector("[data-th]").value),apprenti:ap,poste:r.querySelector("[data-tpo]").value,depanneur:r.querySelector("[data-tpo]").value==="depanneur",ecole:ap?eco:[]}}).filter(t=>t.nom);
+  const upd=()=>{$("#r-tot").textContent="Capacité chantier : "+readTechs().filter(t=>t.poste==="chantier").reduce((a,b)=>a+b.heures,0)+" h par semaine, dépanneurs et bureau à part (non enregistré)"};
   box.addEventListener("change",upd);
   $("#r-add").addEventListener("click",()=>{const i=box.children.length;box.insertAdjacentHTML("beforeend",techRow({nom:"",heures:35,societe:$("#fl-soc").value||"artik"},i));box.lastElementChild.querySelector("input").focus()});
   box.addEventListener("click",e=>{const b=e.target.closest("[data-tdel]");if(b){b.closest(".trowedit").remove();upd();return}
@@ -1404,6 +1416,8 @@ const PREV=z=>z==="mois"||z==="six";let modeUser="chantiers";
 function applyPrev(){const pv=PREV(zoom);mode=pv?"chantiers":modeUser;
   document.querySelectorAll('#mode button').forEach(b=>{const off=pv&&b.dataset.m!=="chantiers";b.disabled=off;b.title=off?"Au-delà de 2 à 3 semaines, c'est du prévisionnel : vue par chantier uniquement":""});
   const pc=$("#prevchip");if(pc)pc.hidden=!pv}
+let showBur=ls("bur")==="1";
+$("#showbur").checked=showBur;$("#showbur").addEventListener("change",e=>{showBur=e.target.checked;ls("bur",showBur?"1":"0");render()});
 $("#mode").addEventListener("click",e=>{const b=e.target.closest("[data-m]");if(!b||b.disabled)return;mode=modeUser=b.dataset.m;ls("mode",mode);render()});
 $("#zoom").addEventListener("click",e=>{const b=e.target.closest("[data-z]");if(!b)return;zoom=b.dataset.z;ls("zoom2",zoom);applyPrev();render()});
 $("#prev").addEventListener("click",()=>step(-1));
