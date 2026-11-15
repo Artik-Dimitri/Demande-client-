@@ -54,6 +54,7 @@ select:focus,input:focus,button:focus-visible{outline:2px solid var(--o1);outlin
 .tab{border:0;background:none;padding:10px 12px 11px;cursor:pointer;font-family:var(--f-display);font-size:19px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--o1)}
 .bar-ctl{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.paiebox{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:-6px 0 16px;padding:12px 14px;border:1px solid var(--line,#e2e2e2);border-left:4px solid var(--o,#E4670A);border-radius:12px;background:var(--surface,#fff)}.paiebox span{color:var(--muted,#6b7280);font-size:13.5px;flex:1;min-width:200px}.paiebox label{display:flex;gap:6px;align-items:center;font-weight:600}.paiebox[hidden]{display:none}
 .seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .seg button{border:0;background:var(--surface);padding:7px 12px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted)}
 .seg button+button{border-left:1px solid var(--line)}
@@ -220,7 +221,11 @@ html.embed header.top{margin-bottom:8px;min-height:0}
     <span class="spacer"></span>
     <select id="tech" aria-label="Technicien"></select>
     <button class="btn pdf" type="button" id="pdf">Télécharger le PDF</button>
+    <button class="btn" type="button" id="paieb">PDF paie du … au …</button>
   </div>
+  <div class="paiebox" id="paiebox" hidden><b>PDF pour le comptable</b><span>Récap de toute l'équipe sur la période, puis une page par personne.</span>
+    <label>Du <input type="date" id="paie0"></label><label>au <input type="date" id="paie1"></label>
+    <button class="btn pdf" type="button" id="paiego">Créer le PDF</button><button class="btn" type="button" id="paiex">Fermer</button></div>
   <main id="view"></main>
 </div>
 <div id="toast" class="toast" hidden></div>
@@ -304,7 +309,7 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
 (function(){
 /* ----- Réglages : mémorisés dans le navigateur, et partagés sur SharePoint quand la page est en ligne ----- */
 function persist(k,v){try{if(v===null)localStorage.removeItem("hx-"+k);else localStorage.setItem("hx-"+k,JSON.stringify(v))}catch(e){}if(typeof window!=="undefined"&&window.__hxSync)window.__hxSync(k,v)}
-const DEF={debutSuivi:"",plageDeb:"07:00",plageFin:"19:00",nuitDeb:"21:00",nuitFin:"06:00",tHors:25,tNuit:50,tSam:25,tDim:100,tFer:100,trajetMode:"un",trajetChoix:"long",base:35,demiCP:4,primePerm:40,mPanier:10,mResto:0};
+const DEF={debutSuivi:"",plageDeb:"07:00",plageFin:"19:00",nuitDeb:"21:00",nuitFin:"06:00",tHors:25,tNuit:50,tSam:25,tDim:100,tFer:100,ferHS:true,trajetMode:"un",trajetChoix:"long",base:35,demiCP:4,primePerm:40,mPanier:10,mResto:0};
 let R={...DEF};try{R={...DEF,...JSON.parse(localStorage.getItem("hx-regles")||"{}")}}catch(e){}
 const CODES=[
   {code:"ZZZ DEPOT",k:"depot",label:"Dépôt"},
@@ -427,7 +432,7 @@ const norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").repl
 function codeOf(c){const n=norm(c);return CODES.find(x=>n===norm(x.code)||n.startsWith(norm(x.code)+" "))}
 function ov(a0,a1,b0,b1){return Math.max(0,Math.min(a1,b1)-Math.max(a0,b0))}
 function isTrajet(e){const c=codeOf(e.client);return !!c&&c.k==="trajet"}
-const ZERO={atelier:0,restoEC:0,ecole:0,nuitLegal:0,travail:0,inter:0,trajet:0,trajetND:0,depot:0,fourn:0,pause:0,hors:0,nuit:0,sam:0,dim:0,fer:0,panier:0,resto:0,recup:0,congesJ:0,maladieJ:0,perm:0};
+const ZERO={ferC:0,atelier:0,restoEC:0,ecole:0,nuitLegal:0,travail:0,inter:0,trajet:0,trajetND:0,depot:0,fourn:0,pause:0,hors:0,nuit:0,sam:0,dim:0,fer:0,panier:0,resto:0,recup:0,congesJ:0,maladieJ:0,perm:0};
 function computeDay(tech,date){
   const es=DATA.filter(e=>e.tech===tech&&e.date===date).map(e=>({...e})).sort((a,b)=>a.deb.localeCompare(b.deb));
   const wd=new Date(date+"T12:00").getDay();
@@ -485,13 +490,17 @@ function computeDay(tech,date){
   });
   r.congesJ=r.conges?(r.conges/60<=R.demiCP?0.5:1):0;
   r.maladieJ=r.maladie?(r.maladie/60<=R.demiCP?0.5:1):0;
+  /* jour férié chômé (lundi-vendredi, pas travaillé, pas en congé ni malade) : payé 1/5 du contrat */
+  if(ferie(date)&&wd>=1&&wd<=5&&!r.travail&&!r.conges&&!r.maladie){const tc=TECHS.find(x=>x.nom===tech);r.ferC=Math.round((Number(tc&&tc.contrat)||35)*60/5)}
   return r;
 }
 function absCell(x){const a=x.congesJ?x.congesJ+" j":"",m=x.maladieJ?`<small style="display:block;color:var(--ko,#C5372C)">maladie ${x.maladieJ} j</small>`:"";return a||m?(a||"–")+m:'<span class="z">–</span>'}
 function pdfAbs(x){return [x.congesJ?x.congesJ+" j":"",x.maladieJ?"mal. "+x.maladieJ+" j":""].filter(Boolean).join(" + ")||"-"}
 function sum(days){const t={...ZERO};days.forEach(d=>{for(const k in t)t[k]+=d[k]||0});return t}
 function weekHS(trav){const h=trav/60,b=R.base;return {hs25:Math.max(0,Math.min(h-b,8)),hs50:Math.max(0,h-b-8)}}
-function weekOf(tech,mon){const dd=Array.from({length:7},(_,i)=>({date:addD(mon,i),...computeDay(tech,ymd(addD(mon,i)))}));const s=sum(dd);return {mon,days:dd,s,...weekHS(s.travail)}}
+/* heures sup. de la semaine : temps de travail (interventions, trajets payés, dépôt, atelier, fournisseur, école ; pause et trajet non dû retirés)
+   + jours fériés chômés payés si la règle est cochée, au-delà de la base (35 h) */
+function weekOf(tech,mon){const dd=Array.from({length:7},(_,i)=>({date:addD(mon,i),...computeDay(tech,ymd(addD(mon,i)))}));const s=sum(dd);const paye=s.travail+(R.ferHS!==false?s.ferC:0);return {mon,days:dd,s,paye,...weekHS(paye)}}
 /* solde du compteur de récup : heures sup. cumulées moins récup prises, depuis le début des données */
 /* barèmes datés : chaque ligne s'applique à partir de sa date (les mois passés gardent l'ancien montant) */
 const DEF_BAR=[{date:"2026-01-01",panier:10.40,astreinte:70,resto:0}];
@@ -522,7 +531,10 @@ function periodDays(p,r){
   if(p==="semaine"){const m=monday(r);return Array.from({length:7},(_,i)=>addD(m,i))}
   const a=new Date(r.getFullYear(),r.getMonth(),1),n=new Date(r.getFullYear(),r.getMonth()+1,0).getDate();return Array.from({length:n},(_,i)=>addD(a,i));
 }
-function weeksOf(p,r){if(p==="semaine")return [monday(r)];const ws=[];periodDays(p,r).forEach(d=>{const m=monday(d);if(m.getMonth()===r.getMonth()&&!ws.some(w=>w.getTime()===m.getTime()))ws.push(m)});return ws}
+/* période libre « du … au … » (PDF paie) : les semaines dont le lundi tombe dans la période, comme pour le mois */
+let PLAGE=null;
+function weeksOf(p,r){if(p==="semaine")return [monday(r)];
+  if(p==="plage"&&PLAGE){const ws=[];for(let m=monday(PLAGE.d0);m<=PLAGE.d1;m=addD(m,7))if(m>=PLAGE.d0||ymd(m)===ymd(PLAGE.d0))ws.push(m);if(!ws.length)ws.push(monday(PLAGE.d0));return ws}const ws=[];periodDays(p,r).forEach(d=>{const m=monday(d);if(m.getMonth()===r.getMonth()&&!ws.some(w=>w.getTime()===m.getTime()))ws.push(m)});return ws}
 function techPeriod(tech,p,r){
   const weeks=weeksOf(p,r).map(m=>weekOf(tech,m));
   const days=p==="semaine"?weeks[0].days:weeks.flatMap(w=>w.days);
@@ -538,7 +550,8 @@ function techPeriod(tech,p,r){
     weeks.forEach(w=>{if(w.s.travail>35*60)alerts.push(`Semaine ${isoW(w.mon)} : ${fmt(w.s.travail)} (35 h maximum par semaine)`)});
   }
   return {tech,org:tc.org||"",type:tc.type||"tech",mineur:!!tc.mineur,contrat:tc.contrat,contratP:tc.contrat*weeks.length,weeks,days,t,hs25,hs50,s0,s1,...(()=>{let prime=0,repasEur=0,restoJustif=0;days.forEach(d=>{const b=baremeAt(d.date);if(d.perm)prime+=b.astreinte;repasEur+=d.panier*b.panier+(b.resto?d.resto*b.resto:0);if(!b.resto)restoJustif+=d.resto});return {prime,repasEur,restoJustif,permW:days.filter(d=>d.perm).length}})(),
-  primeM:p==="mois"?primeMois(tech,mkey(r)):0,alerts,payeesP:p==="mois"?payee(tech,mkey(r)):0};
+  ferC:weeks.reduce((a,w)=>a+w.s.ferC,0),paye:weeks.reduce((a,w)=>a+w.paye,0),
+  primeM:p==="mois"?primeMois(tech,mkey(r)):p==="plage"?moisPlage().reduce((a,k)=>a+primeMois(tech,k),0):0,alerts,payeesP:p==="mois"?payee(tech,mkey(r)):p==="plage"?moisPlage().reduce((a,k)=>a+payee(tech,k),0):0};
 }
 
 /* ----- Affichage ----- */
@@ -557,7 +570,9 @@ const JOURS=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
 const isoW=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);const y=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y)/864e5+1)/7)};
 let tab="equipe",per="semaine",ref=new Date(),tech=(TECHS[0]||{nom:""}).nom,selDay=null;
 try{tab=localStorage.getItem("hx-tab")||tab;per=localStorage.getItem("hx-per")||per}catch(e){}
+function moisPlage(){if(!PLAGE)return [];const out=[];for(let d=new Date(PLAGE.d0.getFullYear(),PLAGE.d0.getMonth(),1);d<=PLAGE.d1;d=new Date(d.getFullYear(),d.getMonth()+1,1))out.push(mkey(d));return out}
 function label(p,r){
+  if(p==="plage"&&PLAGE){const ws=weeksOf("plage"),a=ws[0],b=addD(ws[ws.length-1],6),f=d=>d.toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"});return `Du ${f(PLAGE.d0)} au ${f(PLAGE.d1)} · semaines du ${f(a)} au ${f(b)}`}
   if(p==="semaine"){const m=monday(r),s=addD(m,6);return `Semaine ${isoW(m)} · ${m.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${s.toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`}
   return r.toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).replace(/^./,c=>c.toUpperCase());
 }
@@ -588,7 +603,7 @@ function techView(){
   const pc=Math.min(100,trav/(P.contratP*1.25)*100),mk=80;
   const maj=t.hors+t.nuit+t.sam+t.dim+(t.fer||0),rp=repartition(t);
   let h=`<section class="tiles">
-    <div class="tile${trav>P.contratP?" hi":""}"><span>Temps de travail</span><b>${Hh(trav)}</b><small>contrat ${P.contratP} h${per==="mois"?" ("+P.weeks.length+" sem.)":""}</small><div class="meter"><i style="width:${pc}%"></i><span class="mark" style="left:${mk}%"></span></div></div>
+    <div class="tile${trav>P.contratP?" hi":""}"><span>Temps de travail</span><b>${Hh(trav)}</b><small>contrat ${P.contratP} h${per==="mois"?" ("+P.weeks.length+" sem.)":""}${P.ferC?` · férié chômé payé ${H(P.ferC)}${R.ferHS!==false?" (compté pour les HS)":""}`:""}</small><div class="meter"><i style="width:${pc}%"></i><span class="mark" style="left:${mk}%"></span></div></div>
     <div class="tile${P.hs25+P.hs50?" hi":""}"><span>Heures sup. · compteur</span><b>${Hh(P.hs25+P.hs50)}</b><small>${Hh(P.hs25)} à 25 % · ${Hh(P.hs50)} à 50 %<br>compteur : ${fmt(P.s0*60)} → <strong>${fmt(P.s1*60)}</strong></small></div>
     <div class="tile${maj?" hi":""}"><span>Heures majorées</span><b>${H(maj)}</b><small>hors plage ${H(t.hors)} · nuit ${H(t.nuit)}<br>sam. ${H(t.sam)} · dim. ${H(t.dim)}${t.fer?` · férié ${H(t.fer)}`:""}</small></div>
     <div class="tile"><span>Trajets payés</span><b>${H(t.trajet)}</b><small>${t.trajetND?H(t.trajetND)+" non dû (aller ou retour)":"aucun trajet écarté"}</small></div>
@@ -696,6 +711,7 @@ function reglesView(){
     <label class="field"><span>Majoration samedi (%)</span><input type="number" id="r-ts" min="0" value="${R.tSam}"></label>
     <label class="field"><span>Majoration dimanche (%)</span><input type="number" id="r-td" min="0" value="${R.tDim}"></label>
     <label class="field"><span>Majoration jour férié (%)</span><input type="number" id="r-tf" min="0" value="${R.tFer??100}"></label>
+    <label class="field" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="r-ferhs"${R.ferHS!==false?" checked":""} style="width:auto"> <span>Jour férié chômé compté dans les heures de la semaine pour les heures sup. (1/5 du contrat, ex. 7 h pour 35 h)</span></label>
     <label class="field"><span>Début du suivi (compteur d'heures sup.)</span><input type="date" id="r-ds" value="${R.debutSuivi||""}"></label>
     <label class="field"><span>Heures sup. au-delà de (h/semaine)</span><input type="number" id="r-base" min="1" value="${R.base}"></label>
     <label class="field"><span>Congés : demi-journée jusqu'à (h)</span><input type="number" id="r-cp" min="1" step="0.5" value="${R.demiCP}"></label>
@@ -717,51 +733,108 @@ function pdfTech(doc,P,p,r){
   doc.addImage(LOGO,"PNG",14,7,46,46*LOGO_R);
   doc.setFontSize(7.5);doc.setTextColor(...G);doc.setFont("helvetica","normal");doc.text(window.__SOC==="chassaing"?"SAS Chassaing Technologies - La plaine de Laumiere, 12490 Saint-Rome-de-Cernon":"SAS Artik Millau - 2 avenue Jean Monnet, 12100 Creissels",14,7+46*LOGO_R+3.5);
   doc.setFont("helvetica","bold");doc.setFontSize(14);doc.setTextColor(34,33,31);
-  doc.text(pdfTxt((p==="semaine"?"Feuille d'heures hebdomadaire":"Récapitulatif mensuel")),W-14,13,{align:"right"});
+  doc.text(pdfTxt((p==="semaine"?"Feuille d'heures hebdomadaire":p==="plage"?"Récapitulatif pour la paie":"Récapitulatif mensuel")),W-14,13,{align:"right"});
   doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text(pdfTxt(label(p,r)),W-14,19,{align:"right"});
   doc.setDrawColor(...L);doc.line(14,26,W-14,26);
-  doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(pdfTxt(P.tech),14,32);
-  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...G);doc.text(pdfTxt(`${P.type==="apprenti"?"Apprenti"+(P.mineur?" mineur":"")+" - ":""}Contrat ${P.contrat} h / semaine${P.org?" - Organilog "+P.org:""}`),14,37);
+  doc.setFontSize(15);doc.setFont("helvetica","bold");doc.setTextColor(34,33,31);doc.text(pdfTxt(P.tech),14,34);
+  doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.setTextColor(...G);doc.text(pdfTxt(`${P.type==="apprenti"?"Apprenti"+(P.mineur?" mineur":"")+" · ":""}Contrat ${P.contrat} h / semaine${P.org?" · Organilog "+P.org:""}`),14,39.5);
   const t=P.t,maj=t.hors+t.nuit+t.sam+t.dim+(t.fer||0);
+  /* 4 chiffres clés */
+  {const pw0=P.weeks.reduce((a,w)=>a+w.s.travail,0),hs=(P.hs25+P.hs50)*60;
+   const K=[["TEMPS TRAVAILLÉ",fmt(pw0),"contrat "+P.contratP+" h"+(P.ferC?" · férié payé "+fmt(P.ferC):"")],["HEURES SUP.",hs?fmt(hs):"0h",P.hs50?"dont "+fmt(P.hs50*60)+" à 50 %":P.hs25?"à 25 %":"aucune"],["HEURES MAJORÉES",maj?fmt(maj):"0h","nuit, hors plage, week-end, férié"],["REPAS À VERSER",P.repasEur?eur2(P.repasEur).replace(/\s/g," "):"0 €",(t.panier||0)+" panier"+(t.panier>1?"s":"")+(t.resto?" · "+t.resto+" resto":"")]];
+   const kw=(W-28-9)/4;K.forEach((k,i)=>{const x=14+i*(kw+3),yy=44;doc.setDrawColor(226,224,220);doc.setFillColor(255,255,255);doc.roundedRect(x,yy,kw,17,1.5,1.5,"FD");doc.setFillColor(...(i===1&&hs?O:i===0?O:L));doc.rect(x,yy,1.2,17,"F");
+     doc.setFont("helvetica","bold");doc.setFontSize(6.8);doc.setTextColor(...G);doc.text(pdfTxt(k[0]),x+4,yy+4.8);
+     doc.setFontSize(13.5);doc.setTextColor(...(i===1&&hs?O:[34,33,31]));doc.text(pdfTxt(k[1]),x+4,yy+11.2);
+     doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...G);doc.text(pdfTxt(k[2]),x+4,yy+15,{maxWidth:kw-6})})}
   let head,body;
   if(p==="semaine"){
     head=[["Jour","Début","Fin","Interv.","Trajet","Dépôt/Atel.","Fourn.","Pause","Total","Majorées","Repas / absences"]];
-    body=P.days.map(d=>[pdfTxt(JOURS[d.date.getDay()]+" "+d.date.getDate()+(ferie(ymd(d.date))?" (férié)":"")),d.deb!==null?hm(d.deb):"-",d.fin!==null?hm(d.fin):"-",fm(d.inter),fm(d.trajet),fm(d.depot+d.atelier),fm(d.fourn),fm(d.pause),fm(d.travail),fm(d.hors+d.nuit+d.sam+d.dim+(d.fer||0)),pdfTxt([d.perm?"Astreinte":"",d.panier?"Panier":"",d.resto?"Resto s/c":"",d.restoEC?"Resto en compte":"",d.recup?"Récup "+fmt(d.recup):"",d.congesJ?"CP "+d.congesJ+" j":"",d.maladieJ?"Maladie "+d.maladieJ+" j":""].filter(Boolean).join(", ")||"-")]);
+    body=P.days.map(d=>[pdfTxt(JOURS[d.date.getDay()]+" "+d.date.getDate()+(ferie(ymd(d.date))?" (férié)":"")),d.deb!==null?hm(d.deb):"-",d.fin!==null?hm(d.fin):"-",fm(d.inter),fm(d.trajet),fm(d.depot+d.atelier),fm(d.fourn),fm(d.pause),fm(d.travail),fm(d.hors+d.nuit+d.sam+d.dim+(d.fer||0)),pdfTxt([d.ferC?"Férié chômé payé "+fmt(d.ferC):"",d.perm?"Astreinte":"",d.panier?"Panier":"",d.resto?"Resto s/c":"",d.restoEC?"Resto en compte":"",d.recup?"Récup "+fmt(d.recup):"",d.congesJ?"CP "+d.congesJ+" j":"",d.maladieJ?"Maladie "+d.maladieJ+" j":""].filter(Boolean).join(", ")||"-")]);
     body.push(["Total","","",fm(t.inter),fm(t.trajet),fm(t.depot+t.atelier),fm(t.fourn),fm(t.pause),fm(t.travail),fm(maj),""]);
   }else{
     head=[["Semaine","Travaillé","HS 25 %","HS 50 %","Majorées","Trajet","Pause","Paniers","Resto s/c","Astr.","Récup","CP / maladie"]];
-    body=P.weeks.map(w=>{const s=w.s;return [pdfTxt("S"+isoW(w.mon)+" - du "+w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})),fm(s.travail),w.hs25?fmt(w.hs25*60):"-",w.hs50?fmt(w.hs50*60):"-",fm(s.hors+s.nuit+s.sam+s.dim+(s.fer||0)),fm(s.trajet),fm(s.pause),String(s.panier||"-"),String(s.resto||"-"),s.perm?s.perm+" j":"-",fm(s.recup),pdfAbs(s)]});
+    body=P.weeks.map(w=>{const s=w.s;return [pdfTxt("S"+isoW(w.mon)+" · "+w.mon.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})),fm(s.travail),w.hs25?fmt(w.hs25*60):"-",w.hs50?fmt(w.hs50*60):"-",fm(s.hors+s.nuit+s.sam+s.dim+(s.fer||0)),fm(s.trajet),fm(s.pause),String(s.panier||"-"),String(s.resto||"-"),s.perm?s.perm+" j":"-",fm(s.recup),pdfAbs(s)]});
     body.push(["Total",fm(t.travail),P.hs25?fmt(P.hs25*60):"-",P.hs50?fmt(P.hs50*60):"-",fm(maj),fm(t.trajet),fm(t.pause),String(t.panier),String(t.resto),P.permW+" j",fm(t.recup),pdfAbs(t)||"0 j"]);
   }
-  doc.autoTable({startY:43,head,body,theme:"grid",styles:{font:"helvetica",fontSize:8.5,cellPadding:1.8,lineColor:[222,220,216],lineWidth:.2,textColor:[34,33,31]},
+  doc.autoTable({startY:66,head,body,theme:"grid",alternateRowStyles:{fillColor:[250,248,245]},styles:{font:"helvetica",fontSize:8.5,cellPadding:1.45,lineColor:[222,220,216],lineWidth:.2,textColor:[34,33,31]},
     headStyles:{fillColor:[255,255,255],textColor:O,fontStyle:"bold",lineWidth:{bottom:.6},lineColor:O},
-    columnStyles:{0:{fontStyle:"bold"}},didParseCell:c=>{if(c.section==="body"&&c.row.index===body.length-1){c.cell.styles.fontStyle="bold";c.cell.styles.fillColor=[253,241,230]}if(c.section!=="head"&&c.column.index>0)c.cell.styles.halign="right";if(c.section==="body"&&c.column.index===head[0].length-1&&p==="semaine")c.cell.styles.halign="left"},
+    columnStyles:{0:{fontStyle:"bold",cellWidth:p==="semaine"?24:26}},didParseCell:c=>{if(c.section==="body"&&c.row.index===body.length-1){c.cell.styles.fontStyle="bold";c.cell.styles.fillColor=[253,241,230]}if(c.section!=="head"&&c.column.index>0)c.cell.styles.halign="right";if(c.section==="body"&&c.column.index===head[0].length-1&&p==="semaine")c.cell.styles.halign="left"},
     margin:{left:14,right:14}});
   let y=doc.lastAutoTable.finalY+8;
-  const box=(x,yy,w,title,lines)=>{doc.setDrawColor(222,220,216);doc.setFillColor(255,255,255);doc.roundedRect(x,yy,w,8+lines.length*5.2,1.5,1.5,"S");doc.setFillColor(...O);doc.rect(x,yy,1.2,8+lines.length*5.2,"F");
-    doc.setFont("helvetica","bold");doc.setFontSize(9.5);doc.setTextColor(...O);doc.text(pdfTxt(title),x+4,yy+5.5);
-    doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(34,33,31);lines.forEach((l,i)=>{doc.text(pdfTxt(l[0]),x+4,yy+11+i*5.2);doc.text(pdfTxt(l[1]),x+w-4,yy+11+i*5.2,{align:"right"})});return 8+lines.length*5.2};
+  const LH=4.45;const box=(x,yy,w,title,lines)=>{const hh=8+lines.length*LH;doc.setDrawColor(222,220,216);doc.setFillColor(255,255,255);doc.roundedRect(x,yy,w,hh,1.5,1.5,"S");doc.setFillColor(...O);doc.rect(x,yy,1.2,hh,"F");
+    doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(...O);doc.text(pdfTxt(title),x+4,yy+5.3);
+    doc.setFontSize(8.6);lines.forEach((l,i)=>{const yl=yy+10.6+i*LH;if(i)doc.setDrawColor(240,238,234),doc.line(x+4,yl-3.3,x+w-4,yl-3.3);doc.setFont("helvetica","normal");doc.setTextColor(...G);doc.text(pdfTxt(l[0]),x+4,yl);doc.setFont("helvetica","bold");doc.setTextColor(34,33,31);doc.text(pdfTxt(l[1]),x+w-4,yl,{align:"right"})});return hh};
   const cw=(W-28-8)/2;
-  const h1=box(14,y,cw,"Temps de travail",[["Total travaillé",fmt(t.travail)],["Contrat sur la période",P.contratP+" h"],["Heures sup. à 25 %",P.hs25?fmt(P.hs25*60):"-"],["Heures sup. à 50 %",P.hs50?fmt(P.hs50*60):"-"],["HS payées"+(p==="mois"?" ce mois":""),P.payeesP?fmt(P.payeesP*60):"-"],["Compteur HS début / fin",fmt(P.s0*60)+" / "+fmt(P.s1*60)]]);
+  const pw=P.weeks.reduce((a,w)=>a+w.s.travail,0),fc=P.ferC||0,fcOn=R.ferHS!==false&&fc;
+  const h1=box(14,y,cw,"Temps de travail et heures sup.",[["Travaillé (interv., trajets payés, dépôt, atelier…)",fmt(pw)]].concat(fc?[["Jour férié chômé payé"+(fcOn?"":" (hors heures sup.)"),fmt(fc)]]:[]).concat([["Total retenu pour les heures sup.",fmt(fcOn?pw+fc:pw)],["Contrat sur la période",P.contratP+" h"],["Heures sup. à 25 %",P.hs25?fmt(P.hs25*60):"-"],["Heures sup. à 50 %",P.hs50?fmt(P.hs50*60):"-"],["HS payées"+(p==="mois"?" ce mois":p==="plage"?" sur la période":""),P.payeesP?fmt(P.payeesP*60):"-"],["Compteur HS début / fin",fmt(P.s0*60)+" / "+fmt(P.s1*60)]]));
   const h2=box(14+cw+8,y,cw,"Majorations",[["Hors plage (+"+R.tHors+" %)",fm(t.hors)],["Nuit (+"+R.tNuit+" %)",fm(t.nuit)],["Samedi (+"+R.tSam+" %)",fm(t.sam)],["Dimanche (+"+R.tDim+" %)",fm(t.dim)],["Jour férié (+"+R.tFer+" %)",fm(t.fer)],["Trajet non dû (non payé)",fm(t.trajetND)]]);
-  y+=Math.max(h1,h2)+6;
+  y+=Math.max(h1,h2)+4;
   const h3=box(14,y,cw,P.primeM?"Repas, astreinte et prime":"Repas et astreinte",[["Paniers repas",String(t.panier)],["Restaurants sans compte",String(t.resto)],["Restaurants en compte (payés "+window.__SOCN+")",String(t.restoEC)],["Repas à verser",(P.repasEur?eur2(P.repasEur).replace(/\s/g," "):"-")+(P.restoJustif?" + "+P.restoJustif+" sur justif.":"")],["Jours d'astreinte",P.permW+" j"],["Prime d'astreinte (brut)",eur(P.prime).replace(/\s/g," ")+" brut"]].concat(P.primeM?[["Prime mensuelle (brut)",eur(P.primeM).replace(/\s/g," ")+" brut"]]:[]));
   const rpT=REP.reduce((a,[k])=>a+t[k],0)||1;
   const h4=box(14+cw+8,y,cw,"Répartition du temps de travail",REP.map(([k,l])=>[l,fm(t[k])+"  ("+Math.round(t[k]/rpT*100)+" %)"]).concat(HORS.map(([k,l])=>[l+" (non compté)",fm(t[k])])));
-  y+=Math.max(h3,h4)+8;
+  y+=Math.max(h3,h4)+4;
+  /* ce que l'on doit au salarié pour la période */
+  {const due=[["Heures du contrat",P.contratP+" h"]];if(P.hs25)due.push(["Heures sup. +25 %",fmt(P.hs25*60)]);if(P.hs50)due.push(["Heures sup. +50 %",fmt(P.hs50*60)]);
+   const mj=[["hors","hors plage +"+R.tHors+" %"],["nuit","nuit +"+R.tNuit+" %"],["sam","samedi +"+R.tSam+" %"],["dim","dimanche +"+R.tDim+" %"],["fer","férié travaillé +"+R.tFer+" %"]].filter(([k])=>t[k]);mj.forEach(([k,l])=>due.push(["Majoration "+l,fmt(t[k])]));
+   if(P.repasEur)due.push(["Repas à verser",eur2(P.repasEur).replace(/\s/g," ")]);if(P.prime)due.push(["Prime d'astreinte (brut)",eur(P.prime).replace(/\s/g," ")]);if(P.primeM)due.push(["Prime (brut)",eur(P.primeM).replace(/\s/g," ")]);
+   const hh=8+Math.ceil(due.length/2)*5.2+5;doc.setDrawColor(...O);doc.setFillColor(253,241,230);doc.roundedRect(14,y,W-28,hh,1.5,1.5,"FD");
+   doc.setFont("helvetica","bold");doc.setFontSize(9.5);doc.setTextColor(...O);doc.text(pdfTxt(p==="semaine"?"Ce que l'on vous doit pour la semaine":"Ce que l'on doit pour la période"),18,y+5.5);
+   doc.setFontSize(9);doc.setTextColor(34,33,31);const half=(W-28)/2;
+   due.forEach((l,i)=>{const cx=14+(i%2)*half,cy=y+11+Math.floor(i/2)*5.2;doc.setFont("helvetica","normal");doc.text(pdfTxt(l[0]),cx+4,cy);doc.setFont("helvetica","bold");doc.text(pdfTxt(l[1]),cx+half-6,cy,{align:"right"})});
+   doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...G);doc.text(pdfTxt("Les heures sup. sont payées ou mises au compteur de récup selon le choix du mois. Les jours de congés et d'arrêt sont traités sur la fiche de paie."),18,y+hh-2.5);
+   y+=hh+5}
   doc.setFontSize(9);doc.setTextColor(...G);
-  doc.text(pdfTxt("Récup prise : "+fm(t.recup)+"    Congés payés : "+(t.congesJ||0)+" j    Maladie / arrêt : "+(t.maladieJ||0)+" j"+(P.type==="apprenti"?"    École / CFA : "+fm(t.ecole):"")),14,y);y+=6;
+  doc.text(pdfTxt("Récup prise : "+fm(t.recup)+"    Congés payés : "+(t.congesJ||0)+" j    Maladie / arrêt : "+(t.maladieJ||0)+" j"+(P.type==="apprenti"?"    École / CFA : "+fm(t.ecole):"")),14,y);y+=5;
   if(P.alerts.length){doc.setTextColor(168,79,14);P.alerts.slice(0,6).forEach(a=>{doc.text(pdfTxt("! "+a),14,y);y+=4.6});doc.setTextColor(...G)}
-  y+=6;
+  y+=5;
+  if(p==="plage")return; /* document pour le comptable : pas de signatures */
+  if(y>doc.internal.pageSize.getHeight()-19){doc.addPage("a4","portrait");y=24}
   doc.setDrawColor(...L);doc.line(14,y,90,y);doc.line(W-90,y,W-14,y);
   doc.text("Signature du technicien",14,y+5);doc.text("Visa du responsable",W-90,y+5);
-  doc.setFontSize(7.5);doc.text(pdfTxt("Calculé depuis les saisies Organilog le "+new Date().toLocaleDateString("fr-FR")+(SOURCE?"":" - maquette, données fictives")),14,doc.internal.pageSize.getHeight()-8);
+
+}
+/* pied de page : source, date, numéro de page */
+function pdfFooter(doc){const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);const W=doc.internal.pageSize.getWidth(),Hp=doc.internal.pageSize.getHeight();
+  doc.setDrawColor(226,224,220);doc.line(14,Hp-11,W-14,Hp-11);doc.setFont("helvetica","normal");doc.setFontSize(7.2);doc.setTextColor(120,118,114);
+  doc.text(pdfTxt((window.__SOCN||"Artik")+" · calculé depuis les saisies Organilog le "+new Date().toLocaleDateString("fr-FR")+(SOURCE?"":" · maquette, données fictives")),14,Hp-7);doc.text("Page "+i+" / "+n,W-14,Hp-7,{align:"right"})}}
+/* ---------- PDF paie : du … au …, pour le comptable ---------- */
+function pdfPaie(J,d0,d1){
+  PLAGE={d0,d1};
+  try{
+  const rows=TECHS.map(tc=>techPeriod(tc.nom,"plage",d0));
+  const doc=new J({unit:"mm",format:"a4",orientation:"landscape"});
+  const O=[224,112,28],G=[91,90,87],L=[154,152,147],W=doc.internal.pageSize.getWidth(),Hp=doc.internal.pageSize.getHeight();
+  doc.setFillColor(...O);doc.rect(0,0,W/2,3,"F");doc.setFillColor(...L);doc.rect(W/2,0,W/2,3,"F");
+  doc.addImage(LOGO,"PNG",14,7,42,42*LOGO_R);
+  doc.setFontSize(7.5);doc.setTextColor(...G);doc.text(window.__SOC==="chassaing"?"SAS Chassaing Technologies - La plaine de Laumiere, 12490 Saint-Rome-de-Cernon":"SAS Artik Millau - 2 avenue Jean Monnet, 12100 Creissels",14,7+42*LOGO_R+3.5);
+  doc.setFont("helvetica","bold");doc.setFontSize(14);doc.setTextColor(34,33,31);doc.text(pdfTxt("Éléments de paie"),W-14,13,{align:"right"});
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text(pdfTxt(label("plage")),W-14,19,{align:"right"});
+  doc.setDrawColor(...L);doc.line(14,26,W-14,26);
+  const hd=v=>v?fmt(v*60):"-";
+  const head=[["Salarié","Contrat","Travaillé","Férié chômé","HS 25 %","HS 50 %","HS payées","Récup prise","Compteur fin","Hors plage","Nuit","Samedi","Dimanche","Férié trav.","Paniers","Resto s/c","Repas à verser","Astreinte","Prime astr.","Prime","CP","Maladie"]];
+  const body=rows.map(P=>{const t=P.t,pw=P.weeks.reduce((a,w)=>a+w.s.travail,0);return [pdfTxt(P.tech+(P.type==="apprenti"?" (app.)":"")),P.contratP+" h",fm(pw),fm(P.ferC),hd(P.hs25),hd(P.hs50),hd(P.payeesP),fm(t.recup),fmt(P.s1*60),fm(t.hors),fm(t.nuit),fm(t.sam),fm(t.dim),fm(t.fer),String(t.panier||"-"),String(t.resto||"-"),P.repasEur?eur2(P.repasEur).replace(/\s/g," "):"-",P.permW?P.permW+" j":"-",P.prime?eur(P.prime).replace(/\s/g," "):"-",P.primeM?eur(P.primeM).replace(/\s/g," "):"-",t.congesJ?t.congesJ+" j":"-",t.maladieJ?t.maladieJ+" j":"-"]});
+  {const T=rows.reduce((a,P)=>({tr:a.tr+P.weeks.reduce((x,w)=>x+w.s.travail,0),h25:a.h25+P.hs25,h50:a.h50+P.hs50,rep:a.rep+P.repasEur,pr:a.pr+P.prime+(P.primeM||0),cp:a.cp+(P.t.congesJ||0),mal:a.mal+(P.t.maladieJ||0)}),{tr:0,h25:0,h50:0,rep:0,pr:0,cp:0,mal:0});
+   const K=[["SALARIÉS",String(rows.length),"sur la période"],["TEMPS TRAVAILLÉ",fmt(T.tr),"toute l'équipe"],["HEURES SUP.",fmt((T.h25+T.h50)*60),fmt(T.h25*60)+" à 25 % · "+fmt(T.h50*60)+" à 50 %"],["REPAS À VERSER",eur2(T.rep).replace(/\s/g," "),"paniers et restos sans compte"],["PRIMES (BRUT)",eur(T.pr).replace(/\s/g," "),"astreinte et primes"],["ABSENCES",(T.cp?T.cp+" j CP":"0 j CP")+(T.mal?" · "+T.mal+" j mal.":""),"congés payés · maladie"]];
+   const kw=(W-28-15)/6;K.forEach((k,i)=>{const x=14+i*(kw+3),yy=30;doc.setDrawColor(226,224,220);doc.setFillColor(255,255,255);doc.roundedRect(x,yy,kw,16,1.5,1.5,"FD");doc.setFillColor(...(i===2?O:L));doc.rect(x,yy,1.2,16,"F");
+     doc.setFont("helvetica","bold");doc.setFontSize(6.6);doc.setTextColor(...G);doc.text(pdfTxt(k[0]),x+4,yy+4.6);doc.setFontSize(12.5);doc.setTextColor(...(i===2?O:[34,33,31]));doc.text(pdfTxt(k[1]),x+4,yy+10.6);
+     doc.setFont("helvetica","normal");doc.setFontSize(6.8);doc.setTextColor(...G);doc.text(pdfTxt(k[2]),x+4,yy+14.2,{maxWidth:kw-6})})}
+  doc.autoTable({startY:51,head,body,theme:"grid",alternateRowStyles:{fillColor:[250,248,245]},styles:{font:"helvetica",fontSize:7.6,cellPadding:1.4,lineColor:[222,220,216],lineWidth:.2,textColor:[34,33,31],halign:"right"},
+    headStyles:{fillColor:[255,255,255],textColor:O,fontStyle:"bold",lineWidth:{bottom:.6},lineColor:O,halign:"center",fontSize:7},
+    columnStyles:{0:{fontStyle:"bold",halign:"left",cellWidth:34}},margin:{left:10,right:10},
+    didParseCell:c=>{if(c.section==="body"&&[4,5,6].includes(c.column.index)&&c.cell.raw!=="-"){c.cell.styles.fillColor=[253,241,230];c.cell.styles.fontStyle="bold"}}});
+  let y=doc.lastAutoTable.finalY+7;doc.setFontSize(8);doc.setTextColor(...G);
+  ["Travaillé = interventions + trajets payés + dépôt + atelier + fournisseur + école. La pause repas et le trajet non dû ne sont pas comptés.",
+   "Heures sup. calculées par semaine civile au-delà de "+R.base+" h : +25 % jusqu'à "+(R.base+8)+" h, +50 % au-delà. Chaque semaine est rattachée à la période de son lundi."+(R.ferHS!==false?" Les jours fériés chômés (1/5 du contrat) sont comptés dans la semaine.":""),
+   "HS payées = heures sup. saisies comme payées sur la période (le reste va au compteur de récup). Repas à verser : paniers et restaurants sans compte ; les restaurants en compte sont réglés par "+window.__SOCN+".",
+   "Détail par salarié dans les pages suivantes."].forEach(l=>{const ls=doc.splitTextToSize(pdfTxt("• "+l),W-28);doc.text(ls,14,y);y+=ls.length*3.8+1.2});
+  rows.forEach(P=>{doc.addPage("a4","portrait");pdfTech(doc,P,"plage",d0)});
+  pdfFooter(doc);return doc}finally{PLAGE=null}
 }
 function buildPDF(J,mode){
   const doc=new J({unit:"mm",format:"a4"});
   if(mode==="tech")pdfTech(doc,techPeriod(tech,per,ref),per,ref);
   else{const rows=equipeRows();rows.forEach((P,i)=>{if(i)doc.addPage();pdfTech(doc,P,per,ref)})}
-  return doc;
+  pdfFooter(doc);return doc;
 }
 async function downloadPDF(){
   const btn=$("#pdf");btn.disabled=true;const old=btn.textContent;btn.textContent="Préparation…";
@@ -778,6 +851,18 @@ async function downloadPDF(){
     if(c!=="declined")toast(c==="lib"?"Le module PDF ne s'est pas chargé, rechargez la page.":c==="unavailable"?"Le téléchargement n'est pas disponible dans cette vue.":"Le PDF n'a pas pu être créé.",true);
   }finally{btn.disabled=false;btn.textContent=old}
 }
+{const pb=$("#paiebox"),f=d=>ymd(d);
+  $("#paieb").addEventListener("click",()=>{const n=new Date(),m=n.getDate()<=10?new Date(n.getFullYear(),n.getMonth()-1,1):new Date(n.getFullYear(),n.getMonth(),1);
+    if(!$("#paie0").value){$("#paie0").value=f(m);$("#paie1").value=f(new Date(m.getFullYear(),m.getMonth()+1,0))}pb.hidden=!pb.hidden});
+  $("#paiex").addEventListener("click",()=>pb.hidden=true);
+  $("#paiego").addEventListener("click",async()=>{const a=$("#paie0").value,b=$("#paie1").value;if(!a||!b||b<a){toast("Choisissez deux dates dans l'ordre",true);return}
+    const btn=$("#paiego");btn.disabled=true;btn.textContent="Préparation…";
+    try{if(!window.jspdf)throw {code:"lib"};const doc=pdfPaie(window.jspdf.jsPDF,new Date(a+"T12:00:00"),new Date(b+"T12:00:00"));
+      const name="Elements de paie "+(window.__SOCN||"")+" - du "+a.split("-").reverse().join("-")+" au "+b.split("-").reverse().join("-")+".pdf";
+      const dl=window.claude&&window.claude.use?await window.claude.use("downloads"):null;
+      if(dl)await dl.save({filename:name,data:doc.output("blob")});else{const u=URL.createObjectURL(doc.output("blob")),x=document.createElement("a");x.href=u;x.download=name;document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+      toast("PDF paie prêt")}catch(e){const c=e&&e.code;if(c!=="declined")toast(c==="lib"?"Le module PDF ne s'est pas chargé, rechargez la page.":"Le PDF n'a pas pu être créé.",true);console.error(e)}
+    finally{btn.disabled=false;btn.textContent="Créer le PDF"}})}
 function toast(t,bad){const el=$("#toast");el.textContent=t;el.className="toast"+(bad?" bad":"");el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,3000)}
 
 function render(){
@@ -817,7 +902,7 @@ function render(){
   }
   if(tab==="regles"){
     document.querySelectorAll("[data-abs]").forEach(sel=>sel.addEventListener("change",()=>{R={...R,absTypes:{...(R.absTypes||{}),[sel.dataset.abs]:sel.value}};persist("regles",R);if(window.__rawOrg)applyImport(window.__rawOrg,false);toast("Type d'absence enregistré");render()}));
-    $("#r-save").addEventListener("click",()=>{R={...R,plageDeb:$("#r-pd").value,plageFin:$("#r-pf").value,nuitDeb:$("#r-nd").value,nuitFin:$("#r-nf").value,tHors:+$("#r-th").value,tNuit:+$("#r-tn").value,tSam:+$("#r-ts").value,tDim:+$("#r-td").value,tFer:+$("#r-tf").value,base:+$("#r-base").value||35,demiCP:+$("#r-cp").value||4,trajetMode:$("#r-tm").value,trajetChoix:$("#r-tc").value,debutSuivi:$("#r-ds")?$("#r-ds").value:R.debutSuivi};persist("regles",R);toast("Règles appliquées");render()});
+    $("#r-save").addEventListener("click",()=>{R={...R,plageDeb:$("#r-pd").value,plageFin:$("#r-pf").value,nuitDeb:$("#r-nd").value,nuitFin:$("#r-nf").value,tHors:+$("#r-th").value,tNuit:+$("#r-tn").value,tSam:+$("#r-ts").value,tDim:+$("#r-td").value,tFer:+$("#r-tf").value,ferHS:$("#r-ferhs").checked,base:+$("#r-base").value||35,demiCP:+$("#r-cp").value||4,trajetMode:$("#r-tm").value,trajetChoix:$("#r-tc").value,debutSuivi:$("#r-ds")?$("#r-ds").value:R.debutSuivi};persist("regles",R);toast("Règles appliquées");render()});
     $("#r-reset").addEventListener("click",()=>{R={...DEF,debutSuivi:R.debutSuivi,absTypes:R.absTypes};persist("regles",R);render()});
   }
 }
@@ -1042,6 +1127,33 @@ b.onclick=()=>{const r=window.__rawOrg;const old=document.getElementById("chx");
  document.body.appendChild(d);
  d.addEventListener("click",async e=>{if(e.target.closest("[data-x]"))d.remove();if(e.target.closest("[data-c]")){const t=txt(),btn=e.target.closest("[data-c]");try{await navigator.clipboard.writeText(t);btn.textContent="Copié ✓"}catch(er){const ta=document.getElementById("chx-t");ta.value=t;ta.style.position="static";ta.style.width="100%";ta.style.height="200px";ta.select();btn.textContent="Sélectionné : Ctrl+C"}}})};
 })();</script><!--/CHAMPS-->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
