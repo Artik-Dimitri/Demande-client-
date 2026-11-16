@@ -614,7 +614,7 @@ async function pull(){
   notify();
 }
 /* demandes de devis (lecture seule) : mes dossiers + noms de clients proposés */
-let devisList=null,portList=null;
+let devisList=null,portList=null,prosList=null;
 async function loadDevis(){
   try{
     if(!devisList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!devisList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName===ACONFIG.devis);if(f)devisList=f.id;url=r["@odata.nextLink"]}}
@@ -626,9 +626,18 @@ async function loadDevis(){
   /* réglages par onglet posés par Dimitri dans le portail (liste « Portail acces », ligne « reglages ») */
   try{if(!portList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!portList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName==="Portail acces");if(f)portList=f.id;url=r["@odata.nextLink"]}}
     if(portList){const r=await gx("GET",`/sites/${siteId}/lists/${portList}/items?$expand=fields($select=Title,Valeur)&$top=50`);const it=(r.value||[]).find(x=>x.fields&&x.fields.Title==="reglages");window.__reglages=it?JSON.parse(it.fields.Valeur||"{}"):null}}catch(e){}
+  /* prospection (liste « Prospection ») : les prochaines actions de chacun */
+  try{if(!prosList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!prosList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName==="Prospection");if(f)prosList=f.id;url=r["@odata.nextLink"]}}
+    if(prosList){let u=`/sites/${siteId}/lists/${prosList}/items?$expand=fields($select=Title,Valeur)&$top=500`;const out=[];
+      while(u){const r=await gx("GET",u);(r.value||[]).forEach(it=>{const t=it.fields&&it.fields.Title;if(!t||!t.startsWith("pro/"))return;try{const v=JSON.parse(it.fields.Valeur||"{}");v.__item=it.id;out.push(v)}catch(e){}});u=r["@odata.nextLink"]}
+      window.__prospects=out}}catch(e){}
   if(window.__refreshDoss)window.__refreshDoss();
   if(window.__autoTaches)window.__autoTaches();
 }
+window.__prospUpdate=async(id,fn)=>{const p=(window.__prospects||[]).find(z=>z.id===id);if(!p||!prosList)throw new Error("prospect introuvable");
+  const r=await gx("GET",`/sites/${siteId}/lists/${prosList}/items/${p.__item}?$expand=fields($select=Valeur)`);let v={};try{v=JSON.parse(r.fields.Valeur||"{}")}catch(e){}
+  v=fn(v)||v;v.maj=new Date().toISOString();delete v.__item;
+  await gx("PATCH",`/sites/${siteId}/lists/${prosList}/items/${p.__item}/fields`,{Valeur:JSON.stringify(v)});Object.assign(p,v)};
 /* faire avancer une demande de devis depuis l'agenda */
 window.__devisUpdate=async(ref,fields)=>{
   const d=(window.__dossiers||[]).find(z=>z.ref===ref);if(!d||!devisList)throw new Error("Demande introuvable");
@@ -932,7 +941,7 @@ function boardHTML(s){
       ${L.length?L.map(t=>{const n=niv(t),N=NIV[n];let hd="";if(!t.fait&&n!==last){last=n;hd=`<div class="nivh" style="--nc:${N.c}">${N.ic} ${N.nom}</div>`}else if(t.fait&&last!==9){last=9;hd='<div class="nivh done">✓ Fait</div>'}
         if(t.virtuel)return hd+`<div class="bt prevu n${n}" style="--nc:${N.c}"><label><input type="checkbox" data-tkv="${t.routineId}" data-d="${s}" title="Cocher pour l'avancer : elle sera comptée comme faite"><span>${esc(t.titre)}<em class="autoc rtc">⟳ prévu</em></span></label></div>`;
         const rep=!t.fait&&t.date&&t.date<s,lk=nivLocked(t);
-        return hd+`<div class="bt${t.fait?" done":""} n${n}" style="--nc:${N.c}"><label><input type="checkbox" data-tk="${t.id}"${t.fait?" checked":""}><span>${esc(t.titre)}${t.auto==="relance"?'<em class="autoc" title="Créée automatiquement : devis à relancer">auto</em>':""}${t.auto==="routine"?'<em class="autoc rtc" title="Tâche récurrente">⟳</em>':""}${rep?`<em class="rep">reporté du ${fmtD(parse(t.date)).replace(/^\S+ /,"")}</em>`:""}</span></label>${t.fait?"":`<button type="button" class="tniv" data-tniv="${t.id}"${lk?' disabled title="Niveau fixé dans les réglages"':' title="Changer le niveau"'} aria-label="Niveau : ${N.nom}">${N.ic}${lk?"":"▾"}</button>`}<button type="button" class="tdel" data-tdel="${t.id}" aria-label="Supprimer la tâche">✕</button></div>`}).join(""):`<div class="bempty">Rien pour l'instant.</div>`}
+        return hd+`<div class="bt${t.fait?" done":""} n${n}" style="--nc:${N.c}"><label><input type="checkbox" data-tk="${t.id}"${t.fait?" checked":""}><span>${esc(t.titre)}${t.auto==="relance"?'<em class="autoc" title="Créée automatiquement : devis à relancer">auto</em>':""}${t.auto==="prospect"?'<em class="autoc" title="Créée automatiquement : action de prospection">prospect</em>':""}${t.auto==="routine"?'<em class="autoc rtc" title="Tâche récurrente">⟳</em>':""}${rep?`<em class="rep">reporté du ${fmtD(parse(t.date)).replace(/^\S+ /,"")}</em>`:""}</span></label>${t.fait?"":`<button type="button" class="tniv" data-tniv="${t.id}"${lk?' disabled title="Niveau fixé dans les réglages"':' title="Changer le niveau"'} aria-label="Niveau : ${N.nom}">${N.ic}${lk?"":"▾"}</button>`}<button type="button" class="tdel" data-tdel="${t.id}" aria-label="Supprimer la tâche">✕</button></div>`}).join(""):`<div class="bempty">Rien pour l'instant.</div>`}
       ${qkHTML(l)}
       <div class="addf" data-addf><input class="addt" data-addt data-l="${l.k}" data-d="${s}" placeholder="Ou tapez une tâche…" enterkeyhint="done" autocomplete="off"><button class="btn small primary addb" type="button" data-addgo aria-label="Ajouter la tâche">+ Ajouter</button></div></div>`}).join("")}</div></section>`;
 }
@@ -1070,7 +1079,7 @@ $("#main-tasks").addEventListener("submit",e=>{const f=e.target.closest("[data-a
 $("#main-tasks").addEventListener("change",async e=>{
   const tv=e.target.closest("[data-tkv]");if(tv){const r=routines.find(z=>z.id===tv.dataset.tkv),d=tv.dataset.d;if(!r)return;boom(tv,false);
     try{await db.collection("taches").doc(("rt-"+r.id+"-"+d).replace(/[^A-Za-z0-9-]/g,"")).set({owner:myKey(),liste:r.liste||"admin",titre:r.titre,date:d,eventId:"",occ:"",ref:"",fait:true,faitLe:ymd(new Date()),niv:r.niv||3,auto:"routine",routineId:r.id,freq:r.freq,cree:new Date().toISOString()});toast("Avancé ✓ : « "+r.titre+" » ne reviendra pas ce jour-là")}catch(er){toast("Enregistrement impossible",true)}return}
-  const tk=e.target.closest("[data-tk]");if(tk){const t=taches.find(z=>z.id===tk.dataset.tk);if(t&&tk.checked){const n=niv(t),plus=mesTaches().filter(z=>!z.fait&&z.id!==t.id&&(z.liste||"affaires")===(t.liste||"affaires")&&niv(z)<n&&(!z.date||z.date<=ymd(new Date())));if(plus.length)setTimeout(()=>toast(`Bien joué ! Il reste ${plus.length} tâche${plus.length>1?"s":""} plus prioritaire${plus.length>1?"s":""} (${NIV[Math.min(...plus.map(niv))].nom.toLowerCase()}) 😉`),700)}if(t&&tk.checked&&t.auto==="relance")noterRelance(t);if(t&&tk.checked){const bl=tk.closest(".blist");const rest=bl?[...bl.querySelectorAll("[data-tk]")].filter(x=>!x.checked).length:1;boom(rest?tk:bl,!rest)}if(t)await db.doc("taches/"+t.id).update({fait:tk.checked,faitLe:tk.checked?ymd(new Date()):""});return}
+  const tk=e.target.closest("[data-tk]");if(tk){const t=taches.find(z=>z.id===tk.dataset.tk);if(t&&tk.checked){const n=niv(t),plus=mesTaches().filter(z=>!z.fait&&z.id!==t.id&&(z.liste||"affaires")===(t.liste||"affaires")&&niv(z)<n&&(!z.date||z.date<=ymd(new Date())));if(plus.length)setTimeout(()=>toast(`Bien joué ! Il reste ${plus.length} tâche${plus.length>1?"s":""} plus prioritaire${plus.length>1?"s":""} (${NIV[Math.min(...plus.map(niv))].nom.toLowerCase()}) 😉`),700)}if(t&&tk.checked&&t.auto==="relance")noterRelance(t);if(t&&tk.checked&&t.auto==="prospect")noterProspect(t);if(t&&tk.checked){const bl=tk.closest(".blist");const rest=bl?[...bl.querySelectorAll("[data-tk]")].filter(x=>!x.checked).length:1;boom(rest?tk:bl,!rest)}if(t)await db.doc("taches/"+t.id).update({fait:tk.checked,faitLe:tk.checked?ymd(new Date()):""});return}
   const ev=e.target.closest("[data-evdone]");if(ev){const x=events.find(z=>z.id===ev.dataset.evdone),d=ev.dataset.d;if(!x)return;
     const f=new Set(x.faits||[]);ev.checked?f.add(d):f.delete(d);
     if(ev.checked){const c=catOf(x.cat).nom;if(x.ref&&/rdv|visite/i.test(c))nextStep[x.id+"|"+d]="rdv";else if(x.ref&&/chiffr/i.test(c))nextStep[x.id+"|"+d]="chiffrage";else nextStep[x.id+"|"+d]="suite"}else delete nextStep[x.id+"|"+d];
@@ -1318,9 +1327,26 @@ async function autoTaches(){
       if(taches.some(t=>t.id===id))continue;
       await db.collection("taches").doc(id).set({owner:myKey(),liste:"affaires",titre:"Relancer – "+(d.client||d.ref)+(d.ref?" ("+d.ref+")":""),date:today,eventId:"",occ:"",ref:d.ref||"",fait:false,faitLe:"",niv:+R.relanceNiv||(R.relanceImportant===false?3:2),auto:"relance",devisRef:d.ref,stamp:st,cree:new Date().toISOString()});
     }
+    /* prospection : la prochaine action d'un prospect que je suis tombe dans mes tâches le jour venu (toujours active) */
+    if(window.__prospects){const P=window.__prospects,mineP=taches.filter(t=>t.owner===myKey()&&t.auto==="prospect");
+      for(const t of mineP){if(t.fait)continue;const p=P.find(z=>z.id===t.prospId);const st=p&&p.nx?(p.nx.date+"|"+(p.nx.quoi||"")):"";
+        if(!p||p.suivi!==m.nom||p.etape==="gagne"||p.etape==="perdu"||st!==t.stamp)await db.doc("taches/"+t.id).delete().catch(()=>{})}
+      for(const p of P){if(p.suivi!==m.nom||p.etape==="gagne"||p.etape==="perdu"||!p.nx||!p.nx.date||p.nx.date>today)continue;
+        const st=p.nx.date+"|"+(p.nx.quoi||""),id=("pro-"+p.id+"-"+p.nx.date).replace(/[^A-Za-z0-9-]/g,"");
+        if(taches.some(t=>t.id===id&&t.stamp===st))continue;
+        await db.collection("taches").doc(id).set({owner:myKey(),liste:"affaires",titre:(p.nx.quoi||"Action")+" – "+(p.nom||"prospect")+(p.tel?" ("+p.tel+")":""),date:p.nx.date<today?today:p.nx.date,eventId:"",occ:"",ref:"",fait:false,faitLe:"",niv:2,auto:"prospect",prospId:p.id,stamp:st,cree:new Date().toISOString()});
+      }}
   }catch(e){}finally{autoBusy=false}
 }
 window.__autoTaches=autoTaches;
+/* cocher une action de prospection : notée « faite » dans le journal du prospect, prochaine action proposée dans une semaine */
+async function noterProspect(t){
+  if(!window.__prospUpdate)return;
+  try{await window.__prospUpdate(t.prospId,p=>{const now=new Date(),q=(p.nx&&p.nx.quoi)||"Action";p.journal=p.journal||[];
+      p.journal.push({id:now.getTime().toString(36),date:ymd(now),at:now.toISOString(),can:"note",titre:"Fait : "+q+" (depuis Mes tâches)",txt:"",par:String(window.__meName||me().nom||"")});
+      let d=new Date(now);d.setDate(d.getDate()+7);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()+1);p.nx={date:ymd(d),quoi:"Faire le point"};return p});
+    toast("Noté sur la fiche prospect · prochaine action dans une semaine")}catch(e){toast("Fiche prospect non mise à jour : "+(e.message||e),true)}
+}
 async function noterRelance(t){
   if(!window.__devisUpdate)return;const d=(window.__dossiers||[]).find(z=>z.ref===t.devisRef);if(!d)return;
   let notes=[];try{notes=JSON.parse(d.suivi||"[]")}catch(e){}
