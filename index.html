@@ -207,6 +207,14 @@ legend{font-family:var(--f-display);font-size:18px;font-weight:600;padding:0;mar
 legend::before{content:"";width:14px;height:3px;background:var(--orange)}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 @media (max-width:520px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.pjl{display:grid;gap:6px}
+.pj{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.pjic{font-size:20px;text-align:center}
+.pjn{font-weight:600;overflow-wrap:anywhere;color:inherit;text-decoration:none}a.pjn:hover{text-decoration:underline}
+.pjn small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.pjadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:2px dashed var(--line);border-radius:10px;padding:12px;cursor:pointer;font-weight:600;margin-top:8px}
+.pjadd small{font-weight:400;color:var(--muted)}
+.pjadd:hover{border-color:var(--muted)}
 .field{display:grid;gap:5px;min-width:0}
 .field>span{font-size:13px;font-weight:600;color:var(--muted)}
 .field>span em{color:var(--alert);font-style:normal}
@@ -499,6 +507,7 @@ function cardHTML(d){
   if(d.urgent)chips.push('<span class="chip alert">Urgent</span>');
   chips.push(`<span class="chip">${esc(d.metier||"—")}</span>`);
   chips.push(`<span class="chip line">${d.typeClient==="prospect"?"Prospect":"Client"}</span>`);
+  {const n=pjCount(d);if(n)chips.push(`<span class="chip line" title="${n} pièce(s) jointe(s)">📎 ${n}</span>`)}
   if(d.visite&&d.statut==="chiffrage")chips.push(`<span class="chip warn">Visite${d.visiteDate?" le "+fdate(d.visiteDate):" à prévoir"}</span>`);
   if(d.echeance&&(d.statut==="nouvelle"||d.statut==="chiffrage")){const late=new Date(d.echeance)<new Date(new Date().toDateString());chips.push(`<span class="chip ${late?"alert":"line"}">Pour le ${fdate(d.echeance)}</span>`)}
   if(relanceDue(d))chips.push('<span class="chip alert">À relancer</span>');
@@ -610,6 +619,44 @@ function seg(id,opts,val){return `<div class="seg" id="${id}" role="group">${opt
 function segVal(id){const b=document.querySelector(`#${id} [aria-pressed=true]`);return b?b.dataset.v:""}
 function bindSeg(root){root.querySelectorAll(".seg").forEach(g=>g.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b))}))}
 
+/* ---------- pièces jointes : bibliothèque Documents › « Demandes de devis » › n° de la demande ---------- */
+const PJ_ROOT="Demandes de devis",PJ_MAX=60*1024*1024;
+const pjSafe=n=>String(n).replace(/[\\/:*?"<>|#%]/g,"-").trim()||"fichier";
+const pjPath=ref=>encodeURIComponent(PJ_ROOT)+"/"+encodeURIComponent(pjSafe(ref));
+const pjSize=b=>b>=1048576?(b/1048576).toFixed(1).replace(".",",")+" Mo":Math.max(1,Math.round(b/1024))+" ko";
+const pjIc=n=>/\.pdf$/i.test(n)?"📄":/\.(png|jpe?g|gif|heic|webp)$/i.test(n)?"🖼️":/\.(dwg|dxf)$/i.test(n)?"📐":/\.(xlsx?|csv)$/i.test(n)?"📊":"📎";
+let pjNew=[];
+async function pjList(ref){try{const r=await gx("GET",`/sites/${siteId}/drive/root:/${pjPath(ref)}:/children?$select=id,name,size,webUrl,createdDateTime,createdBy&$top=200`);return (r.value||[]).filter(x=>!x.folder)}catch(e){if(e.status===404)return [];throw e}}
+async function pjUpload(ref,file,onp){
+  const p=`/sites/${siteId}/drive/root:/${pjPath(ref)}/${encodeURIComponent(pjSafe(file.name))}:`;
+  if(file.size<=4*1024*1024){const t=await token(SCOPES);
+    const r=await fetch("https://graph.microsoft.com/v1.0"+p+"/content?@microsoft.graph.conflictBehavior=rename",{method:"PUT",headers:{Authorization:"Bearer "+t,"Content-Type":file.type||"application/octet-stream"},body:file});
+    const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error((j.error&&j.error.message)||("Erreur "+r.status));e.status=r.status;throw e}if(onp)onp(1);return j}
+  const ses=await gx("POST",p+"/createUploadSession",{item:{"@microsoft.graph.conflictBehavior":"rename"}});
+  const CH=320*1024*16;let off=0,j={};
+  while(off<file.size){const end=Math.min(off+CH,file.size);
+    const r=await fetch(ses.uploadUrl,{method:"PUT",headers:{"Content-Range":`bytes ${off}-${end-1}/${file.size}`},body:file.slice(off,end)});
+    if(!r.ok)throw new Error("Envoi interrompu ("+r.status+")");j=await r.json().catch(()=>({}));off=end;if(onp)onp(off/file.size)}
+  return j}
+function pjCount(d){let n=0;(d.notes||[]).forEach(x=>{if(/^📎 Ajouté :/.test(x.text))n++;else if(/^📎 Retiré :/.test(x.text))n--});return Math.max(0,n)}
+function pjAddFiles(list){const big=[...list].filter(f=>f.size>PJ_MAX);if(big.length)toast(big.map(f=>f.name).join(", ")+" : trop lourd (60 Mo maximum)",true);return [...list].filter(f=>f.size<=PJ_MAX)}
+function pjNewHTML(){return pjNew.map((f,i)=>`<div class="pj"><span class="pjic">${pjIc(f.name)}</span><span class="pjn">${esc(f.name)}<small>${pjSize(f.size)} · envoyé à l'enregistrement</small></span><button type="button" class="btn small" data-pjrm="${i}" aria-label="Retirer ${esc(f.name)}">✕</button></div>`).join("")}
+function pjFieldset(d){return `<fieldset><legend>Pièces jointes</legend>
+    <div id="pj-list" class="pjl">${d&&d.id?'<p class="hint" style="margin:0">Chargement des fichiers…</p>':""}</div>
+    <div id="pj-new" class="pjl">${d&&d.id?"":pjNewHTML()}</div>
+    <label class="pjadd" for="pj-in">📎 Ajouter des fichiers <small>plans, photos, cahier des charges…</small></label>
+    <input type="file" id="pj-in" multiple hidden>
+    <p class="hint">Rangés dans SharePoint › Documents › « ${PJ_ROOT} » › n° de la demande. Plusieurs fichiers possibles, 60 Mo maximum chacun.</p>
+  </fieldset>`}
+async function pjLoad(d){const box=$("#pj-list");if(!box)return;
+  try{const L=await pjList(d.ref);if(!$("#pj-list"))return;
+    box.innerHTML=L.length?L.sort((a,b)=>String(a.createdDateTime).localeCompare(b.createdDateTime)).map(f=>`<div class="pj"><span class="pjic">${pjIc(f.name)}</span><a class="pjn" href="${esc(f.webUrl)}" target="_blank" rel="noopener">${esc(f.name)}<small>${pjSize(f.size||0)} · ${fdate(f.createdDateTime)}${f.createdBy&&f.createdBy.user?" · "+esc(f.createdBy.user.displayName||""):""}</small></a><button type="button" class="btn small" data-pjdel="${f.id}" data-pjname="${esc(f.name)}" aria-label="Supprimer ${esc(f.name)}">🗑️</button></div>`).join(""):'<p class="hint" style="margin:0">Aucun fichier pour l\'instant.</p>'}
+  catch(e){box.innerHTML=`<p class="hint" style="margin:0;color:var(--alert,#c0392b)">Fichiers illisibles : ${esc(e.message)}</p>`}}
+async function pjSend(d,files,box){const done=[];
+  for(const f of files){const row=document.createElement("div");row.className="pj";row.innerHTML=`<span class="pjic">${pjIc(f.name)}</span><span class="pjn">${esc(f.name)}<small>Envoi… 0 %</small></span><span></span>`;if(box)box.appendChild(row);
+    try{await pjUpload(d.ref,f,p=>{row.querySelector("small").textContent="Envoi… "+Math.round(p*100)+" %"});done.push(f.name);row.querySelector("small").textContent="Envoyé ✓"}
+    catch(e){row.querySelector("small").textContent="Échec : "+e.message;toast(f.name+" : envoi impossible ("+e.message+")",true)}}
+  return done}
 function formFields(d){
   d=d||{};
   return `
@@ -621,7 +668,7 @@ function formFields(d){
     </div>
   </fieldset>
   <fieldset><legend>Coordonnées</legend>
-    <label class="field"><span>Nom du client / de l'entreprise <em>*</em></span><input type="text" id="f-client" value="${esc(d.client)}" autocomplete="off"></label>
+    <label class="field"><span>Nom du client / de l'entreprise <em>*</em></span><input type="text" id="f-client" value="${esc(d.client)}" autocomplete="off" list="f-clients"></label><datalist id="f-clients">${[...new Set(docs.map(x=>x.client).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"fr")).map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist><p class="hint" id="f-reprise" hidden></p>
     <div class="grid2">
       <label class="field"><span>Interlocuteur</span><input type="text" id="f-contact" value="${esc(d.contact)}"></label>
       <label class="field"><span>Téléphone</span><input type="tel" id="f-tel" value="${esc(d.tel)}"></label>
@@ -639,7 +686,8 @@ function formFields(d){
       <label class="field"><span>Devis attendu pour le</span><input type="date" id="f-ech" value="${esc(d.echeance)}"></label>
       <label class="field"><span>Chiffreur</span><select id="f-chif"><option value="">À attribuer plus tard</option>${team.chiffreurs.map(n=>`<option${n===d.chiffreur?" selected":""}>${esc(n)}</option>`).join("")}</select></label>
     </div>
-  </fieldset>`;
+  </fieldset>
+  ${pjFieldset(d)}`;
 }
 function readForm(){
   return {societe:segVal("f-soc"),typeClient:$("#f-type").value,source:$("#f-src").value,client:$("#f-client").value.trim(),
@@ -650,7 +698,7 @@ function readForm(){
 function validate(f){
   if(!f.societe)return"Choisissez Artik ou Chassaing.";
   if(!f.client)return"Indiquez le nom du client.";
-  if(!f.tel&&!f.email)return"Indiquez au moins un téléphone ou un email.";
+  if(f.typeClient!=="client"&&!f.tel&&!f.email)return"Pour un prospect, indiquez au moins un téléphone ou un email.";
   if(!f.objet)return"Décrivez la demande en quelques mots.";
   return"";
 }
@@ -661,7 +709,7 @@ function openNew(){
   <div class="err" id="f-err" hidden></div>
   <div class="actions"><button class="btn" type="button" data-close>Annuler</button><button class="btn primary" type="submit" id="f-ok">Enregistrer la demande</button></div></form></div>`;
   o.hidden=false;bindSeg(o);o.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",close));
-  $("#f-client").focus();
+  $("#f-client").focus();pjNew=[];bindPjNew();bindReprise();
   $("#newform").addEventListener("submit",async e=>{
     e.preventDefault();const f=readForm(),err=validate(f);
     if(err){$("#f-err").textContent=err;$("#f-err").hidden=false;return}
@@ -669,10 +717,26 @@ function openNew(){
     const doc={...f,ref:makeRef(),statut:f.chiffreur?"chiffrage":"nouvelle",saisiPar:me,createdAt:now,
       notes:[note("Demande saisie"+(f.chiffreur?", attribuée à "+f.chiffreur:"")+".")]};
     $("#f-ok").disabled=true;$("#f-ok").textContent="Enregistrement…";
-    try{await gx("POST",`/sites/${siteId}/lists/${listId}/items`,{fields:toFields(doc)});close();tab=doc.statut;ls("tab",tab);await refresh();toast("Demande "+doc.ref+" enregistrée")}
+    if(pjNew.length)doc.notes=doc.notes.concat(pjNew.map(f=>note("📎 Ajouté : "+f.name)));
+    try{const it=await gx("POST",`/sites/${siteId}/lists/${listId}/items`,{fields:toFields(doc)});
+      if(pjNew.length){$("#f-ok").textContent="Envoi des fichiers…";const ok=await pjSend({ref:doc.ref},pjNew,$("#pj-new"));
+        if(ok.length<pjNew.length){const bad=pjNew.filter(f=>!ok.includes(f.name)).map(f=>f.name);
+          const nts=doc.notes.filter(n=>!bad.some(b=>n.text==="📎 Ajouté : "+b));try{await gx("PATCH",`/sites/${siteId}/lists/${listId}/items/${it.id}/fields`,toFields({notes:nts}))}catch(_){}
+          toast("Demande "+doc.ref+" enregistrée, mais "+bad.length+" fichier(s) non envoyé(s) : rouvrez la fiche pour les remettre",true)}}
+      pjNew=[];close();tab=doc.statut;ls("tab",tab);await refresh();toast("Demande "+doc.ref+" enregistrée")}
     catch(e){$("#f-ok").disabled=false;$("#f-ok").textContent="Enregistrer la demande";writeErr(e,$("#f-err"))}
   });
 }
+function bindPjNew(){$("#pj-in").addEventListener("change",e=>{pjNew=pjNew.concat(pjAddFiles(e.target.files));e.target.value="";$("#pj-new").innerHTML=pjNewHTML()});
+  $("#pj-new").addEventListener("click",e=>{const b=e.target.closest("[data-pjrm]");if(!b)return;pjNew.splice(+b.dataset.pjrm,1);$("#pj-new").innerHTML=pjNewHTML()})}
+function bindReprise(){const inp=$("#f-client");const go=()=>{const n=inp.value.trim().toLowerCase();if(!n)return;
+    const p=docs.filter(x=>String(x.client||"").trim().toLowerCase()===n).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0];if(!p)return;
+    const map=[["f-contact","contact"],["f-tel","tel"],["f-mail","email"],["f-commune","commune"],["f-adr","adresse"]];let n2=0;
+    map.forEach(([id,k])=>{const el=$("#"+id);if(el&&!el.value&&p[k]){el.value=p[k];n2++}});
+    if(!segVal("f-soc")&&p.societe){const b=document.querySelector(`#f-soc [data-v="${p.societe}"]`);if(b){b.parentElement.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b))}}
+    $("#f-type").value="client";
+    const h=$("#f-reprise");if(!n2&&!h.hidden)return;h.hidden=false;h.textContent=n2?`Client connu : coordonnées reprises de la demande ${p.ref} du ${fdate(p.createdAt)}. Vérifiez-les.`:`Client connu (demande ${p.ref} du ${fdate(p.createdAt)}).`};
+  inp.addEventListener("change",go);inp.addEventListener("blur",go)}
 $("#btn-new").addEventListener("click",openNew);
 
 function openDetail(id){
@@ -707,6 +771,16 @@ function openDetail(id){
     </div>
   </div></div>`;
   o.hidden=false;bindSeg(o);o.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",close));
+  pjLoad(d);
+  $("#pj-in").addEventListener("change",async e=>{const files=pjAddFiles(e.target.files);e.target.value="";if(!files.length)return;
+    const ok=await pjSend(d,files,$("#pj-new"));
+    if(ok.length){try{await gx("PATCH",`/sites/${siteId}/lists/${listId}/items/${d.id}/fields`,toFields({notes:[...(d.notes||[]),...ok.map(n=>note("📎 Ajouté : "+n))]}));d.notes=[...(d.notes||[]),...ok.map(n=>note("📎 Ajouté : "+n))]}catch(_){}
+      toast(ok.length+" fichier(s) ajouté(s)");$("#pj-new").innerHTML="";pjLoad(d)}});
+  $("#pj-list").addEventListener("click",async e=>{const b=e.target.closest("[data-pjdel]");if(!b)return;
+    if(!b.dataset.armed){b.dataset.armed="1";b.textContent="Supprimer ?";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent="🗑️"}},4000);return}
+    b.disabled=true;try{await gx("DELETE",`/sites/${siteId}/drive/items/${b.dataset.pjdel}`);const nn=note("📎 Retiré : "+b.dataset.pjname);
+      try{await gx("PATCH",`/sites/${siteId}/lists/${listId}/items/${d.id}/fields`,toFields({notes:[...(d.notes||[]),nn]}));d.notes=[...(d.notes||[]),nn]}catch(_){}
+      toast("Fichier supprimé");pjLoad(d)}catch(er){b.disabled=false;writeErr(er)}});
   let st=d.statut;
   $("#d-st").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;st=b.dataset.st;
     $("#d-st").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#d-pw").hidden=st!=="perdu"});
