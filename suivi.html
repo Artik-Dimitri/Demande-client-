@@ -226,6 +226,51 @@ html.embed header.top,html.embed .brandline{display:none!important}html.embed .w
 @media (max-width:520px){.tile b{font-size:30px}.grid{grid-template-columns:1fr}.hero h1{font-size:26px}.hero .hic{width:44px;height:44px;font-size:24px}}
 </style>
 <style>
+.xrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.xsp{flex:1;min-width:0}
+.xline{padding:6px 0;border-bottom:1px solid var(--line)}
+.xtag{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;background:var(--soft);color:var(--muted);white-space:nowrap}
+.xtag.ok{background:color-mix(in srgb,var(--ok) 16%,var(--surface));color:var(--ok)}.xtag.mid{background:color-mix(in srgb,var(--c4) 18%,var(--surface))}
+.xday{display:flex;gap:8px;align-items:center}.xday b{flex:1;text-align:center;font:700 21px var(--f-display)}
+.xpeople{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:12px}
+.xpcol{border:1px solid var(--line);border-top:4px solid var(--pc);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
+.xpcol h3{display:flex;justify-content:space-between;gap:6px;align-items:baseline;margin:0;font-size:16px}.xpcol h3 small{color:var(--muted);font-size:12.5px}
+.xtask{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:start;padding:7px 8px;border-radius:9px;background:var(--soft)}
+.xtask.done .tx{text-decoration:line-through;color:var(--muted)}.xtask small{display:block;color:var(--muted);font-size:12px}
+.xx{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 3px;white-space:nowrap}
+.xwarn{background:color-mix(in srgb,var(--c4) 16%,var(--surface));border-radius:10px;padding:10px 12px;margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.xok{background:color-mix(in srgb,var(--ok) 14%,var(--surface));border-radius:10px;padding:10px 12px}
+.xform{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;align-items:end;margin-top:8px}
+.xform input,.xform select,.panel textarea,.xcr input{font:inherit;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:var(--surface);color:inherit;width:100%;min-width:0;box-sizing:border-box}
+.panel textarea{resize:vertical}
+.xf{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.xchips{display:flex;gap:6px;flex-wrap:wrap}
+.xchip{border:1.5px solid var(--line);background:var(--surface);color:inherit;border-radius:999px;padding:5px 11px;font-weight:600;font-size:13.5px;font-family:inherit;display:inline-flex;gap:6px;align-items:center}
+.xchip small{color:var(--muted);font-weight:500}.xbt,.xck{cursor:pointer}
+.xchip[aria-pressed=true]{border-color:var(--cc,var(--c1));background:color-mix(in srgb,var(--cc,var(--c1)) 13%,var(--surface))}
+.xdocs{display:grid;gap:6px}
+.xdoc{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-left:5px solid var(--cc,var(--line));border-radius:10px;background:var(--surface)}
+.xdoc .ic{width:38px;height:38px;border-radius:9px;background:var(--soft);display:grid;place-items:center;font-size:19px}
+.xdoc .n{font-weight:700;overflow-wrap:anywhere;color:inherit}.xdoc a.n{text-decoration:none}.xdoc a.n:hover{text-decoration:underline}
+.xdoc .d{color:var(--muted);font-size:12.5px}
+.xvis{display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap;cursor:pointer}.xvis input{width:18px;height:18px}
+.xinfobox{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+.xinfos{white-space:pre-wrap;background:var(--soft);border-radius:10px;padding:10px 12px;margin-top:6px}
+.xaddbox{border:1px dashed var(--line);border-radius:12px;padding:10px;margin-top:10px;display:grid;gap:8px}
+.xdrop{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:2px dashed var(--line);border-radius:10px;padding:12px;cursor:pointer;font-weight:600;background:var(--soft)}
+.xdrop small{font-weight:400;color:var(--muted)}
+.xmt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-left:5px solid var(--mc);border-radius:10px;background:var(--surface);cursor:pointer;text-align:left;width:100%;color:inherit;font:inherit}
+.xmt small{color:var(--muted)}
+.xpt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:start;padding:9px 10px;border-radius:10px;background:var(--soft)}
+.xpt.modif{background:color-mix(in srgb,var(--c4) 16%,var(--surface));border:1px solid color-mix(in srgb,var(--c4) 45%,transparent)}
+.xptype{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:6px;background:var(--surface);white-space:nowrap}
+.xsigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px}
+.xsig{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.xsig canvas{width:100%;aspect-ratio:600/220;border:1.5px dashed var(--line);border-radius:10px;background:#fff;touch-action:none;cursor:crosshair}
+.xsig img{width:100%;aspect-ratio:300/110;object-fit:contain;background:#fff;border-radius:10px;border:1px solid var(--line)}
+.xcl{display:grid;gap:6px;margin:8px 0}.xcr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) auto;gap:6px}
+@media (max-width:520px){.xcr{grid-template-columns:1fr auto}.xcr input[type=email]{grid-row:2;grid-column:1}}
+</style>
+<style>
 html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}
 #gate{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding:12vh 16px 40px;overflow:auto}
 .gatecard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:28px 26px;max-width:460px;width:100%;display:grid;gap:14px}
@@ -405,6 +450,19 @@ const db={
   collection:c=>({doc:id=>docApi(c+"/"+id),onSnapshot(cb){(subsCol[c]=subsCol[c]||[]).push(cb);notify();return()=>{}}})
 };
 
+/* ---------- fichiers du dossier chantier : bibliothèque Documents du site ---------- */
+const encP=p=>p.split("/").map(encodeURIComponent).join("/");
+window.__suiviFiles={
+  async upload(folder,file,onp){const p=`/sites/${siteId}/drive/root:/${encP(folder)}/${encodeURIComponent(String(file.name).replace(/[\\/:*?"<>|#%]/g,"-"))}:`;
+    if(file.size<=4*1024*1024){const t=await token(SCOPES);const r=await fetch("https://graph.microsoft.com/v1.0"+p+"/content?@microsoft.graph.conflictBehavior=rename",{method:"PUT",headers:{Authorization:"Bearer "+t,"Content-Type":file.type||"application/octet-stream"},body:file});
+      const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error((j.error&&j.error.message)||("Erreur "+r.status));e.status=r.status;throw e}if(onp)onp(1);return j}
+    const ses=await gx("POST",p+"/createUploadSession",{item:{"@microsoft.graph.conflictBehavior":"rename"}});const CH=320*1024*16;let off=0,j={};
+    while(off<file.size){const end=Math.min(off+CH,file.size);const r=await fetch(ses.uploadUrl,{method:"PUT",headers:{"Content-Range":`bytes ${off}-${end-1}/${file.size}`},body:file.slice(off,end)});
+      if(!r.ok)throw new Error("envoi interrompu ("+r.status+")");j=await r.json().catch(()=>({}));off=end;if(onp)onp(off/file.size)}
+    return j},
+  async del(id){await gx("DELETE",`/sites/${siteId}/drive/items/${id}`)}
+};
+
 /* ---------- passerelle vers « Planning chantiers » (autre liste SharePoint) ---------- */
 let planList=null;
 window.__toPlanning=async c=>{
@@ -540,7 +598,8 @@ function museDef(){
     {id:"e4",nom:"4e étage",map:{},items:rng(41,49,[48]).map(ch)},
     {id:"col",nom:"Colonnes montantes",map:{},items:[1,2,3,4,5,6,7].map(n=>({id:"col"+n,nom:"Colonne "+n,m:"colonne"}))},
     {id:"cx",nom:"Clim : groupes et réseaux communs",map:{},items:[...[1,2,3,4].map(n=>({id:"g"+n,nom:"Groupe ext. "+n,m:"groupe"})),{id:"c12",nom:"Couloirs étages 1-2",m:"reseaux"},{id:"c34",nom:"Couloirs étages 3-4",m:"reseaux"}]},
-    {id:"rdc",nom:"Rez-de-chaussée et sous-sol",map:{},items:[{id:"cuis",nom:"Cuisine",m:"cuisine"},{id:"bar",nom:"Bar",m:"cuisine"},{id:"wcr",nom:"WC restaurant",m:"wc"},{id:"vwcr",nom:"VMC WC restaurant",m:"vmc_piece"},{id:"ssol",nom:"Sous-sol",m:"soussol"},{id:"ecs",nom:"Production ECS (3e ballon)",m:"chaufferie"},{id:"vmc",nom:"Caisson VMC",m:"caisson"}]}]};
+    {id:"rdc",nom:"Rez-de-chaussée et sous-sol",map:{},items:[{id:"cuis",nom:"Cuisine",m:"cuisine"},{id:"bar",nom:"Bar",m:"cuisine"},{id:"wcr",nom:"WC restaurant",m:"wc"},{id:"vwcr",nom:"VMC WC restaurant",m:"vmc_piece"},{id:"ssol",nom:"Sous-sol",m:"soussol"},{id:"ecs",nom:"Production ECS (3e ballon)",m:"chaufferie"}]},
+    {id:"comb",nom:"Combles",map:{},items:[{id:"vmc",nom:"Caisson VMC",m:"caisson"}]}]};
 }
 function demoEtat(){/* avancement plausible : les étages bas sont plus avancés */
   const out=[],now=Date.now(),who=["Tech 1","Tech 2","Tech 3","Apprenti 1"];let seed=7;const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
@@ -763,13 +822,13 @@ function renderSheet(){
       <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn primary" type="button" data-sitok="${n}" ${cum-prev<1?"disabled":""}>Enregistrer la situation n° ${n}</button></div>
       <p class="hint">En vrai, la facture se fait dans Organilog et remonte ici toute seule ; ce tableau sert à la préparer au plus juste (retenue de garantie et compte prorata à part).</p></div></div>`}
   if(stab==="fil")body=`<div class="panel"><div class="feed" style="max-height:none">${f.map(x=>filHTML(x,false)).join("")||'<p class="hint">Rien pour l\'instant.</p>'}</div></div>`;
-  if(stab==="jour")body=`<div class="panel"><h2>Tâches du jour pour l'équipe</h2><div class="form"><div class="row"><input type="text" id="j-t" placeholder="Ex. Finir les tirages étage 3"><select id="j-p"><option value="tous">Toute l'équipe</option>${(c.equipe||TECHS).map(t=>`<option>${esc(t)}</option>`).join("")}</select><input type="date" id="j-d" value="${ymd(new Date())}"><button class="btn primary" type="button" data-jadd>Ajouter</button></div></div>
-     <div style="margin-top:10px">${J.map(j=>`<div class="tdi${j.fait?" done":""}"><span>${j.fait?"✅":"⬜"}</span><span>${esc(j.txt)}<small>${fd(j.d)} · ${j.pour==="tous"?"toute l'équipe":esc(j.pour)}${j.fait?" · fait par "+esc(j.faitPar||"")+" "+fdt(j.faitA):""}</small></span></div>`).join("")||'<p class="hint">Aucune tâche.</p>'}</div></div>`;
+  if(stab==="jour")stab="equipe";
+  if(["equipe","dossier","reunions"].includes(stab))body=xbody(c,stab);
   $("#sheet").innerHTML=`<div class="sh-h"><div><div class="eyebrow">${esc([c.ref,c.devisRef?"devis "+c.devisRef:"",c.charge].filter(Boolean).join(" · "))}</div><h2>${esc(c.client)}</h2><button class="btn small" type="button" data-toplan style="margin:4px 0 2px">🏗️ Mettre au planning chantier</button><div class="hint">${esc([c.objet,c.commune,c.societe].filter(Boolean).join(" · "))}${c.debut&&c.fin?` · du ${fd(c.debut)} au ${fd(c.fin)}`:c.fin?` · fin prévue ${fd(c.fin)}`:c.debut?` · début ${fd(c.debut)}`:""}</div>${c.heuresAnte?`<div class="hint">Repris de la feuille de route : ${H(+c.heuresAnte)} déjà réalisées${c.acompte?" · acompte reçu "+eur(+c.acompte)+" (hors CA)":""}${c.tsupp?" · dont travaux supp. "+eur(+c.tsupp):""}</div>`:""}${c.note?`<div class="hint">📝 ${esc(c.note)}</div>`:""}${!(c.postes||[]).length?`<label class="hint" style="display:inline-flex;gap:6px;align-items:center;margin-top:4px">Avancement (sans postes détaillés) <input type="text" inputmode="decimal" data-avm="${esc(c.id)}" value="${c.avManuel??""}" style="width:64px;padding:3px 6px"> %</label>`:""}</div><div style="display:flex;gap:8px;flex-wrap:wrap">${(window.__me||"")==="d.blin@chassaing-technologies.fr"?`<button class="btn" type="button" data-chdel="${esc(c.id)}">🗑️ Supprimer</button>`:""}<button class="btn" type="button" data-close>Fermer</button></div></div>
    <div class="big3"><div class="k"><span class="t">Avancement réel</span><div style="display:flex;gap:12px;align-items:center">${ringHTML(k.av,CHG[c.charge],70)}<div><div class="v">${eur(k.realise)}</div><div class="hint">réalisés sur ${eur(c.ht)} HT</div></div></div></div>
     <div class="k"><span class="t">Heures · ${k.ecart>=0?"d'avance":"de retard"}</span><div class="v ${k.ecart>=0?"pos":"neg"}">${k.ecart>=0?"+":""}${H(k.ecart)}</div>${heuresGauge(k,1)}<div class="hint">reste ${H(k.reste)} sur ${H(k.hv)} vendues</div></div>
     <div class="k"><span class="t">À facturer maintenant</span><div class="v" style="color:var(--c4)">${eur(Math.max(0,k.aFact))}</div>${factGauge(k,c,1)}<div class="hint">achats ${eur(k.achats)} · ${c.ht?Math.round(k.achats/c.ht*100):0} % du HT</div></div></div>
-   <nav class="stabs" role="tablist">${[["postes","📋 Postes"],["plan","🏠 Avancement"],["ordre","🧭 Ordre"],["heures","⏱️ Heures"],["achats","🛒 Achats"],["situations","🧾 Situations"],["fil","📣 Terrain",fo],["jour","✅ Tâches du jour"],["prep","🛠️ Préparer"]].map(([key,l,n])=>`<button type="button" role="tab" data-stab="${key}" aria-selected="${stab===key}">${l}${n?`<span class="n">${n}</span>`:""}</button>`).join("")}</nav>${body}`;
+   <nav class="stabs" role="tablist">${[["postes","📋 Postes"],["plan","🏠 Avancement"],["ordre","🧭 Ordre"],["heures","⏱️ Heures"],["achats","🛒 Achats"],["situations","🧾 Situations"],["fil","📣 Terrain",fo],["equipe","👷 Équipe et tâches"],["dossier","📁 Dossier"],["reunions","🤝 Réunions"],["prep","🛠️ Préparer"]].map(([key,l,n])=>`<button type="button" role="tab" data-stab="${key}" aria-selected="${stab===key}">${l}${n?`<span class="n">${n}</span>`:""}</button>`).join("")}</nav>${body}`;
 }
 
 /* ---------- terrain ---------- */
@@ -793,11 +852,12 @@ function renderTerrain(){
      <button class="btn primary" type="button" data-send="materiel">📦 Envoyer la demande</button><p class="hint">Ton responsable la reçoit tout de suite dans son suivi de chantier.</p></div>`;
   if(ttab==="question")body=`<div class="bigform"><label><b>Ta question sur le chantier</b></label><textarea id="q-t" placeholder="Ex. Chambre 34 : on passe par le faux plafond du couloir ?"></textarea><button class="btn primary" type="button" data-send="question">❓ Envoyer la question</button></div>`;
   if(ttab==="photo")body=`<div class="bigform"><label class="photo-in"><span>📷</span><b>Prendre ou choisir une photo</b><small class="hint">avant/après, problème, réception…</small><input type="file" accept="image/*" capture="environment" id="ph-f" hidden></label><div class="prev" id="ph-p"></div><input id="ph-t" placeholder="Légende (facultatif)"><button class="btn primary" type="button" data-send="photo" disabled id="ph-ok">Envoyer la photo</button></div>`;
+  if(["equipe","dossier","docs","reunions"].includes(ttab)){if(ttab!=="docs"&&!(c.referent&&c.referent===me))ttab="docs";body=xbody(c,ttab)}
   if(ttab==="fil"){const F=FIL.filter(f=>f.ch===c.id).sort((a,b)=>String(b.at).localeCompare(a.at));body=`<div class="feed" style="max-height:none">${F.map(f=>filHTML(f,false)).join("")||'<p class="hint">Rien pour l\'instant.</p>'}</div>`}
   $("#view").innerHTML=`<button class="btn back" type="button" data-tback>← Mes chantiers</button>
    <div class="tcard" style="--pc:${CHG[c.charge]||"var(--c1)"};cursor:default">${ringHTML(k.av,CHG[c.charge],70)}<div style="min-width:0"><h3>${esc(c.client)}</h3><div class="sub">${esc(c.objet)}</div><div class="sub">Resp. ${esc(c.charge)} · tes heures ici : <b>${H(myH)}</b></div><a class="btn small" style="margin-top:6px;display:inline-flex;text-decoration:none" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.adresse||c.commune)}" target="_blank" rel="noopener">📍 Itinéraire</a></div></div>
    ${ptCard(c)}
-   <nav class="ttabs" role="tablist">${[["jour","🎯","Ma journée"],["avancement","✅","Avancement"],["materiel","📦","Matériel"],["question","❓","Question"],["photo","📷","Photo"],["fil","💬","Fil"]].map(([key,ic,l])=>`<button type="button" role="tab" data-ttab="${key}" aria-selected="${ttab===key}"><span>${ic}</span>${l}</button>`).join("")}</nav>${body}`;
+   <nav class="ttabs" role="tablist">${[["jour","🎯","Ma journée"],["avancement","✅","Avancement"],["materiel","📦","Matériel"],["question","❓","Question"],["photo","📷","Photo"],["fil","💬","Fil"],...(c.referent&&c.referent===me?[["equipe","👷","Tâches équipe"],["dossier","📁","Dossier"],["reunions","🤝","Réunions"]]:[["docs","📁","Plans et docs"]])].map(([key,ic,l])=>`<button type="button" role="tab" data-ttab="${key}" aria-selected="${ttab===key}"><span>${ic}</span>${l}</button>`).join("")}</nav>${body}`;
 }
 /* photo : réduite à 1000 px avant envoi */
 let photoData=null,urg="demain";
@@ -927,6 +987,221 @@ document.addEventListener("change",async e=>{
   const jt=e.target.closest("[data-jt]");if(jt){await db.doc("jour/"+jt.dataset.jt).update({fait:jt.checked,faitPar:me,faitA:new Date().toISOString()});if(jt.checked)boom(jt,false);return}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#overlay").hidden){$("#overlay").hidden=true;open=null}});
+/* =====================================================================
+   DOSSIER CHANTIER DU RÉFÉRENT
+   - un technicien référent par chantier (c.referent), choisi au bureau ;
+   - tâches de chacun par jour (collection « jour », la même que les « consignes du bureau ») ;
+   - dossier : infos pratiques (c.infos) + documents (c.docs) rangés dans SharePoint ›
+     Documents › « Suivi chantiers » › <chantier> › <rubrique>, case « visible par l'équipe » ;
+   - réunions de chantier (collection « reunions ») signées au doigt, PDF rangé dans le dossier ;
+   - comptes : qui est qui (doc « params/comptes ») pour reconnaître chaque technicien.
+   Droits : bureau = tout ; référent sur le terrain = tout sauf choisir le référent ;
+   technicien = ses tâches du jour à cocher + infos et documents partagés.
+   ===================================================================== */
+const XCATS={plans:{n:"Plans",ic:"📐",c:"var(--c2)"},infos:{n:"Infos chantier",ic:"ℹ️",c:"var(--c4)"},cr:{n:"Comptes rendus",ic:"🗒️",c:"var(--c3)"},planning:{n:"Planning",ic:"📅",c:"var(--c1)"},admin:{n:"Administratif",ic:"🗂️",c:"var(--muted)"}};
+const XPT={info:{n:"Info",c:"var(--muted)"},decision:{n:"Décision",c:"var(--c2)"},modif:{n:"Modification",c:"var(--c4)"},afaire:{n:"À faire",c:"var(--c3)"}};
+let RE=[],COMPTES=null,xday=null,xcat="tout",xadd=false,xinfo=false,xmeet=null,xptype="info",xcomptes=false;
+const PADS={};let xpdfBusy=false;
+const xymd=s=>s;const xadd1=(k,n)=>ymd(addD(new Date(k+"T12:00:00"),n));
+const xlab=(k,o)=>{const t=new Date(k+"T12:00:00").toLocaleDateString("fr-FR",o||{weekday:"long",day:"numeric",month:"long"});return o?t:t[0].toUpperCase()+t.slice(1)};
+const xhm=s=>s?new Date(s).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}).replace(":","h"):"";
+const xsize=b=>!b?"":b>=1048576?(b/1048576).toFixed(1).replace(".",",")+" Mo":Math.max(1,Math.round(b/1024))+" ko";
+const xic=n=>/\.pdf$/i.test(n||"")?"📄":/\.(png|jpe?g|gif|heic|webp)$/i.test(n||"")?"🖼️":/\.(dwg|dxf)$/i.test(n||"")?"📐":/\.(xlsx?|csv)$/i.test(n||"")?"📊":"📎";
+const curC=()=>CH.find(x=>x.id===(TERRAIN?tview:open));
+const isRef=c=>!!c&&!!c.referent&&c.referent===me;
+const xcan=c=>!TERRAIN||isRef(c);                       /* peut tout gérer sur ce chantier */
+const xrr=()=>{if(TERRAIN)render();else renderSheet()};
+const folderOf=c=>"Suivi chantiers/"+String((c.ref?c.ref+" - ":"")+(c.client||c.id)).replace(/[\\/:*?"<>|#%]/g,"-").slice(0,90);
+
+/* ----- qui est qui ----- */
+db.doc("params/comptes").onSnapshot(s=>{COMPTES=s.exists?(s.data()||{}):{};xapplyComptes();if(loaded.c)render()},()=>{});
+function xapplyComptes(){const L=(COMPTES&&COMPTES.list)||[];
+  const names=L.map(x=>x.nom).filter(Boolean);if(names.length){TECHS.splice(0,TECHS.length,...names)}
+  const em=(window.__me||"").toLowerCase(),hit=L.find(x=>(x.email||"").toLowerCase()===em&&em);
+  if(hit&&TERRAIN&&!isBoss()){me=hit.nom}
+  window.__xlocked=!!(hit&&TERRAIN&&!isBoss())}
+function comptesHTML(){const L=((COMPTES&&COMPTES.list)||[]);
+  return `<div class="panel"><div class="xrow"><h2 class="xsp">🔑 Comptes de l'équipe</h2><button class="btn small" type="button" data-xcpt>${xcomptes?"Fermer":"Modifier"}</button></div>
+   <p class="hint" style="margin-top:2px">Pour tous les chantiers : le prénom utilisé dans le suivi et l'adresse Microsoft de chacun. Sur le terrain, chacun est reconnu tout seul et ne voit que ce qui le concerne.</p>
+   ${xcomptes?`<div id="xcl" class="xcl">${(L.length?L:[{nom:"",email:""}]).map((x,i)=>`<div class="xcr"><input data-xcn="${i}" value="${esc(x.nom)}" placeholder="Prénom (ex. Noah)"><input data-xce="${i}" type="email" value="${esc(x.email||"")}" placeholder="adresse@artikfrigoriste.fr"><button class="btn small" type="button" data-xcdel="${i}" aria-label="Retirer">✕</button></div>`).join("")}</div>
+    <div class="xrow"><button class="btn small" type="button" data-xcadd>+ Une personne</button><span class="xsp"></span><button class="btn primary" type="button" data-xcsave>Enregistrer les comptes</button></div>`
+   :`<div class="xchips">${L.map(x=>`<span class="xchip">${esc(x.nom)}${x.email?` <small>${esc(x.email)}</small>`:` <small style="color:var(--c3)">sans adresse</small>`}</span>`).join("")||'<span class="hint">Aucun compte : les prénoms par défaut (Tech 1, Tech 2…) sont utilisés.</span>'}</div>`}</div>`}
+function readComptes(){const out=[];document.querySelectorAll("[data-xcn]").forEach(n=>{const i=n.dataset.xcn,e=document.querySelector(`[data-xce="${i}"]`);out.push({nom:n.value.trim(),email:(e?e.value:"").trim().toLowerCase()})});return out}
+
+/* ----- tâches de chacun ----- */
+function tachesHTML(c){
+  const d=xday||today(),eq=(c.equipe&&c.equipe.length?c.equipe:TECHS),who=["tous",...eq],T=JOUR.filter(j=>j.ch===c.id&&j.d===d);
+  const late=JOUR.filter(j=>j.ch===c.id&&j.d<d&&!j.fait&&d>=today());
+  const col=p=>{const L=T.filter(t=>t.pour===p),f=L.filter(t=>t.fait).length;
+    return `<div class="xpcol" style="--pc:${p==="tous"?"var(--muted)":p===c.referent?"var(--c2)":"var(--c1)"}"><h3>${p==="tous"?"👥 Toute l'équipe":esc(p)}${p===c.referent?' <span class="xtag">référent</span>':""}<small>${L.length?f+" / "+L.length:""}</small></h3>
+     ${L.map(t=>`<div class="xtask${t.fait?" done":""}"><span>${t.fait?"✅":"⬜"}</span><span class="tx">${esc(t.txt)}${t.fait?`<small>fait${t.faitPar&&t.faitPar!==p?" par "+esc(t.faitPar):""} à ${xhm(t.faitA)}</small>`:""}</span><button class="xx" type="button" data-xtdel="${t.id}" aria-label="Supprimer la tâche">✕</button></div>`).join("")||'<span class="hint" style="margin:0">Rien de prévu.</span>'}</div>`};
+  return `<div class="panel"><div class="xday"><button class="btn" type="button" data-xday="-1" aria-label="Jour précédent">←</button><b>${xlab(d)}</b><button class="btn" type="button" data-xday="1" aria-label="Jour suivant">→</button></div>
+   ${d!==today()?`<div style="text-align:center;margin-top:6px"><button class="btn small" type="button" data-xday="0">Revenir à aujourd'hui</button></div>`:""}
+   ${late.length?`<div class="xwarn"><span class="xsp"><b>${late.length} tâche${late.length>1?"s":""} pas faite${late.length>1?"s":""} les jours d'avant.</b> <small>${late.slice(0,4).map(t=>esc(t.pour==="tous"?"Équipe":t.pour)+" : "+esc(t.txt)).join(" · ")}${late.length>4?" …":""}</small></span><button class="btn small" type="button" data-xreport>Les reporter à ce jour</button></div>`:""}
+   <div class="xpeople">${who.map(col).join("")}</div></div>
+  <div class="panel"><h2>Ajouter une tâche</h2><div class="xform"><input id="xt-txt" placeholder="Ex. Poser les supports des groupes extérieurs" style="grid-column:1/-1">
+   <select id="xt-pour">${who.map(p=>`<option value="${esc(p)}">${p==="tous"?"Toute l'équipe":esc(p)}</option>`).join("")}</select><input id="xt-d" type="date" value="${d}"><button class="btn primary" type="button" data-xtadd>Ajouter</button></div>
+   <p class="hint">Chaque technicien voit ses tâches du jour et celles de toute l'équipe dans « Ma journée », et les coche quand c'est fait.</p></div>`}
+function equipeHTML(c){
+  const eq=c.equipe||[];
+  return `<div class="panel"><h2>👷 Équipe du chantier</h2>
+   <div class="xform"><label class="xf">Technicien référent<select id="x-ref"${TERRAIN?" disabled":""}><option value="">— Pas de référent —</option>${[...new Set([...TECHS,...eq])].map(t=>`<option${t===c.referent?" selected":""}>${esc(t)}</option>`).join("")}</select></label></div>
+   ${TERRAIN?'<p class="hint">Seul le bureau change le référent.</p>':`<div class="xchips" style="margin-top:8px">${[...new Set([...TECHS,...eq])].map(t=>`<label class="xchip xck"><input type="checkbox" data-xeq="${esc(t)}"${eq.includes(t)?" checked":""}> ${esc(t)}</label>`).join("")}</div><p class="hint">Cochés : les techniciens qui voient ce chantier sur le terrain. Le référent a la main sur les tâches, le dossier et les réunions ; les autres voient leurs tâches du jour et les documents partagés.</p>`}</div>
+   ${tachesHTML(c)}${TERRAIN||!isBoss()?"":comptesHTML()}`}
+
+/* ----- dossier ----- */
+function docRow(c,x,edit){const k=XCATS[x.cat]||XCATS.infos;
+  return `<div class="xdoc" style="--cc:${k.c}"><span class="ic">${xic(x.name||x.nom)}</span>
+   <div style="min-width:0">${x.url?`<a class="n" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.nom)}</a>`:`<span class="n">${esc(x.nom)}</span>`}<div class="d">${k.n} · ${fd(x.date)}${x.par?" · "+esc(x.par):""}${x.size?" · "+xsize(x.size):""}</div></div>
+   ${edit?`<div class="xrow" style="flex-wrap:nowrap"><label class="xvis" title="Visible par les techniciens du chantier"><input type="checkbox" data-xvis="${x.id}"${x.vis?" checked":""}> 👷 équipe</label><button class="xx" type="button" data-xddel="${x.id}" aria-label="Supprimer ${esc(x.nom)}">🗑️</button></div>`:"<span></span>"}</div>`}
+function dossierHTML(c,edit){
+  const D=(c.docs||[]).filter(x=>edit||x.vis),L=D.filter(x=>xcat==="tout"||x.cat===xcat).sort((a,b)=>String(b.date).localeCompare(a.date));
+  const n=k=>D.filter(x=>k==="tout"||x.cat===k).length;
+  if(!edit)return `<div class="panel"><h2>ℹ️ Infos du chantier</h2><div class="xinfos">${esc(c.infos||"Rien de noté pour l'instant.")}</div></div>
+   <div class="panel"><h2>📁 Plans et documents</h2><div class="xdocs">${D.sort((a,b)=>String(b.date).localeCompare(a.date)).map(x=>docRow(c,x,false)).join("")||'<p class="hint">Aucun document partagé pour l\'instant.</p>'}</div><p class="hint">Lecture seule. ${c.referent?esc(c.referent)+" (référent)":"Le référent"} choisit ce qui est partagé.</p></div>`;
+  return `<div class="panel"><div class="xrow"><h2 class="xsp">📁 Dossier du chantier</h2><button class="btn primary" type="button" data-xadd>${xadd?"Fermer":"+ Ajouter des documents"}</button></div>
+   ${xadd?`<div class="xaddbox"><div class="xform"><label class="xf">Rangés dans<select id="xd-cat">${Object.keys(XCATS).map(k=>`<option value="${k}"${xcat===k?" selected":""}>${XCATS[k].ic} ${XCATS[k].n}</option>`).join("")}</select></label>
+     <label class="xvis" style="align-self:end;padding-bottom:10px"><input type="checkbox" id="xd-vis" checked> 👷 Visible par les techniciens</label></div>
+     <label class="xdrop" for="xd-f">📎 Choisir des fichiers <small>plans, PDF, photos… plusieurs possibles, 60 Mo max chacun</small></label><input type="file" id="xd-f" multiple hidden><div id="xd-prog" class="xdocs"></div></div>`:""}
+   <div class="xchips" style="margin:10px 0"><button type="button" class="xchip xbt" data-xcat="tout" aria-pressed="${xcat==="tout"}">Tout <small>${n("tout")}</small></button>${Object.keys(XCATS).map(k=>`<button type="button" class="xchip xbt" style="--cc:${XCATS[k].c}" data-xcat="${k}" aria-pressed="${xcat===k}">${XCATS[k].ic} ${XCATS[k].n} <small>${n(k)}</small></button>`).join("")}</div>
+   ${xcat==="tout"||xcat==="infos"?`<div class="xinfobox"><div class="xrow"><b class="xsp">ℹ️ Infos pratiques</b><button class="btn small" type="button" data-xinfo>${xinfo?"Enregistrer":"Modifier"}</button></div>${xinfo?`<textarea id="xi-t" rows="6" placeholder="Accès, clés, horaires, stockage, contacts sur place…">${esc(c.infos||"")}</textarea>`:`<div class="xinfos">${esc(c.infos||"Rien de noté : accès, clés, horaires, stockage…")}</div>`}<p class="hint" style="margin:4px 0 0">Toujours visibles par l'équipe du chantier.</p></div>`:""}
+   <div class="xdocs">${L.map(x=>docRow(c,x,true)).join("")||'<p class="hint">Rien dans cette rubrique.</p>'}</div>
+   <p class="hint">« 👷 équipe » coché : le document est visible par les techniciens du chantier, en lecture seule. Fichiers rangés dans SharePoint › Documents › « ${esc(folderOf(c))} ».</p></div>`}
+async function xupload(c,files,cat,vis){
+  const box=$("#xd-prog");const added=[];
+  for(const f of files){if(f.size>60*1024*1024){toast(f.name+" : trop lourd (60 Mo maximum)");continue}
+    const row=document.createElement("div");row.className="xdoc";row.innerHTML=`<span class="ic">${xic(f.name)}</span><div><span class="n">${esc(f.name)}</span><div class="d">Envoi… 0 %</div></div><span></span>`;if(box)box.appendChild(row);
+    try{if(!window.__suiviFiles)throw new Error("disponible dans la version en ligne");
+      const it=await window.__suiviFiles.upload(folderOf(c)+"/"+XCATS[cat].n,f,p=>{row.querySelector(".d").textContent="Envoi… "+Math.round(p*100)+" %"});
+      added.push({id:uid("d"),cat,nom:f.name.replace(/\.[^.]+$/,""),name:it.name||f.name,fid:it.id||"",url:it.webUrl||"",size:it.size||f.size,date:today(),par:me&&TERRAIN?me:(window.__meName||me),vis});
+      row.querySelector(".d").textContent="Envoyé ✓"}
+    catch(e){row.querySelector(".d").textContent="Échec : "+e.message;toast(f.name+" : envoi impossible ("+e.message+")")}}
+  if(added.length){const cc=CH.find(x=>x.id===c.id)||c;await majChantier(c.id,{docs:[...(cc.docs||[]),...added]});toast(added.length+" document"+(added.length>1?"s":"")+" ajouté"+(added.length>1?"s":""));xadd=false;xrr()}}
+
+/* ----- réunions de chantier ----- */
+function reunionsHTML(c){
+  if(xmeet){const m=RE.find(x=>x.id===xmeet);if(m)return meetHTML(c,m);xmeet=null}
+  const L=RE.filter(m=>m.ch===c.id).sort((a,b)=>String(b.date).localeCompare(a.date)||b.n-a.n);
+  return `<div class="panel"><div class="xrow"><h2 class="xsp">🤝 Réunions de chantier</h2><button class="btn primary" type="button" data-xmnew>+ Nouvelle réunion</button></div>
+   <div class="xdocs" style="margin-top:8px">${L.map(m=>{const nm=(m.points||[]).filter(p=>p.t==="modif").length,ns=(m.pres||[]).filter(p=>p.sig).length;
+    return `<button type="button" class="xmt" style="--mc:${m.locked?"var(--ok)":nm?"var(--c4)":"var(--c2)"}" data-xmopen="${m.id}"><span><b>Réunion n°${m.n}</b> · ${xlab(m.date)}${m.heure?" à "+m.heure.replace(":","h"):""}<br><small>${(m.pres||[]).length} présents · ${(m.points||[]).length} point${(m.points||[]).length>1?"s":""}${nm?` · ${nm} modification${nm>1?"s":""}`:""}</small></span>
+     ${m.locked?'<span class="xtag ok">✓ Signée</span>':nm?`<span class="xtag mid">${ns}/${(m.pres||[]).length} signatures</span>`:'<span class="xtag">En cours</span>'}</button>`}).join("")||'<p class="hint">Aucune réunion enregistrée.</p>'}</div>
+   <p class="hint">Dès qu'une réunion contient une modification, chaque présent signe au doigt. Une fois signée, elle est verrouillée et son PDF est rangé dans Dossier › Comptes rendus.</p></div>`}
+function meetHTML(c,m){
+  const lk=!!m.locked,sig1=(m.pres||[]).some(p=>p.sig),nm=(m.points||[]).filter(p=>p.t==="modif").length,fix=lk||sig1;
+  return `<div class="panel"><div class="xrow"><button class="btn small" type="button" data-xmback>← Réunions</button><span class="xsp"></span>${lk?'<span class="xtag ok">✓ Signée et verrouillée</span>':""}${!sig1&&!lk?`<button class="btn small" type="button" data-xmdel="${m.id}">${m._del?"Confirmer la suppression":"Supprimer"}</button>`:""}</div>
+    <h2 style="margin-top:6px">Réunion de chantier n°${m.n}</h2>
+    ${fix?`<p class="hint" style="margin:2px 0 0">${xlab(m.date)}${m.heure?" à "+m.heure.replace(":","h"):""}${m.lieu?" · "+esc(m.lieu):""}</p>`:`<div class="xform"><label class="xf">Date<input type="date" id="xm-d" value="${m.date}"></label><label class="xf">Heure<input type="time" id="xm-h" value="${m.heure||""}"></label><label class="xf">Lieu<input id="xm-l" value="${esc(m.lieu||"")}" placeholder="Sur place"></label></div>`}</div>
+   <div class="panel"><h3>Présents</h3>${(m.pres||[]).map((p,i)=>`<div class="xrow xline"><span class="xsp"><b>${esc(p.nom)}</b> <small class="hint">· ${esc(p.soc||"")}</small></span>${p.sig?`<span class="xtag ok">signé ${xhm(p.at)}</span>`:fix?"":`<button class="xx" type="button" data-xpdel="${i}" aria-label="Retirer ${esc(p.nom)}">✕</button>`}</div>`).join("")||'<p class="hint">Personne pour l\'instant.</p>'}
+    ${fix?"":`<div class="xform"><input id="xp-n" placeholder="Nom (ex. M. Bernard)"><input id="xp-s" placeholder="Société ou rôle (ex. Maître d'œuvre)"><button class="btn" type="button" data-xpadd>+ Ajouter</button></div>`}</div>
+   <div class="panel"><h3>Ce qui s'est dit</h3><div class="xdocs">${(m.points||[]).map((p,i)=>`<div class="xpt${p.t==="modif"?" modif":""}"><span class="xptype" style="color:${(XPT[p.t]||XPT.info).c}">${(XPT[p.t]||XPT.info).n}</span><span>${esc(p.txt)}${p.qui||p.ech?`<br><small class="hint">${p.qui?"Qui : "+esc(p.qui):""}${p.ech?" · pour le "+fd(p.ech):""}</small>`:""}</span>${fix?"<span></span>":`<button class="xx" type="button" data-xptdel="${i}" aria-label="Supprimer">✕</button>`}</div>`).join("")||'<p class="hint">Aucun point.</p>'}</div>
+    ${fix?"":`<div class="xchips" style="margin-top:10px">${Object.keys(XPT).map(k=>`<button type="button" class="xchip xbt" style="--cc:${XPT[k].c}" data-xptype="${k}" aria-pressed="${xptype===k}">${XPT[k].n}</button>`).join("")}</div>
+     <textarea id="xpt-t" rows="2" placeholder="Ce qui a été dit ou décidé" style="margin-top:8px"></textarea>
+     ${xptype==="modif"||xptype==="afaire"?`<div class="xform"><input id="xpt-q" placeholder="Qui s'en occupe (Artik, client…)"><input id="xpt-e" type="date" title="Pour le"></div>`:""}
+     <button class="btn" type="button" data-xptadd style="margin-top:8px">+ Ajouter le point</button>`}</div>
+   <div class="panel"><h3>✍️ Signatures</h3>
+    ${lk?`<div class="xok">✓ Signée par tous le ${fd(m.locked)} à ${xhm(m.locked)}. ${m.pdf?`<a href="${esc(m.pdf)}" target="_blank" rel="noopener">Ouvrir le PDF signé</a> (aussi rangé dans Dossier › Comptes rendus)`:`Le PDF n'est pas encore rangé. <button class="btn small" type="button" data-xmpdf>Faire le PDF</button>`}</div>`
+     :nm?`<div class="xwarn">Cette réunion contient <b>${nm} modification${nm>1?"s":""}</b> : chaque présent signe pour dire qu'il est d'accord avec ce qui est écrit.</div>`:'<p class="hint">Pas de modification : la signature est facultative.</p>'}
+    <div class="xsigs">${(m.pres||[]).map((p,i)=>`<div class="xsig"><b>${esc(p.nom)} <small class="hint">· ${esc(p.soc||"")}</small></b>
+     ${p.sig?`<img src="${p.sig}" alt="Signature de ${esc(p.nom)}"><small class="hint">Signé le ${fd(p.at)} à ${xhm(p.at)}</small>`
+      :`<canvas data-xpad="${m.id}|${i}" width="600" height="220" aria-label="Zone de signature de ${esc(p.nom)}"></canvas><div class="xrow"><button class="btn small" type="button" data-xsclr="${i}">Effacer</button><span class="xsp"></span><button class="btn small primary" type="button" data-xsok="${i}">Valider la signature</button></div>`}</div>`).join("")}</div>
+    ${lk?"":'<p class="hint">Dès qu\'un présent a signé, on ne peut plus modifier les points : pour un changement, faites une nouvelle réunion.</p>'}</div>`}
+function initPads(){document.querySelectorAll("canvas[data-xpad]").forEach(cv=>{const k=cv.dataset.xpad,x=cv.getContext("2d");x.lineWidth=5;x.lineCap="round";x.lineJoin="round";x.strokeStyle="#1D2530";
+  const st=PADS[k]||(PADS[k]={used:false,img:null});if(st.img){const im=new Image();im.onload=()=>x.drawImage(im,0,0);im.src=st.img}
+  let dn=false;const pos=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+  cv.onpointerdown=e=>{dn=true;try{cv.setPointerCapture(e.pointerId)}catch(_){}const [a,b]=pos(e);x.beginPath();x.moveTo(a,b);e.preventDefault()};
+  cv.onpointermove=e=>{if(!dn)return;const [a,b]=pos(e);x.lineTo(a,b);x.stroke();st.used=true};
+  cv.onpointerup=cv.onpointercancel=()=>{if(dn){dn=false;st.img=cv.toDataURL("image/png")}}})}
+async function saveMeet(m){const {id,_del,...v}=m;await db.collection("reunions").doc(id).set(v)}
+function loadJsPDF(){return window.jspdf?Promise.resolve():new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";s.onload=ok;s.onerror=()=>ko(new Error("module PDF indisponible"));document.head.appendChild(s)})}
+async function crPDF(c,m){await loadJsPDF();const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=16;let y=0;
+  const C4=[[228,103,10],[31,127,196],[142,35,68],[184,144,26]];C4.forEach((col,i)=>{doc.setFillColor(...col);doc.rect(i*W/4,0,W/4,3,"F")});
+  y=16;doc.setFont("helvetica","bold");doc.setFontSize(18);doc.text("Compte rendu de réunion de chantier n°"+m.n,M,y);
+  y+=7;doc.setFont("helvetica","normal");doc.setFontSize(11);doc.setTextColor(90);doc.text([c.client,c.ref,c.commune].filter(Boolean).join(" · "),M,y);
+  y+=5.5;doc.text(xlab(m.date)+(m.heure?" à "+m.heure.replace(":","h"):"")+(m.lieu?" · "+m.lieu:""),M,y);doc.setTextColor(20);
+  y+=9;doc.setFont("helvetica","bold");doc.text("Présents",M,y);doc.setFont("helvetica","normal");y+=5.5;
+  const pr=doc.splitTextToSize((m.pres||[]).map(p=>p.nom+(p.soc?" ("+p.soc+")":"")).join(", "),W-2*M);doc.text(pr,M,y);y+=pr.length*5+5;
+  doc.setFont("helvetica","bold");doc.text("Ce qui a été dit",M,y);y+=6;
+  (m.points||[]).forEach(p=>{const t=(XPT[p.t]||XPT.info).n.toUpperCase();const body=doc.splitTextToSize(p.txt+(p.qui?" — Qui : "+p.qui:"")+(p.ech?" — Pour le "+fd(p.ech):""),W-2*M-30);
+    if(y+body.length*5>270){doc.addPage();y=18}
+    if(p.t==="modif"){doc.setFillColor(255,244,214);doc.rect(M-2,y-4,W-2*M+4,body.length*5+3,"F")}
+    doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(t,M,y);doc.setFont("helvetica","normal");doc.setFontSize(11);doc.text(body,M+30,y);y+=body.length*5+4});
+  y+=4;if(y>220){doc.addPage();y=18}doc.setFont("helvetica","bold");doc.text("Signatures",M,y);y+=4;
+  const P=m.pres||[],cw=(W-2*M)/Math.min(3,Math.max(1,P.length));
+  P.forEach((p,i)=>{const col=i%3,row=Math.floor(i/3);let x=M+col*cw,yy=y+row*38;if(yy>255){doc.addPage();y=18;yy=y}
+    if(p.sig)try{doc.addImage(p.sig,"PNG",x,yy+2,cw-6,(cw-6)*220/600)}catch(_){}
+    doc.setDrawColor(180);doc.line(x,yy+28,x+cw-6,yy+28);doc.setFontSize(9);doc.text(p.nom+(p.at?" · "+fd(p.at)+" "+xhm(p.at):""),x,yy+32);doc.setFontSize(11)});
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(120);doc.text("Artik & Chassaing Technologies · document signé sur tablette · page "+i+" / "+n,M,290)}
+  return doc.output("blob")}
+async function finishMeet(c,m){
+  try{const blob=await crPDF(c,m);const name=`CR reunion n${m.n} du ${m.date} (signe).pdf`;
+    if(!window.__suiviFiles)throw new Error("rangement disponible dans la version en ligne");
+    const it=await window.__suiviFiles.upload(folderOf(c)+"/"+XCATS.cr.n,new File([blob],name,{type:"application/pdf"}));
+    m.pdf=it.webUrl||"";await saveMeet(m);
+    const cc=CH.find(x=>x.id===c.id)||c;await majChantier(c.id,{docs:[...(cc.docs||[]),{id:uid("d"),cat:"cr",nom:`CR réunion n°${m.n} du ${fd(m.date)} (signé)`,name,fid:it.id||"",url:it.webUrl||"",size:blob.size,date:m.date,par:"Signatures",vis:false}]});
+    toast("Tout le monde a signé : compte rendu verrouillé et rangé dans le dossier ✓")}
+  catch(e){toast("Réunion signée et verrouillée. PDF non rangé : "+e.message)}}
+db.collection("reunions").onSnapshot(s=>{const keep={};RE.forEach(m=>{if(m._del)keep[m.id]=1});RE=s.docs.map(d=>({id:d.id,...d.data(),_del:keep[d.id]?1:0}));if(loaded.c&&(xmeet||stab==="reunions"||ttab==="reunions"))xsafeRender()},()=>{});
+function xsafeRender(){if(document.activeElement&&/^(xpt-t|xp-n|xp-s|xm-l|xt-txt|xi-t)$/.test(document.activeElement.id))return;xrr()}
+
+/* ----- branchement dans les rendus ----- */
+const _rs=renderSheet;renderSheet=function(){_rs();initPads()};
+const _rt=renderTerrain;renderTerrain=function(){_rt();const sel=$("#tme");if(sel&&window.__xlocked){const l=sel.closest("label");if(l)l.hidden=true}initPads()};
+function xbody(c,tab){if(tab==="equipe")return TERRAIN?tachesHTML(c):equipeHTML(c);if(tab==="dossier")return dossierHTML(c,xcan(c));if(tab==="docs")return dossierHTML(c,false);if(tab==="reunions")return reunionsHTML(c);return ""}
+
+/* ----- actions ----- */
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button");if(!b)return;const d=b.dataset;const c=curC();
+  if(d.xcpt!==undefined){xcomptes=!xcomptes;xrr();return}
+  if(d.xcadd!==undefined){const L=readComptes();L.push({nom:"",email:""});COMPTES={...(COMPTES||{}),list:L};xrr();return}
+  if(d.xcdel!==undefined){const L=readComptes();L.splice(+d.xcdel,1);COMPTES={...(COMPTES||{}),list:L};xrr();return}
+  if(d.xcsave!==undefined){const L=readComptes().filter(x=>x.nom);const dup=L.map(x=>x.nom.toLowerCase()).find((n,i,a)=>a.indexOf(n)!==i);if(dup){toast("Deux personnes ont le même prénom : ajoutez l'initiale du nom");return}
+    b.disabled=true;try{await db.doc("params/comptes").set({list:L});xcomptes=false;toast("Comptes enregistrés");xrr()}catch(er){b.disabled=false;toast("Enregistrement impossible")}return}
+  if(!c)return;
+  if(d.xday!==undefined){xday=d.xday==="0"?today():xadd1(xday||today(),+d.xday);xrr();return}
+  if(d.xreport!==undefined){const day=xday||today();const L=JOUR.filter(j=>j.ch===c.id&&j.d<day&&!j.fait);for(const j of L)await db.doc("jour/"+j.id).update({d:day});toast(`${L.length} tâche${L.length>1?"s":""} reportée${L.length>1?"s":""} au ${fd(day)}`);return}
+  if(d.xtdel){await db.collection("jour").doc(d.xtdel).delete();toast("Tâche supprimée");return}
+  if(d.xtadd!==undefined){const t=$("#xt-txt").value.trim();if(!t){toast("Écris la tâche");return}const pour=$("#xt-pour").value,day=$("#xt-d").value||xday||today();
+    await db.collection("jour").doc(uid("j")).set({ch:c.id,d:day,txt:t,pour,fait:false,par:TERRAIN?me:(window.__meName||"bureau")});toast(`Tâche ajoutée pour ${pour==="tous"?"toute l'équipe":pour}`);return}
+  if(d.xcat){xcat=d.xcat;xrr();return}
+  if(d.xadd!==undefined){xadd=!xadd;xrr();return}
+  if(d.xinfo!==undefined){if(xinfo){const v=$("#xi-t").value;xinfo=false;await majChantier(c.id,{infos:v});toast("Infos enregistrées")}else{xinfo=true;xrr();const t=$("#xi-t");if(t)t.focus()}return}
+  if(d.xddel){if(!b.dataset.armed){b.dataset.armed="1";b.textContent="Supprimer ?";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent="🗑️"}},4000);return}
+    const x=(c.docs||[]).find(y=>y.id===d.xddel);if(!x)return;b.disabled=true;
+    try{if(x.fid&&window.__suiviFiles)await window.__suiviFiles.del(x.fid)}catch(er){if(er.status!==404){b.disabled=false;toast("Suppression impossible : "+er.message);return}}
+    await majChantier(c.id,{docs:(c.docs||[]).filter(y=>y.id!==d.xddel)});toast(`« ${x.nom} » supprimé`);return}
+  if(d.xmnew!==undefined){const n=Math.max(0,...RE.filter(m=>m.ch===c.id).map(m=>+m.n||0))+1,id=uid("r");const now=new Date();
+    const m={id,ch:c.id,n,date:today(),heure:String(now.getHours()).padStart(2,"0")+":00",lieu:"Sur place",pres:[{nom:TERRAIN?me:(window.__meName||me),soc:c.societe==="chassaing"?"Chassaing Technologies":"Artik"}],points:[],locked:null};
+    RE.push(m);xmeet=id;xptype="info";xrr();try{await saveMeet(m);toast(`Réunion n°${n} créée`)}catch(er){toast("Enregistrement impossible")}return}
+  if(d.xmopen){xmeet=d.xmopen;xptype="info";xrr();return}
+  if(d.xmback!==undefined){xmeet=null;xrr();return}
+  const m=xmeet&&RE.find(x=>x.id===xmeet);if(!m)return;
+  const fixed=()=>m.locked||(m.pres||[]).some(p=>p.sig);
+  const syncHead=()=>{if($("#xm-d")){m.date=$("#xm-d").value||m.date;m.heure=$("#xm-h").value;m.lieu=$("#xm-l").value}};
+  if(d.xmpdf!==undefined){b.disabled=true;b.textContent="PDF en cours…";await finishMeet(c,m);xrr();return}
+  if(d.xmdel){if(!m._del){m._del=1;xrr();return}RE=RE.filter(x=>x.id!==m.id);xmeet=null;xrr();await db.collection("reunions").doc(m.id).delete();toast("Réunion supprimée");return}
+  if(d.xptype){xptype=d.xptype;const t=$("#xpt-t").value;syncHead();xrr();$("#xpt-t").value=t;return}
+  if(d.xpadd!==undefined){if(fixed())return;const n=$("#xp-n").value.trim();if(!n){toast("Indique le nom");return}syncHead();m.pres=[...(m.pres||[]),{nom:n,soc:$("#xp-s").value.trim()}];xrr();await saveMeet(m);return}
+  if(d.xpdel!==undefined){if(fixed())return;syncHead();m.pres.splice(+d.xpdel,1);xrr();await saveMeet(m);return}
+  if(d.xptadd!==undefined){if(fixed()){toast("Quelqu'un a déjà signé : on ne modifie plus");return}const t=$("#xpt-t").value.trim();if(!t){toast("Écris le point");return}syncHead();
+    m.points=[...(m.points||[]),{t:xptype,txt:t,qui:$("#xpt-q")?$("#xpt-q").value.trim():"",ech:$("#xpt-e")?$("#xpt-e").value:""}];xrr();await saveMeet(m);toast(xptype==="modif"?"Modification ajoutée : signatures demandées":"Point ajouté");return}
+  if(d.xptdel!==undefined){if(fixed())return;syncHead();m.points.splice(+d.xptdel,1);xrr();await saveMeet(m);return}
+  if(d.xsclr!==undefined){const k=m.id+"|"+d.xsclr,cv=document.querySelector(`canvas[data-xpad="${k}"]`);if(cv)cv.getContext("2d").clearRect(0,0,cv.width,cv.height);PADS[k]={used:false,img:null};return}
+  if(d.xsok!==undefined){const k=m.id+"|"+d.xsok,st=PADS[k],cv=document.querySelector(`canvas[data-xpad="${k}"]`);if(!st||!st.used||!cv){toast("Signe dans le cadre d'abord");return}
+    syncHead();const sm=document.createElement("canvas");sm.width=300;sm.height=110;const sx=sm.getContext("2d");sx.fillStyle="#fff";sx.fillRect(0,0,300,110);sx.drawImage(cv,0,0,300,110);
+    const p=m.pres[+d.xsok];p.sig=sm.toDataURL("image/png");p.at=new Date().toISOString();delete PADS[k];
+    const all=m.pres.every(x=>x.sig);if(all)m.locked=new Date().toISOString();
+    b.disabled=true;try{await saveMeet(m)}catch(er){toast("Signature non enregistrée");return}
+    if(all)await finishMeet(c,m);else toast(`Signature de ${p.nom} enregistrée`);xrr();return}
+});
+document.addEventListener("change",async e=>{const c=curC();if(!c)return;const t=e.target;
+  if(t.id==="x-ref"){await majChantier(c.id,{referent:t.value});toast(t.value?t.value+" est le référent de ce chantier":"Plus de référent");return}
+  if(t.dataset.xeq){const eq=new Set(c.equipe||[]);t.checked?eq.add(t.dataset.xeq):eq.delete(t.dataset.xeq);await majChantier(c.id,{equipe:[...eq]});return}
+  if(t.dataset.xvis){const docs=(c.docs||[]).map(x=>x.id===t.dataset.xvis?{...x,vis:t.checked}:x);await majChantier(c.id,{docs});toast(t.checked?"Visible par les techniciens":"Caché aux techniciens");return}
+  if(t.id==="xd-f"){const files=[...t.files];t.value="";if(!files.length)return;await xupload(c,files,$("#xd-cat").value,$("#xd-vis").checked);return}
+  if(xmeet&&/^xm-/.test(t.id)){const m=RE.find(x=>x.id===xmeet);if(m&&!m.locked&&!(m.pres||[]).some(p=>p.sig)){m.date=$("#xm-d").value||m.date;m.heure=$("#xm-h").value;m.lieu=$("#xm-l").value;await saveMeet(m)}}
+});
+
 setTimeout(()=>{if(!loaded.c){loaded.c=1;render()}},8000);
 })();
 </script>
