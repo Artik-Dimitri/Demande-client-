@@ -1679,5 +1679,15 @@ function go(){var w=document.querySelector(".wrap");if(!w||document.querySelecto
  mv();new MutationObserver(mv).observe(document.body,{childList:true,subtree:true});}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();})();</script>
 <!--/SKIN-->
+<script>/* Saisie des dates au clavier : on attend la fin de la saisie (sortie du champ ou Entrée) avant de prévenir la page.
+   Sans ça, chaque chiffre tapé déclenche « change » avec une date provisoire (année 0002, jour 2 au lieu de 20…) et la page corrige le champ pendant la frappe. */
+(function(){let pass=false;
+const isD=t=>t&&t.tagName==="INPUT"&&(t.type==="date"||t.type==="datetime-local"||t.type==="month");
+const flush=t=>{t.__tape=false;if(!t.__pend)return;t.__pend=false;pass=true;try{t.dispatchEvent(new Event("input",{bubbles:true}));t.dispatchEvent(new Event("change",{bubbles:true}))}finally{pass=false}};
+document.addEventListener("keydown",e=>{const t=e.target;if(!isD(t))return;if(e.key==="Enter"){flush(t);return}if(e.key!=="Tab"&&e.key!=="Shift")t.__tape=true},true);
+["input","change"].forEach(ev=>document.addEventListener(ev,e=>{const t=e.target;if(pass||!isD(t)||!t.__tape)return;e.stopImmediatePropagation();t.__pend=true},true));
+document.addEventListener("pointerdown",e=>{const t=e.target;if(isD(t))flush(t)},true);
+document.addEventListener("blur",e=>{const t=e.target;if(isD(t))flush(t)},true);
+})();</script>
 </body>
 </html>

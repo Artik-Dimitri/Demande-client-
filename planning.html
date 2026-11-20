@@ -80,7 +80,7 @@ select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid v
 /* À planifier */
 .todo{background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px}
 .todo h3{font-family:var(--f-display);font-size:19px;font-weight:600;margin:0 0 8px;display:flex;align-items:center;gap:8px}
-.todo-list{display:flex;flex-wrap:wrap;gap:8px}
+.todo-list{display:flex;flex-wrap:wrap;gap:8px;max-height:230px;overflow:auto;padding:2px}.chq{display:flex;gap:10px;align-items:center;margin:0 0 10px;flex-wrap:wrap}.chq input{max-width:340px}.chq label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}.todo-item .fin{font-size:12px;font-weight:700;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer;color:var(--muted);background:var(--surface)}.todo-item .fin:hover{border-color:var(--ok);color:var(--ok)}.todo-item .fin.armed{background:var(--ok);border-color:var(--ok);color:#fff}.todo-item.nonplan{background:var(--soft,#f6f6f6)}.afact{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--orange);border-radius:8px;padding:12px 14px;margin-bottom:12px}.afact h3{margin:0 0 8px}.afact-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--line);font-size:14px}.afact-row:first-of-type{border-top:0}.afact-row b{min-width:0}.afact-row small{color:var(--muted)}.afact-row .btn:first-of-type{margin-left:auto}
 .todo-item{border:1px solid var(--line);border-left:4px solid var(--ec,var(--gray));background:var(--surface);border-radius:6px;padding:7px 11px;cursor:pointer;font-size:14px;display:flex;gap:8px;align-items:baseline}
 .todo-item:hover{border-color:var(--gray);border-left-color:var(--ec)}
 .todo-item{touch-action:none;cursor:grab;user-select:none}
@@ -846,6 +846,9 @@ function barHTML(x,g,top,tech,conflit){
   const add=canAdd?`<span class="addt" data-add="1" role="button" tabindex="0" title="Ajouter ou retirer des techniciens" style="${split?`right:auto;left:${last.b-34}px`:""}">+</span>`:"";
   return `<div class="bar ${x.statut}${split?" split":""}${canAdd&&!split?" has-add":""}${sp.cutL?" cut-l":""}${sp.cutR?" cut-r":""}${conflit?" conflit":""}" data-id="${x.id}" data-tech="${esc(tech)}" style="--bc:${colorOf(x)};left:${sp.left}px;top:${top}px;width:${Math.max(sp.width-2,5)}px" title="${esc(x.client)} · ${jours(len)}${t.length?" · "+esc(t.join(", ")):""}${conflit?" · CONFLIT : technicien déjà pris":""}">${txt}${add}${!split||last.b>=sp.width-1?'<span class="grip" data-grip="1"></span>':""}</div>`;
 }
+let chQ="",chNP=false;
+function afactHTML(f){const l=f.filter(x=>x.aFacturer&&x.statut==="termine");if(!l.length)return"";
+  return `<div class="afact"><h3>🧾 À facturer <span class="chip warn">${l.length}</span> <small style="font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted)">chantiers terminés, en attente de facture</small></h3>${l.map(x=>{const raf=Math.max(0,(Number(x.montant)||0)-(Number(x.facture)||0));return `<div class="afact-row"><span class="sw" style="--bc:${colorOf(x)}"></span><b>${esc(x.client)}</b><small>${esc(x.charge||"—")} · terminé le ${x.dateFin?fd(parse(x.dateFin)):"–"} · vendu ${eur(x.montant)}${raf?" · reste à facturer "+eur(raf):""}</small><button class="btn small" type="button" data-open="${x.id}">Fiche</button><button class="btn small primary" type="button" data-facture="${x.id}">Facture faite</button></div>`}).join("")}</div>`}
 function planningHTML(){
   const f=filtered(),showT=$("#fl-term").checked;
   const todo=f.filter(x=>x.statut==="aplanifier"||!x.debut);
@@ -857,7 +860,13 @@ function planningHTML(){
   if(loaded&&sig.length)h+=`<div class="signes"><h3>📄 Devis signés à ajouter <span class="chip warn">${sig.length}</span> <small>repris de « Demandes de devis »${window.__devisSignes?"":" · exemples"}</small>${sig.length>1?'<button class="btn small" type="button" data-sigall>Tout ajouter</button>':""}</h3><div class="todo-list">${sig.map(d=>`<div class="sig-item" style="--ec:var(--cat${catIdx(d.metier)<0?5:catIdx(d.metier)+1})"><span><b>${esc(d.client)}</b><small>${esc(d.ref)} · ${esc(d.chiffreur||"—")}${d.montant?" · "+eur(d.montant):""}${d.metier?" · "+esc(d.metier):""}</small></span><button class="btn small primary" type="button" data-sig="${esc(d.ref)}">+ Ajouter</button><button class="btn small" type="button" data-sigx="${esc(d.ref)}" title="Ne pas planifier ce devis" aria-label="Ignorer">✕</button></div>`).join("")}</div></div>`;
   if(loaded){const al=f.flatMap(x=>alertsOf(x).map(a=>({...a,x}))).sort((a,b)=>(a.niv==="danger"?0:1)-(b.niv==="danger"?0:1));
     if(al.length)h+=`<div class="alerts"><h3>Échéances à surveiller <span class="chip ${al.some(a=>a.niv==="danger")?"bad":"warn"}">${al.length}</span></h3>${al.map(a=>`<button type="button" class="al ${a.niv}" data-open="${a.x.id}"><b>${esc(a.x.client)}</b><span>${a.txt}</span></button>`).join("")}</div>`}
-  if(loaded)h+=`<div class="todo"><h3>À planifier <span class="chip ${todo.length?"warn":""}">${todo.length}</span> <small style="font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted)">glisser sur le planning pour caler · y ramener une barre pour la déprogrammer</small></h3><div class="todo-list">${todo.map(x=>`<button type="button" class="todo-item" data-open="${x.id}" style="--ec:${colorOf(x)}"><b>${esc(x.client)}</b><small>${esc(x.charge||"—")} · ${eur(x.montant)} · ${x.heures||0} h${x.dateDebutImp?` · <span class="dlt">début impératif ${fd(parse(x.dateDebutImp))}</span>`:""}${x.dateFinLimite?` · <span class="dlt">fin au plus tard ${fd(parse(x.dateFinLimite))}</span>`:""}</small></button>`).join("")||'<span class="hint" style="margin:0">Rien à planifier. Glissez ici une barre du planning pour la retirer du planning.</span>'}</div></div>`;
+  if(loaded)h+=afactHTML(f);
+  if(loaded){const pal=f.filter(x=>x.statut!=="termine"&&x.statut!=="solde").sort((a,c)=>((a.statut==="aplanifier"||!a.debut)?0:1)-((c.statut==="aplanifier"||!c.debut)?0:1)||String(a.client).localeCompare(String(c.client),"fr"));
+    const q=chQ.trim().toLowerCase(),nonp=pal.filter(x=>x.statut==="aplanifier"||!x.debut).length;
+    h+=`<div class="todo"><h3>Chantiers <span class="chip ${nonp?"warn":""}">${nonp} à planifier</span> <small style="font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted)">glisser un nom sur le planning : 1 jour, puis allonger ou déplacer la barre · reglisser un chantier déjà calé = une reprise · ramener une barre ici pour la déprogrammer</small></h3>
+    <div class="chq"><input type="search" id="ch-q" placeholder="🔍 Rechercher un chantier, un chargé…" value="${esc(chQ)}" autocomplete="off"><label><input type="checkbox" id="ch-np"${chNP?" checked":""}> à planifier seulement</label></div>
+    <div class="todo-list">${pal.map(x=>{const np=x.statut==="aplanifier"||!x.debut,key=(x.client+" "+(x.charge||"")).toLowerCase();
+      return `<div role="button" tabindex="0" class="todo-item${np?" nonplan":""}" data-open="${x.id}" data-q="${esc(key)}" data-np="${np?1:0}"${(q&&!key.includes(q))||(chNP&&!np)?" hidden":""} style="--ec:${colorOf(x)}"><b>${esc(x.client)}</b><small>${esc(x.charge||"—")} · ${x.heures||0} h · ${np?'<span class="dlt">à planifier</span>':"calé dès le "+fd(parse(x.debut))}${x.dateDebutImp?` · <span class="dlt">début impératif ${fd(parse(x.dateDebutImp))}</span>`:""}${x.dateFinLimite?` · <span class="dlt">fin au plus tard ${fd(parse(x.dateFinLimite))}</span>`:""}</small>${np?"":`<span class="fin" data-fin="${x.id}" title="Chantier terminé : il part dans « À facturer »">🏁 Fin</span>`}</div>`}).join("")||'<span class="hint" style="margin:0">Aucun chantier en cours. Glissez ici une barre du planning pour la retirer du planning.</span>'}</div></div>`}
   const g=G=buildGrid();
   const last=g.cells[g.cells.length-1].d;
   $("#range").textContent=zoom==="jour"?g.start.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"}):`${fd(g.start)} – ${fd(last)}${zoom==="six"?" "+last.getFullYear():""}`;
@@ -1031,7 +1040,7 @@ document.addEventListener("pointerup",async()=>{
 /* ---------- glisser depuis « À planifier » vers le planning ---------- */
 let pick=null,suppressClick=false;
 document.addEventListener("pointerdown",e=>{
-  const it=e.target.closest(".todo-item");if(!it||!db||tab!=="planning")return;
+  const it=e.target.closest(".todo-item");if(!it||!db||tab!=="planning"||e.target.closest("[data-fin]"))return;
   const x=items.find(i=>i.id===it.dataset.open);if(!x)return;
   pick={it,x,sx:e.clientX,sy:e.clientY,moved:false,ghost:null,drop:null};
   it.setPointerCapture(e.pointerId);
@@ -1040,7 +1049,7 @@ document.addEventListener("pointermove",e=>{
   if(!pick)return;
   if(!pick.moved&&Math.hypot(e.clientX-pick.sx,e.clientY-pick.sy)<6)return;
   if(!pick.moved){pick.moved=true;const gh=document.createElement("div");gh.className="ghost";gh.style.setProperty("--bc",colorOf(pick.x));
-    gh.innerHTML=esc(pick.x.client)+`<small>${jours(slotsOf(pick.x))}</small>`;document.body.appendChild(gh);pick.ghost=gh}
+    gh.innerHTML=esc(pick.x.client)+`<small>1 j</small>`;document.body.appendChild(gh);pick.ghost=gh}
   pick.ghost.style.left=(e.clientX+8)+"px";pick.ghost.style.top=(e.clientY-16)+"px";
   document.querySelectorAll(".dropzone,.trow.drop").forEach(el=>el.classList.remove("dropzone","drop"));
   const els=document.elementsFromPoint(e.clientX,e.clientY);
@@ -1053,7 +1062,7 @@ document.addEventListener("pointermove",e=>{
     pick.drop={ws,row:row?row.getAttribute("data-tech"):null};
     track.classList.add("dropzone");if(row&&row.getAttribute("data-tech"))row.classList.add("drop");
     const p=fromSlot(ws);pick.ghost.querySelector("small").textContent=`${fd(parse(p.debut))}${snapNow()===2?"":p.pm?" a.-midi":" matin"}${row&&row.getAttribute("data-tech")?" · "+row.getAttribute("data-tech"):""}`;
-  }else pick.ghost.querySelector("small").textContent=jours(slotsOf(pick.x));
+  }else pick.ghost.querySelector("small").textContent=(pick.x.debut&&pick.x.statut!=="aplanifier")?"reprise · 1 j":"1 j";
 });
 document.addEventListener("pointerup",async()=>{
   if(!pick)return;const p=pick;pick=null;
@@ -1062,13 +1071,21 @@ document.addEventListener("pointerup",async()=>{
   if(!p.moved)return;
   suppressClick=true;setTimeout(()=>suppressClick=false,50);
   if(!p.drop){toast("Déposez le chantier sur le planning pour le caler",true);return}
-  const pos=fromSlot(p.drop.ws),patch={debut:pos.debut,pm:pos.pm,statut:"planifie",slots:slotsOf(p.x)};
+  const pos=fromSlot(p.drop.ws),sl=pos.pm?1:2,quand=fd(parse(pos.debut))+(pos.pm?" après-midi":"");
   const neuf=p.x.statut==="aplanifier"||!p.x.debut;
-  let who="";
-  if(p.drop.row&&mode==="techniciens"){const t=(p.x.techs||[]).slice();if(!t.includes(p.drop.row))t.push(p.drop.row);patch.techs=t;who=" · "+p.drop.row}
-  if(p.drop.row&&mode==="equipes"){const nw=equipeList().find(q=>q.nom===p.drop.row);const t=(p.x.techs||[]).slice();if(nw)nw.membres.forEach(m=>{if(!t.includes(m))t.push(m)});patch.techs=t;patch.equipe=p.drop.row;who=" · "+p.drop.row}
-  if(neuf){setTimeout(()=>openPlage(p.x,patch),80);return}
-  await save(p.x.id,patch,"Planifié le "+fd(parse(pos.debut))+(pos.pm?" après-midi":"")+who);
+  if(neuf){const patch={debut:pos.debut,pm:pos.pm,statut:"planifie",slots:sl};let who="";
+    if(p.drop.row&&mode==="techniciens"){const t=(p.x.techs||[]).slice();if(!t.includes(p.drop.row))t.push(p.drop.row);patch.techs=t;who=" · "+p.drop.row}
+    if(p.drop.row&&mode==="equipes"){const nw=equipeList().find(q=>q.nom===p.drop.row);const t=(p.x.techs||[]).slice();if(nw)nw.membres.forEach(m=>{if(!t.includes(m))t.push(m)});patch.techs=t;patch.equipe=p.drop.row;who=" · "+p.drop.row}
+    await save(p.x.id,patch,p.x.client+" calé le "+quand+who+" · allongez la barre si besoin");render();return}
+  /* déjà au planning : on ajoute une reprise d'un jour, avec la même équipe que la dernière période (ou le technicien de la ligne) */
+  const parts=partsOf(p.x),lastP=parts[parts.length-1];
+  let techs=(lastP.techs||[]).slice(),equipe=lastP.equipe||"";
+  if(p.drop.row&&mode==="techniciens")techs=[p.drop.row];
+  if(p.drop.row&&mode==="equipes"){const nw=equipeList().find(q=>q.nom===p.drop.row);techs=nw?nw.membres.slice():techs;equipe=p.drop.row}
+  if(parts.some(q=>{const a=slotOf(q.debut,q.pm);return p.drop.ws>=a&&p.drop.ws<a+q.slots})){toast("Ce jour est déjà dans une période de "+p.x.client+" : glissez plutôt sa barre",true);render();return}
+  const ph=(p.x.phases||[]).map(q=>({...q}));ph.push({debut:pos.debut,pm:pos.pm,slots:sl,techs,off:{},equipe});ph.sort((a,c)=>a.debut.localeCompare(c.debut));
+  const upd={phases:ph};if(p.x.statut==="aplanifier")upd.statut="planifie";
+  await save(p.x.id,upd,p.x.client+" : reprise ajoutée le "+quand);
   render();
 });
 /* ---------- Planifier un chantier « du … au … » ----------
@@ -1128,7 +1145,7 @@ function listeHTML(){
   const tot=f.reduce((a,x)=>{const b=bilan(x);return {m:a.m+(Number(x.montant)||0),fa:a.fa+(Number(x.facture)||0),mo:a.mo+b.mo,ach:a.ach+b.ach}},{m:0,fa:0,mo:0,ach:0});
   const tm=tot.m-tot.mo-tot.ach;
   const techs=techList();
-  return `<div class="panel"><h3>Suivi des chantiers</h3><div class="tblwrap"><table>
+  return afactHTML(f)+`<div class="panel"><h3>Suivi des chantiers</h3><div class="tblwrap"><table>
    <thead><tr><th>Chantier</th><th>Société</th><th>Catégorie</th><th>Chargé</th><th>Statut</th><th>Début</th><th class="num">Durée</th><th class="num">Vendu HT</th><th class="num">Facturé</th><th class="num">Reste à facturer</th><th>Heures passées / vendues</th><th class="num">Main d'œuvre</th><th class="num">Achats</th><th class="num">Marge</th></tr></thead>
    <tbody>${f.map(x=>{const raf=Math.max(0,(Number(x.montant)||0)-(Number(x.facture)||0));return `<tr data-open="${x.id}">
      <td><b>${esc(x.client)}</b>${x.exemple?' <span class="chip ex">Exemple</span>':""}</td>
@@ -1298,7 +1315,7 @@ function openSheet(id){
       <label class="field"><span>Note</span><textarea id="c-note" rows="3">${esc(x.note)}</textarea></label>
     </fieldset>
     <div class="err" id="c-err" hidden></div>
-    <div class="actions">${id?'<button class="btn danger" type="button" id="c-del">Supprimer</button>':""}<button class="btn" type="button" data-close>Annuler</button><button class="btn primary" type="button" id="c-ok">Enregistrer</button></div>
+    <div class="actions">${id?'<button class="btn danger" type="button" id="c-del">Supprimer</button>':""}${id&&x.statut!=="termine"&&x.statut!=="solde"?'<button class="btn" type="button" id="c-fin2">🏁 Chantier terminé</button>':""}<button class="btn" type="button" data-close>Annuler</button><button class="btn primary" type="button" id="c-ok">Enregistrer</button></div>
   </div></div>`;
   o.hidden=false;
   o.querySelectorAll(".seg").forEach(g=>g.addEventListener("click",e=>{const b=e.target.closest("button");if(b)g.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed",z===b))}));
@@ -1381,6 +1398,7 @@ function openSheet(id){
       close();toast(id?"Chantier enregistré":"Chantier ajouté");
     }catch(e){$("#c-ok").disabled=false;$("#c-err").textContent="Enregistrement impossible ("+(e.code||e.message)+").";$("#c-err").hidden=false}
   });
+  const fin2=$("#c-fin2");if(fin2){let armed=false;fin2.addEventListener("click",async()=>{if(!armed){armed=true;fin2.textContent="Confirmer : terminé, à facturer";return}close();await finChantier(id)})}
   const del=$("#c-del");if(del){let armed=false;del.addEventListener("click",async()=>{
     if(!armed){armed=true;del.textContent="Confirmer la suppression";return}
     try{await db.doc("chantiers/"+id).delete();close();toast("Chantier supprimé")}catch(e){toast("Suppression impossible",true)}})}
@@ -1396,7 +1414,8 @@ function render(){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
   $("#nav").hidden=tab!=="planning";
   const v=$("#view");
-  if(tab==="planning")v.innerHTML=planningHTML();else if(tab==="params"){v.innerHTML=paramsHTML();bindListe()}else v.innerHTML=listeHTML()
+  const qf=document.activeElement&&document.activeElement.id==="ch-q",qs=qf?document.activeElement.selectionStart:0;
+  if(tab==="planning"){v.innerHTML=planningHTML();if(qf){const q=$("#ch-q");if(q){q.focus();try{q.setSelectionRange(qs,qs)}catch(e){}}}}else if(tab==="params"){v.innerHTML=paramsHTML();bindListe()}else v.innerHTML=listeHTML()
 }
 function step(dir){
   const showWE=$("#fl-wk").checked;
@@ -1423,7 +1442,16 @@ $("#zoom").addEventListener("click",e=>{const b=e.target.closest("[data-z]");if(
 $("#prev").addEventListener("click",()=>step(-1));
 $("#next").addEventListener("click",()=>step(1));
 $("#today").addEventListener("click",()=>{viewDate=new Date();render()});
-$("#view").addEventListener("click",e=>{if(suppressClick)return;const o=e.target.closest("[data-open]");if(o&&!e.target.closest(".bar"))openSheet(o.dataset.open)});
+$("#view").addEventListener("click",async e=>{
+  const fb=e.target.closest("[data-fin]");if(fb){e.stopPropagation();if(!fb.classList.contains("armed")){document.querySelectorAll(".fin.armed").forEach(z=>{z.classList.remove("armed");z.textContent="🏁 Fin"});fb.classList.add("armed");fb.textContent="Confirmer la fin ?";return}
+    await finChantier(fb.dataset.fin);return}
+  const fa=e.target.closest("[data-facture]");if(fa){if(!fa.classList.contains("armed")){fa.classList.add("armed");fa.textContent="Confirmer : facture faite";return}
+    const x=items.find(i=>i.id===fa.dataset.facture);if(!x)return;await save(x.id,{aFacturer:false,statut:"solde",dateFacture:ymd(new Date())},x.client+" : facture faite, chantier soldé");render();return}});
+async function finChantier(id){const x=items.find(i=>i.id===baseId(id));if(!x)return;await save(x.id,{statut:"termine",aFacturer:true,dateFin:ymd(new Date())},x.client+" terminé · il est dans « À facturer »");render()}
+$("#view").addEventListener("input",e=>{if(e.target.id!=="ch-q")return;chQ=e.target.value;const q=chQ.trim().toLowerCase();document.querySelectorAll(".todo-item[data-q]").forEach(el=>el.hidden=(q&&!el.dataset.q.includes(q))||(chNP&&el.dataset.np!=="1"))});
+$("#view").addEventListener("change",e=>{if(e.target.id!=="ch-np")return;chNP=e.target.checked;render()});
+$("#view").addEventListener("keydown",e=>{const it=e.target.closest&&e.target.closest(".todo-item");if(it&&e.key==="Enter")openSheet(it.dataset.open)});
+$("#view").addEventListener("click",e=>{if(suppressClick||e.target.closest("[data-fin],[data-facture]"))return;const o=e.target.closest("[data-open]");if(o&&!e.target.closest(".bar"))openSheet(o.dataset.open)});
 $("#btn-new").addEventListener("click",()=>openSheet(null));
 $("#btn-abs").addEventListener("click",()=>openAbs());
 $("#view").addEventListener("click",e=>{const a=e.target.closest("[data-absd]");if(!a)return;const [t,d]=a.dataset.absd.split("|");const ab=ABS.find(z=>z.tech===t&&z.du<=d&&(z.au||z.du)>=d);if(ab)openAbs(ab.id)});
@@ -1549,5 +1577,15 @@ function go(){var w=document.querySelector(".wrap");if(!w||document.querySelecto
  mv();new MutationObserver(mv).observe(document.body,{childList:true,subtree:true});}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();})();</script>
 <!--/SKIN-->
+<script>/* Saisie des dates au clavier : on attend la fin de la saisie (sortie du champ ou Entrée) avant de prévenir la page.
+   Sans ça, chaque chiffre tapé déclenche « change » avec une date provisoire (année 0002, jour 2 au lieu de 20…) et la page corrige le champ pendant la frappe. */
+(function(){let pass=false;
+const isD=t=>t&&t.tagName==="INPUT"&&(t.type==="date"||t.type==="datetime-local"||t.type==="month");
+const flush=t=>{t.__tape=false;if(!t.__pend)return;t.__pend=false;pass=true;try{t.dispatchEvent(new Event("input",{bubbles:true}));t.dispatchEvent(new Event("change",{bubbles:true}))}finally{pass=false}};
+document.addEventListener("keydown",e=>{const t=e.target;if(!isD(t))return;if(e.key==="Enter"){flush(t);return}if(e.key!=="Tab"&&e.key!=="Shift")t.__tape=true},true);
+["input","change"].forEach(ev=>document.addEventListener(ev,e=>{const t=e.target;if(pass||!isD(t)||!t.__tape)return;e.stopImmediatePropagation();t.__pend=true},true));
+document.addEventListener("pointerdown",e=>{const t=e.target;if(isD(t))flush(t)},true);
+document.addEventListener("blur",e=>{const t=e.target;if(isD(t))flush(t)},true);
+})();</script>
 </body>
 </html>
