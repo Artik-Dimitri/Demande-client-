@@ -260,6 +260,51 @@ legend::before{content:"";width:14px;height:3px;background:var(--orange)}
 .perh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}.perh .btn{margin-left:auto}
 .techs.sm button{font-size:12px;padding:4px 10px}
 .plactions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
+.todo-list{max-height:132px!important}.todo .todo-item{padding:5px 9px;font-size:13.5px;gap:6px;align-items:center}.todo .todo-item .fin{padding:1px 6px;font-size:11.5px}
+.todo{padding:10px 12px!important}.chq{margin-bottom:8px!important}.chq input{padding:6px 10px}
+/* --- mise en page allégée (nov. 2026) --- */
+.stats{display:flex!important;flex-wrap:wrap;gap:8px!important;margin-bottom:12px!important}
+.stat{flex-direction:row!important;align-items:baseline;gap:6px!important;padding:6px 12px!important;border-radius:999px!important;border-top:0!important;border:1px solid var(--line)!important;border-left:4px solid var(--sc,var(--orange))!important}
+.stat b{font-size:18px!important;line-height:1.2}
+.stat span{font-size:13px;color:var(--muted)}
+#fl1{gap:10px;margin-bottom:10px}#fl1>select{max-width:260px}
+.opts{position:relative}.opts summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:6px;padding:8px 12px;font-size:14px;font-weight:600;background:var(--surface);user-select:none}
+.opts summary::-webkit-details-marker{display:none}.opts[open] summary{border-color:var(--orange)}
+.opts-in{position:absolute;z-index:30;top:calc(100% + 6px);left:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-width:260px}
+.opts-in .lab2{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px}.opts-in .lab2 select{width:auto;padding:5px 8px}
+.opts-in .ck{display:flex;gap:8px;align-items:center;font-size:14px}
+#nav{margin-bottom:12px}
+.navtop{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.seg3{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg3 button{border:0;background:transparent;padding:8px 14px;font:inherit;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;gap:6px;align-items:center}
+.seg3 button+button{border-left:1px solid var(--line)}
+.seg3 button[aria-pressed=true]{background:var(--orange);color:#fff}
+.seg3 button:disabled{opacity:.4;cursor:not-allowed}
+.seg3.small button{padding:6px 11px;font-size:13px}
+.weekbar{display:flex;gap:6px;align-items:stretch}
+.wbtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:34px;font-size:22px;line-height:1;cursor:pointer;color:var(--muted);flex:none}
+.wbtn:hover{border-color:var(--orange);color:var(--orange)}
+.weekbar #today{flex:none;align-self:center}
+.weeks{display:flex;gap:5px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;padding:2px}
+.wk{flex:none;width:74px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:5px 6px 6px;cursor:pointer;display:flex;flex-direction:column;gap:3px;text-align:left;font:inherit;color:inherit}
+.wk b{font-size:13px}.wk small{font-size:11px;color:var(--muted);white-space:nowrap}
+.wk i{display:block;height:6px;border-radius:3px;background:var(--line);overflow:hidden;position:relative}
+.wk i u{position:absolute;left:0;top:0;bottom:0;background:var(--ok);border-radius:3px}
+.wk i u.mid{background:#d8a31a}.wk i u.over{background:var(--alert)}
+.wk.now b::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--orange);margin-right:5px;vertical-align:1px}
+.wk.sel{border-color:var(--orange);background:#fff4e8;box-shadow:inset 0 -3px 0 var(--orange)}
+.wk.fer small::after{content:" ●";color:var(--alert);font-size:9px;vertical-align:1px}
+.rangeline{display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;color:var(--muted)}
+.notes{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.note-chip{display:flex;gap:6px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;color:inherit}
+.note-chip b{background:var(--warnbg);color:var(--warn);border-radius:999px;padding:0 7px;font-size:12px}
+.note-chip.bad b{background:var(--alertbg);color:var(--alert)}
+.note-chip[aria-expanded=true]{border-color:var(--orange);background:#fff4e8}
+.alerts{max-height:260px;overflow:auto}
+.todo h3{font-size:17px}.todo h3 small{display:none}
+.todo .tip{font-size:12.5px;color:var(--muted);margin:-4px 0 8px}
+@media (max-width:700px){.seg3 button{padding:7px 9px;font-size:13px}.wk{width:64px}}
 </style>
 
 <style>
@@ -307,24 +352,29 @@ html.embed header.top{margin-bottom:8px;min-height:0}
     <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="btn-abs" type="button">+ Absence</button><button class="btn primary" id="btn-new" type="button">+ Nouveau chantier</button></span>
   </div>
 
-  <div class="filters">
+  <div class="filters" id="fl1">
     <select id="fl-chg" aria-label="Chargé d'affaires"><option value="">Tous les chargés d'affaires</option></select>
-    <select id="fl-soc" aria-label="Société"><option value="">Toutes sociétés</option><option value="artik">Artik</option><option value="chassaing">Chassaing</option></select>
-    <select id="fl-col" aria-label="Couleurs"><option value="societe">Couleur : société</option><option value="categorie">Couleur : catégorie</option><option value="charge">Couleur : chargé d'affaires</option></select>
-    <label style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="fl-wk" checked> Week-ends</label>
-    <label style="display:flex;gap:6px;align-items:center;font-size:14px" title="Sinon, les chantiers se calent à la journée entière"><input type="checkbox" id="fl-half"> Caler à la demi-journée</label>
-    <label style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="fl-term"> Terminés</label>
+    <details class="opts"><summary>⚙️ Affichage</summary><div class="opts-in">
+      <label class="lab2">Société <select id="fl-soc" aria-label="Société"><option value="">Toutes</option><option value="artik">Artik</option><option value="chassaing">Chassaing</option></select></label>
+      <label class="lab2">Couleurs <select id="fl-col" aria-label="Couleurs"><option value="societe">par société</option><option value="categorie">par catégorie</option><option value="charge">par chargé d'affaires</option></select></label>
+      <label class="ck"><input type="checkbox" id="fl-wk" checked> Voir les week-ends</label>
+      <label class="ck" title="Sinon, les chantiers se calent à la journée entière"><input type="checkbox" id="fl-half"> Caler à la demi-journée</label>
+      <label class="ck"><input type="checkbox" id="fl-term"> Voir les chantiers terminés</label>
+      <label class="ck showbur" id="showbur-l" hidden><input type="checkbox" id="showbur"> Afficher le bureau</label>
+    </div></details>
   </div>
-  <div class="filters" id="nav">
-    <div class="zoom" id="mode" role="group" aria-label="Affichage"><button type="button" data-m="chantiers">Par chantier</button><button type="button" data-m="techniciens">Par technicien</button><button type="button" data-m="equipes">Par équipe</button></div>
-    <label class="showbur" id="showbur-l" hidden><input type="checkbox" id="showbur"> Afficher le bureau</label>
-    <div class="zoom" id="zoom" role="group" aria-label="Zoom"><button type="button" data-z="jour">Jour</button><button type="button" data-z="semaine">Semaine</button><button type="button" data-z="deux">2 semaines</button><button type="button" data-z="mois" title="Prévisionnel : vue par chantier, sans technicien">Mois</button><button type="button" data-z="six" title="Prévisionnel : vue par chantier, sans technicien">6 mois</button></div>
-    <div class="nav">
-      <button class="btn small" type="button" id="prev" aria-label="Période précédente">←</button>
-      <span id="range"></span><span class="chip warn" id="prevchip" hidden title="Vue par chantier, sans technicien">Prévisionnel</span>
-      <button class="btn small" type="button" id="next" aria-label="Période suivante">→</button>
+  <div id="nav">
+    <div class="navtop">
+      <div class="seg3" id="mode" role="group" aria-label="Voir le planning"><button type="button" data-m="chantiers"><span>🏗️</span>Chantiers</button><button type="button" data-m="techniciens"><span>👷</span>Techniciens</button><button type="button" data-m="equipes"><span>👥</span>Équipes</button></div>
+      <div class="seg3 small" id="zoom" role="group" aria-label="Durée affichée"><button type="button" data-z="jour">1 jour</button><button type="button" data-z="semaine">1 semaine</button><button type="button" data-z="deux">2 semaines</button><button type="button" data-z="mois" title="Prévisionnel : vue par chantier">1 mois</button><button type="button" data-z="six" title="Prévisionnel : vue par chantier">6 mois</button></div>
+    </div>
+    <div class="weekbar">
+      <button class="wbtn" type="button" id="prev" aria-label="Période précédente">‹</button>
+      <div class="weeks" id="weeks"></div>
+      <button class="wbtn" type="button" id="next" aria-label="Période suivante">›</button>
       <button class="btn small" type="button" id="today">Aujourd'hui</button>
     </div>
+    <div class="rangeline"><span id="range"></span><span class="chip warn" id="prevchip" hidden title="Vue par chantier, sans technicien">Prévisionnel</span></div>
   </div>
 
   <main id="view"></main>
@@ -846,7 +896,7 @@ function barHTML(x,g,top,tech,conflit){
   const add=canAdd?`<span class="addt" data-add="1" role="button" tabindex="0" title="Ajouter ou retirer des techniciens" style="${split?`right:auto;left:${last.b-34}px`:""}">+</span>`:"";
   return `<div class="bar ${x.statut}${split?" split":""}${canAdd&&!split?" has-add":""}${sp.cutL?" cut-l":""}${sp.cutR?" cut-r":""}${conflit?" conflit":""}" data-id="${x.id}" data-tech="${esc(tech)}" style="--bc:${colorOf(x)};left:${sp.left}px;top:${top}px;width:${Math.max(sp.width-2,5)}px" title="${esc(x.client)} · ${jours(len)}${t.length?" · "+esc(t.join(", ")):""}${conflit?" · CONFLIT : technicien déjà pris":""}">${txt}${add}${!split||last.b>=sp.width-1?'<span class="grip" data-grip="1"></span>':""}</div>`;
 }
-let chQ="",chNP=false;
+let chQ="",chNP=false,openP=null;
 function afactHTML(f){const l=f.filter(x=>x.aFacturer&&x.statut==="termine");if(!l.length)return"";
   return `<div class="afact"><h3>🧾 À facturer <span class="chip warn">${l.length}</span> <small style="font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted)">chantiers terminés, en attente de facture</small></h3>${l.map(x=>{const raf=Math.max(0,(Number(x.montant)||0)-(Number(x.facture)||0));return `<div class="afact-row"><span class="sw" style="--bc:${colorOf(x)}"></span><b>${esc(x.client)}</b><small>${esc(x.charge||"—")} · terminé le ${x.dateFin?fd(parse(x.dateFin)):"–"} · vendu ${eur(x.montant)}${raf?" · reste à facturer "+eur(raf):""}</small><button class="btn small" type="button" data-open="${x.id}">Fiche</button><button class="btn small primary" type="button" data-facture="${x.id}">Facture faite</button></div>`}).join("")}</div>`}
 function planningHTML(){
@@ -857,16 +907,22 @@ function planningHTML(){
   document.querySelectorAll("#mode button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===mode));
   let h="";
   const sig=devisAImporter();
-  if(loaded&&sig.length)h+=`<div class="signes"><h3>📄 Devis signés à ajouter <span class="chip warn">${sig.length}</span> <small>repris de « Demandes de devis »${window.__devisSignes?"":" · exemples"}</small>${sig.length>1?'<button class="btn small" type="button" data-sigall>Tout ajouter</button>':""}</h3><div class="todo-list">${sig.map(d=>`<div class="sig-item" style="--ec:var(--cat${catIdx(d.metier)<0?5:catIdx(d.metier)+1})"><span><b>${esc(d.client)}</b><small>${esc(d.ref)} · ${esc(d.chiffreur||"—")}${d.montant?" · "+eur(d.montant):""}${d.metier?" · "+esc(d.metier):""}</small></span><button class="btn small primary" type="button" data-sig="${esc(d.ref)}">+ Ajouter</button><button class="btn small" type="button" data-sigx="${esc(d.ref)}" title="Ne pas planifier ce devis" aria-label="Ignorer">✕</button></div>`).join("")}</div></div>`;
+  let sigH="",alH="";const al0=loaded?f.flatMap(x=>alertsOf(x).map(a=>({...a,x}))):[];
+  if(loaded&&sig.length)sigH+=`<div class="signes"><h3>📄 Devis signés à ajouter <span class="chip warn">${sig.length}</span> <small>repris de « Demandes de devis »${window.__devisSignes?"":" · exemples"}</small>${sig.length>1?'<button class="btn small" type="button" data-sigall>Tout ajouter</button>':""}</h3><div class="todo-list">${sig.map(d=>`<div class="sig-item" style="--ec:var(--cat${catIdx(d.metier)<0?5:catIdx(d.metier)+1})"><span><b>${esc(d.client)}</b><small>${esc(d.ref)} · ${esc(d.chiffreur||"—")}${d.montant?" · "+eur(d.montant):""}${d.metier?" · "+esc(d.metier):""}</small></span><button class="btn small primary" type="button" data-sig="${esc(d.ref)}">+ Ajouter</button><button class="btn small" type="button" data-sigx="${esc(d.ref)}" title="Ne pas planifier ce devis" aria-label="Ignorer">✕</button></div>`).join("")}</div></div>`;
   if(loaded){const al=f.flatMap(x=>alertsOf(x).map(a=>({...a,x}))).sort((a,b)=>(a.niv==="danger"?0:1)-(b.niv==="danger"?0:1));
-    if(al.length)h+=`<div class="alerts"><h3>Échéances à surveiller <span class="chip ${al.some(a=>a.niv==="danger")?"bad":"warn"}">${al.length}</span></h3>${al.map(a=>`<button type="button" class="al ${a.niv}" data-open="${a.x.id}"><b>${esc(a.x.client)}</b><span>${a.txt}</span></button>`).join("")}</div>`}
-  if(loaded)h+=afactHTML(f);
+    if(al.length)alH+=`<div class="alerts"><h3>Échéances à surveiller <span class="chip ${al.some(a=>a.niv==="danger")?"bad":"warn"}">${al.length}</span></h3>${al.map(a=>`<button type="button" class="al ${a.niv}" data-open="${a.x.id}"><b>${esc(a.x.client)}</b><span>${a.txt}</span></button>`).join("")}</div>`}
+  const faH=loaded?afactHTML(f):"",nfa=loaded?f.filter(x=>x.aFacturer&&x.statut==="termine").length:0;
+  if(loaded&&(sig.length||al0.length||nfa)){const bad=al0.some(a=>a.niv==="danger");
+    if(openP==="sig"&&!sig.length||openP==="al"&&!al0.length||openP==="fa"&&!nfa)openP=null;
+    h+=`<div class="notes">${sig.length?`<button type="button" class="note-chip" data-panel="sig" aria-expanded="${openP==="sig"}">📄 Devis signés à ajouter <b>${sig.length}</b></button>`:""}${al0.length?`<button type="button" class="note-chip${bad?" bad":""}" data-panel="al" aria-expanded="${openP==="al"}">⚠️ Échéances <b>${al0.length}</b></button>`:""}${nfa?`<button type="button" class="note-chip" data-panel="fa" aria-expanded="${openP==="fa"}">🧾 À facturer <b>${nfa}</b></button>`:""}</div>`;
+    h+=openP==="sig"?sigH:openP==="al"?alH:openP==="fa"?faH:""}
   if(loaded){const pal=f.filter(x=>x.statut!=="termine"&&x.statut!=="solde").sort((a,c)=>((a.statut==="aplanifier"||!a.debut)?0:1)-((c.statut==="aplanifier"||!c.debut)?0:1)||String(a.client).localeCompare(String(c.client),"fr"));
     const q=chQ.trim().toLowerCase(),nonp=pal.filter(x=>x.statut==="aplanifier"||!x.debut).length;
-    h+=`<div class="todo"><h3>Chantiers <span class="chip ${nonp?"warn":""}">${nonp} à planifier</span> <small style="font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted)">glisser un nom sur la ligne d’un technicien : 1 jour pour lui, puis allonger ou déplacer la barre · reglisser un chantier déjà calé = 1 jour de plus · ramener une barre ici pour la déprogrammer</small></h3>
+    h+=`<div class="todo"><h3>✋ Chantiers à glisser <span class="chip ${nonp?"warn":""}">${nonp} à planifier</span> <small style="font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted)">glisser un nom sur la ligne d’un technicien : 1 jour pour lui, puis allonger ou déplacer la barre · reglisser un chantier déjà calé = 1 jour de plus · ramener une barre ici pour la déprogrammer</small></h3>
+    <p class="tip">Glisse un nom sur la ligne d’un technicien = 1 jour pour lui. Étire la barre pour allonger. Ramène une barre ici pour la retirer.</p>
     <div class="chq"><input type="search" id="ch-q" placeholder="🔍 Rechercher un chantier, un chargé…" value="${esc(chQ)}" autocomplete="off"><label><input type="checkbox" id="ch-np"${chNP?" checked":""}> à planifier seulement</label></div>
     <div class="todo-list">${pal.map(x=>{const np=x.statut==="aplanifier"||!x.debut,key=(x.client+" "+(x.charge||"")).toLowerCase();
-      return `<div role="button" tabindex="0" class="todo-item${np?" nonplan":""}" data-open="${x.id}" data-q="${esc(key)}" data-np="${np?1:0}"${(q&&!key.includes(q))||(chNP&&!np)?" hidden":""} style="--ec:${colorOf(x)}"><b>${esc(x.client)}</b><small>${esc(x.charge||"—")} · ${x.heures||0} h · ${np?'<span class="dlt">à planifier</span>':"calé dès le "+fd(parse(x.debut))}${x.dateDebutImp?` · <span class="dlt">début impératif ${fd(parse(x.dateDebutImp))}</span>`:""}${x.dateFinLimite?` · <span class="dlt">fin au plus tard ${fd(parse(x.dateFinLimite))}</span>`:""}</small>${np?"":`<span class="fin" data-fin="${x.id}" title="Chantier terminé : il part dans « À facturer »">🏁 Fin</span>`}</div>`}).join("")||'<span class="hint" style="margin:0">Aucun chantier en cours. Glissez ici une barre du planning pour la retirer du planning.</span>'}</div></div>`}
+      return `<div role="button" tabindex="0" class="todo-item${np?" nonplan":""}" data-open="${x.id}" data-q="${esc(key)}" data-np="${np?1:0}" title="${esc(x.client)} · ${esc(x.charge||"")} · ${x.heures||0} h vendues${np?"":" · calé dès le "+fd(parse(x.debut))}${x.dateDebutImp?" · début impératif "+fd(parse(x.dateDebutImp)):""}${x.dateFinLimite?" · fin au plus tard "+fd(parse(x.dateFinLimite)):""}"${(q&&!key.includes(q))||(chNP&&!np)?" hidden":""} style="--ec:${colorOf(x)}"><b>${esc(x.client)}</b><small>${esc((x.charge||"—").split(" ")[0])}${np?' · <span class="dlt">à planifier</span>':""}</small>${np?"":`<span class="fin" data-fin="${x.id}" title="Chantier terminé : il part dans « À facturer »">🏁 Fin</span>`}</div>`}).join("")||'<span class="hint" style="margin:0">Aucun chantier en cours. Glissez ici une barre du planning pour la retirer du planning.</span>'}</div></div>`}
   const g=G=buildGrid();
   const last=g.cells[g.cells.length-1].d;
   $("#range").textContent=zoom==="jour"?g.start.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"}):`${fd(g.start)} – ${fd(last)}${zoom==="six"?" "+last.getFullYear():""}`;
@@ -1407,13 +1463,23 @@ async function save(id,patch,msg){
   try{await db.doc("chantiers/"+id).update(patch);toast(msg)}catch(e){toast("Enregistrement impossible ("+(e.code||e.message)+")",true)}}
 
 /* ---------- Rendu & navigation ---------- */
+function weeksHTML(){
+  const f=filtered(),ex=expand(f),g=G,cur=monday(viewDate),now=monday(new Date());
+  const selA=g?monday(g.start):cur,selB=g?g.cells[g.cells.length-1].d:cur;
+  let html="";
+  for(let k=-3;k<=12;k++){const m=addW(cur,k),s0=slotOf(ymd(m),false),s1=slotOf(ymd(addW(m,1)),false),n=Math.max(0,s1-s0);
+    const l=n?loadTeam(ex,s0,n).reduce((a,b)=>a+b,0):0,cp=n?capArray(ex,s0,n).reduce((a,b)=>a+b,0):0,pc=cp?Math.round(l/cp*100):0;
+    const fer=[0,1,2,3,4].map(i=>addD(m,i)).filter(d=>isFer(d));
+    const sel=m>=monday(selA)&&m<=selB,isNow=+m===+now;
+    html+=`<button type="button" class="wk${sel?" sel":""}${isNow?" now":""}${fer.length?" fer":""}" data-wk="${ymd(m)}" title="Semaine ${weekNo(m)} · charge ${pc} %${fer.length?" · férié : "+fer.map(d=>fd(d)).join(", "):""}"><b>S${weekNo(m)}</b><small>${fd(m)}</small><i><u class="${pc>100?"over":pc>85?"mid":""}" style="width:${Math.min(100,pc)}%"></u></i></button>`}
+  return html}
 function render(){
   renderStats();
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
   $("#nav").hidden=tab!=="planning";
   const v=$("#view");
   const qf=document.activeElement&&document.activeElement.id==="ch-q",qs=qf?document.activeElement.selectionStart:0;
-  if(tab==="planning"){v.innerHTML=planningHTML();if(qf){const q=$("#ch-q");if(q){q.focus();try{q.setSelectionRange(qs,qs)}catch(e){}}}}else if(tab==="params"){v.innerHTML=paramsHTML();bindListe()}else v.innerHTML=listeHTML()
+  if(tab==="planning"){v.innerHTML=planningHTML();{const w=$("#weeks");if(w){w.innerHTML=weeksHTML();const se=w.querySelector(".wk.sel");if(se)w.scrollLeft=Math.max(0,se.offsetLeft-w.offsetLeft-3*79)}}if(qf){const q=$("#ch-q");if(q){q.focus();try{q.setSelectionRange(qs,qs)}catch(e){}}}}else if(tab==="params"){v.innerHTML=paramsHTML();bindListe()}else v.innerHTML=listeHTML()
 }
 function step(dir){
   const showWE=$("#fl-wk").checked;
@@ -1446,6 +1512,9 @@ $("#view").addEventListener("click",async e=>{
   const fa=e.target.closest("[data-facture]");if(fa){if(!fa.classList.contains("armed")){fa.classList.add("armed");fa.textContent="Confirmer : facture faite";return}
     const x=items.find(i=>i.id===fa.dataset.facture);if(!x)return;await save(x.id,{aFacturer:false,statut:"solde",dateFacture:ymd(new Date())},x.client+" : facture faite, chantier soldé");render();return}});
 async function finChantier(id){const x=items.find(i=>i.id===baseId(id));if(!x)return;await save(x.id,{statut:"termine",aFacturer:true,dateFin:ymd(new Date())},x.client+" terminé · il est dans « À facturer »");render()}
+document.addEventListener("click",e=>{const d=document.querySelector("details.opts[open]");if(d&&!e.target.closest("details.opts"))d.open=false});
+$("#view").addEventListener("click",e=>{const c=e.target.closest("[data-panel]");if(!c)return;openP=openP===c.dataset.panel?null:c.dataset.panel;render()});
+$("#weeks").addEventListener("click",e=>{const w=e.target.closest("[data-wk]");if(!w)return;viewDate=parse(w.dataset.wk);if(zoom==="jour"){}render()});
 $("#view").addEventListener("input",e=>{if(e.target.id!=="ch-q")return;chQ=e.target.value;const q=chQ.trim().toLowerCase();document.querySelectorAll(".todo-item[data-q]").forEach(el=>el.hidden=(q&&!el.dataset.q.includes(q))||(chNP&&el.dataset.np!=="1"))});
 $("#view").addEventListener("change",e=>{if(e.target.id!=="ch-np")return;chNP=e.target.checked;render()});
 $("#view").addEventListener("keydown",e=>{const it=e.target.closest&&e.target.closest(".todo-item");if(it&&e.key==="Enter")openSheet(it.dataset.open)});
