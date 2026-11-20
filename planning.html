@@ -863,7 +863,7 @@ function planningHTML(){
   if(loaded)h+=afactHTML(f);
   if(loaded){const pal=f.filter(x=>x.statut!=="termine"&&x.statut!=="solde").sort((a,c)=>((a.statut==="aplanifier"||!a.debut)?0:1)-((c.statut==="aplanifier"||!c.debut)?0:1)||String(a.client).localeCompare(String(c.client),"fr"));
     const q=chQ.trim().toLowerCase(),nonp=pal.filter(x=>x.statut==="aplanifier"||!x.debut).length;
-    h+=`<div class="todo"><h3>Chantiers <span class="chip ${nonp?"warn":""}">${nonp} à planifier</span> <small style="font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted)">glisser un nom sur le planning : 1 jour, puis allonger ou déplacer la barre · reglisser un chantier déjà calé = une reprise · ramener une barre ici pour la déprogrammer</small></h3>
+    h+=`<div class="todo"><h3>Chantiers <span class="chip ${nonp?"warn":""}">${nonp} à planifier</span> <small style="font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted)">glisser un nom sur la ligne d’un technicien : 1 jour pour lui, puis allonger ou déplacer la barre · reglisser un chantier déjà calé = 1 jour de plus · ramener une barre ici pour la déprogrammer</small></h3>
     <div class="chq"><input type="search" id="ch-q" placeholder="🔍 Rechercher un chantier, un chargé…" value="${esc(chQ)}" autocomplete="off"><label><input type="checkbox" id="ch-np"${chNP?" checked":""}> à planifier seulement</label></div>
     <div class="todo-list">${pal.map(x=>{const np=x.statut==="aplanifier"||!x.debut,key=(x.client+" "+(x.charge||"")).toLowerCase();
       return `<div role="button" tabindex="0" class="todo-item${np?" nonplan":""}" data-open="${x.id}" data-q="${esc(key)}" data-np="${np?1:0}"${(q&&!key.includes(q))||(chNP&&!np)?" hidden":""} style="--ec:${colorOf(x)}"><b>${esc(x.client)}</b><small>${esc(x.charge||"—")} · ${x.heures||0} h · ${np?'<span class="dlt">à planifier</span>':"calé dès le "+fd(parse(x.debut))}${x.dateDebutImp?` · <span class="dlt">début impératif ${fd(parse(x.dateDebutImp))}</span>`:""}${x.dateFinLimite?` · <span class="dlt">fin au plus tard ${fd(parse(x.dateFinLimite))}</span>`:""}</small>${np?"":`<span class="fin" data-fin="${x.id}" title="Chantier terminé : il part dans « À facturer »">🏁 Fin</span>`}</div>`}).join("")||'<span class="hint" style="margin:0">Aucun chantier en cours. Glissez ici une barre du planning pour la retirer du planning.</span>'}</div></div>`}
@@ -1049,7 +1049,7 @@ document.addEventListener("pointermove",e=>{
   if(!pick)return;
   if(!pick.moved&&Math.hypot(e.clientX-pick.sx,e.clientY-pick.sy)<6)return;
   if(!pick.moved){pick.moved=true;const gh=document.createElement("div");gh.className="ghost";gh.style.setProperty("--bc",colorOf(pick.x));
-    gh.innerHTML=esc(pick.x.client)+`<small>1 j</small>`;document.body.appendChild(gh);pick.ghost=gh}
+    gh.innerHTML=esc(pick.x.client)+`<small>1 jour</small>`;document.body.appendChild(gh);pick.ghost=gh}
   pick.ghost.style.left=(e.clientX+8)+"px";pick.ghost.style.top=(e.clientY-16)+"px";
   document.querySelectorAll(".dropzone,.trow.drop").forEach(el=>el.classList.remove("dropzone","drop"));
   const els=document.elementsFromPoint(e.clientX,e.clientY);
@@ -1062,7 +1062,7 @@ document.addEventListener("pointermove",e=>{
     pick.drop={ws,row:row?row.getAttribute("data-tech"):null};
     track.classList.add("dropzone");if(row&&row.getAttribute("data-tech"))row.classList.add("drop");
     const p=fromSlot(ws);pick.ghost.querySelector("small").textContent=`${fd(parse(p.debut))}${snapNow()===2?"":p.pm?" a.-midi":" matin"}${row&&row.getAttribute("data-tech")?" · "+row.getAttribute("data-tech"):""}`;
-  }else pick.ghost.querySelector("small").textContent=(pick.x.debut&&pick.x.statut!=="aplanifier")?"reprise · 1 j":"1 j";
+  }else pick.ghost.querySelector("small").textContent=(pick.x.debut&&pick.x.statut!=="aplanifier")?"+ 1 jour":"1 jour";
 });
 document.addEventListener("pointerup",async()=>{
   if(!pick)return;const p=pick;pick=null;
@@ -1071,21 +1071,19 @@ document.addEventListener("pointerup",async()=>{
   if(!p.moved)return;
   suppressClick=true;setTimeout(()=>suppressClick=false,50);
   if(!p.drop){toast("Déposez le chantier sur le planning pour le caler",true);return}
+  /* règle : un dépôt = 1 journée, sur le seul technicien (ou la seule équipe) de la ligne où l'on lâche. On ajuste ensuite. */
   const pos=fromSlot(p.drop.ws),sl=pos.pm?1:2,quand=fd(parse(pos.debut))+(pos.pm?" après-midi":"");
+  let techs=[],equipe="",who="";
+  if(p.drop.row&&mode==="techniciens"){techs=[p.drop.row];who=" · "+p.drop.row}
+  if(p.drop.row&&mode==="equipes"){const nw=equipeList().find(q=>q.nom===p.drop.row);techs=nw?nw.membres.slice():[];equipe=p.drop.row;who=" · "+p.drop.row}
   const neuf=p.x.statut==="aplanifier"||!p.x.debut;
-  if(neuf){const patch={debut:pos.debut,pm:pos.pm,statut:"planifie",slots:sl};let who="";
-    if(p.drop.row&&mode==="techniciens"){const t=(p.x.techs||[]).slice();if(!t.includes(p.drop.row))t.push(p.drop.row);patch.techs=t;who=" · "+p.drop.row}
-    if(p.drop.row&&mode==="equipes"){const nw=equipeList().find(q=>q.nom===p.drop.row);const t=(p.x.techs||[]).slice();if(nw)nw.membres.forEach(m=>{if(!t.includes(m))t.push(m)});patch.techs=t;patch.equipe=p.drop.row;who=" · "+p.drop.row}
-    await save(p.x.id,patch,p.x.client+" calé le "+quand+who+" · allongez la barre si besoin");render();return}
-  /* déjà au planning : on ajoute une reprise d'un jour, avec la même équipe que la dernière période (ou le technicien de la ligne) */
-  const parts=partsOf(p.x),lastP=parts[parts.length-1];
-  let techs=(lastP.techs||[]).slice(),equipe=lastP.equipe||"";
-  if(p.drop.row&&mode==="techniciens")techs=[p.drop.row];
-  if(p.drop.row&&mode==="equipes"){const nw=equipeList().find(q=>q.nom===p.drop.row);techs=nw?nw.membres.slice():techs;equipe=p.drop.row}
-  if(parts.some(q=>{const a=slotOf(q.debut,q.pm);return p.drop.ws>=a&&p.drop.ws<a+q.slots})){toast("Ce jour est déjà dans une période de "+p.x.client+" : glissez plutôt sa barre",true);render();return}
+  if(neuf){await save(p.x.id,{debut:pos.debut,pm:pos.pm,statut:"planifie",slots:sl,techs,equipe,off:{},phases:[]},p.x.client+" calé le "+quand+who+" · 1 jour, à allonger si besoin");render();return}
+  /* déjà au planning : on ajoute une journée de plus (une « période ») pour ce technicien */
+  const parts=partsOf(p.x);
+  if(techs.length&&parts.some(q=>{const a=slotOf(q.debut,q.pm);return p.drop.ws>=a&&p.drop.ws<a+q.slots&&techs.some(t=>(q.techs||[]).includes(t))})){toast(techs.join(", ")+" est déjà sur "+p.x.client+" ce jour-là",true);render();return}
   const ph=(p.x.phases||[]).map(q=>({...q}));ph.push({debut:pos.debut,pm:pos.pm,slots:sl,techs,off:{},equipe});ph.sort((a,c)=>a.debut.localeCompare(c.debut));
   const upd={phases:ph};if(p.x.statut==="aplanifier")upd.statut="planifie";
-  await save(p.x.id,upd,p.x.client+" : reprise ajoutée le "+quand);
+  await save(p.x.id,upd,p.x.client+" : 1 jour ajouté le "+quand+who);
   render();
 });
 /* ---------- Planifier un chantier « du … au … » ----------
