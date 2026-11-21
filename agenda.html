@@ -63,6 +63,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .tab{font:inherit;font-family:var(--f-display);font-size:20px;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:6px 12px 8px;cursor:pointer}
 .tab[aria-selected=true]{color:var(--ink);border-color:var(--c-orange)}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+/* ruban des semaines (comme le planning chantiers) : clic = aller à la semaine, barre = remplissage des agendas affichés */
+.aweekbar{margin:-4px 0 12px}
+.aweeks{display:flex;gap:5px;overflow-x:auto;min-width:0;scrollbar-width:thin;padding:2px}
+.awk{flex:none;width:76px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:5px 6px 6px;cursor:pointer;display:flex;flex-direction:column;gap:3px;text-align:left;font:inherit;color:inherit}
+.awk b{font-size:13px}.awk small{font-size:11px;color:var(--muted);white-space:nowrap}
+.awk i{display:block;height:6px;border-radius:3px;background:var(--soft);overflow:hidden;position:relative}
+.awk i u{position:absolute;left:0;top:0;bottom:0;background:var(--ok);border-radius:3px}
+.awk i u.mid{background:#d8a31a}.awk i u.over{background:var(--alert)}
+.awk.now b::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c-orange);margin-right:5px;vertical-align:1px}
+.awk.sel{border-color:var(--c-orange);background:color-mix(in srgb,var(--c-orange) 10%,var(--surface));box-shadow:inset 0 -3px 0 var(--c-orange)}
+.awk.fer small::after{content:" ●";color:var(--alert);font-size:9px;vertical-align:1px}
+.awk:hover{border-color:var(--c-orange)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
 .seg button{font:inherit;font-size:14px;font-weight:600;border:0;background:none;color:var(--muted);padding:7px 12px;cursor:pointer}
 .seg button[aria-pressed=true]{background:var(--soft);color:var(--ink)}
@@ -396,6 +408,12 @@ html.tmode .bt{font-size:16px;padding:7px 6px}
 .bilan .bb{display:flex;gap:8px;flex-wrap:wrap}.bilan .bb .btn{flex:1 1 140px;min-height:44px;font-size:15px}
 .bilan .fini{color:var(--ok);font-weight:700}
 .sbox{display:grid;gap:8px}.sbox input{font-size:16px}
+.cbox .crow{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}.cbox .crow .field{flex:1 1 120px;min-width:0}
+.cbox .cwarn{font-size:13px;color:var(--alert);font-weight:600}.cbox .cok{font-size:13px;color:var(--ok);font-weight:600}
+.cbox .cquick{display:flex;gap:6px;flex-wrap:wrap}
+.cbox .cquick button{font:inherit;font-size:13.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 11px;cursor:pointer}
+.cbox .cquick button[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.ev .suitel{display:block;font-weight:700;color:var(--c-orange);text-decoration:none}
 .sugg{display:flex;flex-wrap:wrap;gap:6px}.sugg button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer;min-height:36px}
 .sugg button[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .dos.suite{border-style:dashed}.dos .sdel{background:none;border:0;color:var(--muted);cursor:pointer;font-size:14px;margin-left:auto;padding:2px 4px}
@@ -465,6 +483,7 @@ html.embed header.top{margin-bottom:8px;min-height:0}
     <select id="colmode" aria-label="Couleur"><option value="cat">Couleur : catégorie</option><option value="pers">Couleur : personne</option></select>
     <label class="switch"><input type="checkbox" id="we"> Week-ends</label>
   </div>
+  <div class="aweekbar" id="awb"><div class="aweeks" id="aweeks" role="group" aria-label="Choisir la semaine"></div></div>
   <main id="view"></main>
 </div>
 <div id="overlay" class="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
@@ -825,7 +844,7 @@ function evHTML(o,row){
   const time=e.allDay?(e.dateFin&&e.dateFin>e.date?(o.first?"dès aujourd'hui":o.last?"dernier jour":"toute la journée"):"journée"):`${esc(e.debut)}–${esc(e.fin)}`;
   const dur=e.allDay?0:Math.max(.25,(hm(e.fin)-hm(e.debut))/60);
   const fait_=isDone(e,o.d);
-  return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${fait_?" fait":prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}${dur?`;--dh:${dur.toFixed(2)}`:""}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${e.alerte&&e.alerte.n?'<i class="albell" title="Rappel '+alerteLib(e.alerte)+' avant">🔔</i>':""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${withHTML(oth)}${rappel(e)}</span></div>`;
+  return `<div class="ev${e.allDay?" allday":""}${rec?" rec":""}${fait_?" fait":prioCls(e)}" data-ev="${e.id}" data-d="${o.d}" data-row="${esc(row||"")}" style="--cc:${evColor(e,row)};--pc:${col(pers(row||e.personne).couleur)}${dur?`;--dh:${dur.toFixed(2)}`:""}">${badge(e)}<span class="ei">${c.icone}</span><span class="et"><b>${e.ref?"📂 ":""}${e.alerte&&e.alerte.n?'<i class="albell" title="Rappel '+alerteLib(e.alerte)+' avant">🔔</i>':""}${esc(e.titre||c.nom)}</b><small>${time}${e.lieu?" · "+esc(e.lieu):""}</small>${e.suitesLe&&e.suitesLe[o.d]?`<small class="suitel">↪ suite ${/^\d{4}/.test(e.suitesLe[o.d])?"le "+parse(e.suitesLe[o.d]).getDate()+" "+MOIS[parse(e.suitesLe[o.d]).getMonth()]:"à planifier"}</small>`:""}${withHTML(oth)}${rappel(e)}</span></div>`;
 }
 const HOR=()=>Object.assign({},DEF.horaires,cfg.horaires||{});
 /* frise de la semaine : la pause de midi est réduite à une fine bande, le reste est à l'échelle */
@@ -1377,13 +1396,51 @@ function catFor(a){const n=String(a||"").toLowerCase(),C=cfg.categories;
   return (/chiffr|devis/.test(n)&&by(/chiffr/i))||(/visite|rdv|client|relanc/.test(n)&&by(/rdv|client/i))||(/chantier|r[ée]union|mise en service/.test(n)&&by(/chantier/i))||C[0].nom}
 function bilanHTML(x,d){const done=isDone(x,d);
   return `<div class="bilan" id="f-bil"><div class="bh"><b>Bilan de ce rendez-vous</b>${done?'<span class="fini">✓ Terminé</span>':""}</div>
-   <div class="bb">${done?`<button class="btn" type="button" id="f-unfini">Pas terminé finalement</button>`:`<button class="btn" type="button" id="f-fini">✅ Terminé</button>`}<button class="btn primary" type="button" id="f-suite">➡️ Étape suivante…</button></div>
+   <div class="bb">${done?`<button class="btn" type="button" id="f-unfini">Pas terminé finalement</button>`:`<button class="btn" type="button" id="f-fini">✅ Terminé</button>`}<button class="btn" type="button" id="f-cont">⏭️ Pas fini : continuer…</button><button class="btn primary" type="button" id="f-suite">➡️ Étape suivante…</button></div>
+   ${x.suitesLe&&x.suitesLe[d]?`<small class="hint">↪ La suite est déjà programmée le <b>${fmtD(parse(x.suitesLe[d]))}</b>.</small>`:""}
+   <div class="sbox cbox" id="f-cbox" hidden><small class="hint">Ce rendez-vous reste à sa place (fait en partie). La suite est créée à l'identique : mêmes personnes, catégorie, lieu, notes, même durée.</small>
+     <div class="cquick" id="f-cq"></div>
+     <div class="crow"><label class="field"><span>Le</span><input type="date" id="f-cd"></label>${x.allDay?"":`<label class="field"><span>De</span><input type="time" id="f-ch1" step="900"></label><label class="field"><span>À</span><input type="time" id="f-ch2" step="900"></label>`}</div>
+     <div id="f-cw"></div>
+     <div class="bb"><button class="btn primary" type="button" id="f-cok">Programmer la suite</button><button class="btn" type="button" id="f-clat">Plus tard : la mettre dans « à planifier »</button></div></div>
    <div class="sbox" id="f-sbox" hidden><label class="field"><span>Que faut-il faire ensuite ?</span><input id="f-sq" autocomplete="off" placeholder="Cherchez ou tapez : chiffrage, relance, commande…" enterkeyhint="done"></label>
      <div class="sugg" id="f-sg"></div>
      <button class="btn primary" type="button" id="f-sok" disabled>Mettre dans « à planifier »</button>
      <small class="hint">Le rendez-vous est marqué terminé et l'étape suivante arrive dans « Mes dossiers à planifier », prête à glisser sur l'agenda.</small></div></div>`}
 function wireBilan(x,d){
   const fin=async(on)=>{const f=new Set(x.faits||[]);on?f.add(d):f.delete(d);await db.doc("events/"+x.id).update({faits:[...f]})};
+  /* ---- pas fini : on garde ce RDV à sa place et on recrée la suite à l'identique ---- */
+  const cb=$("#f-cbox");
+  if(cb){const nextWork=(s,n)=>{let t=parse(s),k=0;while(k<n){t=addD(t,1);if(t.getDay()!==0&&t.getDay()!==6&&!ferie(ymd(t)))k++}return ymd(t)};
+    const dur=x.allDay?0:Math.max(15,hm(x.fin)-hm(x.debut)),toH=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+    const cd=$("#f-cd"),c1=$("#f-ch1"),c2=$("#f-ch2"),cw=$("#f-cw"),base0=d<ymd(new Date())?ymd(new Date()):d;
+    const Q=[];[[nextWork(base0,1)],[nextWork(base0,2)],[nextWork(base0,3)],[ymd(addD(parse(d),7)),"+1 semaine"],[ymd(addD(parse(d),14)),"+2 semaines"]].forEach(([v,n])=>{const t=parse(v);if(v>ymd(new Date())&&t.getDay()!==0&&t.getDay()!==6&&!Q.some(q=>q[1]===v))Q.push([n||"",v])});
+    const check=()=>{const nd=cd.value;$("#f-cq").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.cq===nd));if(!nd){cw.innerHTML="";return}
+      const a=x.allDay?0:hm(c1.value),b=x.allDay?24*60:hm(c2.value),ppl=who(x),fe=ferie(nd),dd=parse(nd);
+      const busy=occurrences(nd,nd).filter(o=>o.e.id!==x.id&&who(o.e).some(n=>ppl.includes(n))&&(o.e.allDay||x.allDay||(hm(o.e.debut)<b&&hm(o.e.fin)>a)));
+      cw.innerHTML=(fe?`<div class="cwarn">🎌 ${esc(fe)}</div>`:"")+(dd.getDay()===0||dd.getDay()===6?`<div class="cwarn">C'est un week-end.</div>`:"")+
+        (busy.length?busy.slice(0,4).map(o=>`<div class="cwarn">⚠️ ${esc(who(o.e).filter(n=>ppl.includes(n)).join(", "))} : « ${esc(o.e.titre||catOf(o.e.cat).nom)} » ${o.e.allDay?"toute la journée":esc(o.e.debut)+"–"+esc(o.e.fin)}</div>`).join(""):`<div class="cok">✓ Libre à ce moment-là.</div>`)};
+    $("#f-cq").innerHTML=Q.map(([n,v])=>`<button type="button" data-cq="${v}">${n?n+" · ":""}${fmtD(parse(v)).replace(/^(\S+) /,(m,j)=>j.slice(0,3)+". ")}</button>`).join("");
+    cd.value=Q[0][1];if(c1){c1.value=x.debut;c2.value=x.fin}
+    $("#f-cq").addEventListener("click",ev=>{const b=ev.target.closest("[data-cq]");if(!b)return;cd.value=b.dataset.cq;check()});
+    cd.addEventListener("change",check);if(c1){c1.addEventListener("change",()=>{if(c1.value)c2.value=toH(Math.min(23*60+45,hm(c1.value)+dur));check()});c2.addEventListener("change",check)}
+    $("#f-cont").addEventListener("click",()=>{cb.hidden=!cb.hidden;$("#f-sbox").hidden=true;if(!cb.hidden){check();cb.scrollIntoView({block:"nearest"})}});
+    $("#f-suite").addEventListener("click",()=>{cb.hidden=true});
+    const titreSuite=(x.titre||catOf(x.cat).nom).replace(/\s*\(suite\)$/,"")+" (suite)";
+    $("#f-cok").addEventListener("click",async()=>{const nd=cd.value;if(!nd){toast("Choisis la date",true);return}
+      if(!x.allDay&&hm(c2.value)<=hm(c1.value)){toast("L'heure de fin doit être après le début",true);return}
+      const ok=$("#f-cok");ok.disabled=true;
+      try{const {id,faits,ex,serie,suitesLe,suiteDe,cree,...base}=x;
+        await db.collection("events").doc("e"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)).set({...base,titre:titreSuite,date:nd,dateFin:"",debut:x.allDay?"":c1.value,fin:x.allDay?"":c2.value,rec:{freq:"none",jusqu:""},ex:[],faits:[],suiteDe:{id:x.id,d},cree:new Date().toISOString()});
+        const f=new Set(x.faits||[]);f.add(d);await db.doc("events/"+x.id).update({faits:[...f],suitesLe:{...(x.suitesLe||{}),[d]:nd}});
+        close();toast("Suite programmée le "+fmtD(parse(nd))+" · ce rendez-vous reste à sa place")}
+      catch(e){ok.disabled=false;toast("Enregistrement impossible",true)}});
+    $("#f-clat").addEventListener("click",async()=>{const b=$("#f-clat");b.disabled=true;
+      try{await db.collection("suites").doc("s"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)).set({owner:myKey(),personne:me().nom||x.personne,action:titreSuite,cat:x.cat,client:x.titre||"",lieu:x.lieu||"",ref:x.ref||"",prio:x.prio||"",note:x.note||"",fromEv:x.id,cree:new Date().toISOString()});
+        const f=new Set(x.faits||[]);f.add(d);await db.doc("events/"+x.id).update({faits:[...f],suitesLe:{...(x.suitesLe||{}),[d]:"à planifier"}});
+        dossOpen=true;ls("doss","1");close();toast("« "+titreSuite+" » est dans vos dossiers à planifier")}
+      catch(e){b.disabled=false;toast("Enregistrement impossible",true)}});
+  }
   const b1=$("#f-fini");if(b1)b1.addEventListener("click",async()=>{try{await fin(true);boom(b1,true);close();toast("Rendez-vous terminé ✓")}catch(e){toast("Enregistrement impossible",true)}});
   const b0=$("#f-unfini");if(b0)b0.addEventListener("click",async()=>{try{await fin(false);close();toast("Rendez-vous remis à faire")}catch(e){toast("Enregistrement impossible",true)}});
   const box=$("#f-sbox"),q=$("#f-sq"),sg=$("#f-sg"),ok=$("#f-sok");let choix="";
@@ -1578,8 +1635,25 @@ $("#doss").addEventListener("pointerup",()=>{const d=ddrag;ddrag=null;if(!d)retu
   if(!d.on||!d.t)return;const dos=mesDossiers().find(z=>z.ref===d.ref);if(dos)openSheet(null,dossPre(dos,d.t))});
 window.__refreshDoss=()=>{renderDoss();if($("#overlay").hidden&&!drag)render()};
 
+/* ---------- ruban des semaines ---------- */
+function weekNoA(d){const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const n=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-n+3);const f=new Date(Date.UTC(t.getUTCFullYear(),0,4));return 1+Math.round(((t-f)/864e5-3+((f.getUTCDay()+6)%7))/7)}
+function aweeksHTML(){const cur=monday(view),now=ymd(monday(new Date())),ppl=cfg.personnes.filter(p=>!hidden.has(p.nom));
+  const nSel=zoom==="deux"?2:1,H=HOR(),mD=hm(H.midiDeb),mF=Math.max(hm(H.midiFin),mD);
+  const occ=occurrences(ymd(addD(cur,-21)),ymd(addD(cur,13*7-1)));let html="";
+  for(let k=-3;k<=12;k++){const m=addD(cur,k*7),a=ymd(m),b=ymd(addD(m,4));
+    const jours=[0,1,2,3,4].map(i=>ymd(addD(m,i))).filter(d=>!ferie(d)),fer=[0,1,2,3,4].map(i=>addD(m,i)).filter(d=>ferie(ymd(d)));
+    let cap=0,used=0,nb=0;ppl.forEach(p=>{const hj=(+p.hj||+H.jour||8)*60;cap+=hj*jours.length;
+      occ.forEach(o=>{if(o.d<a||o.d>b||!jours.includes(o.d)||!who(o.e).includes(p.nom))return;nb++;
+        if(o.e.allDay){used+=hj;return}let x=hm(o.e.fin)-hm(o.e.debut);if(x>0){const ov=Math.max(0,Math.min(hm(o.e.fin),mF)-Math.max(hm(o.e.debut),mD));used+=x-ov}})});
+    const pc=cap?Math.round(used/cap*100):0,sel=k>=0&&k<nSel,isNow=a===now;
+    html+=`<button type="button" class="awk${sel?" sel":""}${isNow?" now":""}${fer.length?" fer":""}" data-awk="${a}" title="Semaine ${weekNoA(m)} · agendas remplis à ${pc} %${fer.length?" · férié : "+fer.map(d=>d.getDate()+" "+MOIS[d.getMonth()]).join(", "):""}"><b>S${weekNoA(m)}</b><small>${m.getDate()} ${MOIS[m.getMonth()]}</small><i><u class="${pc>100?"over":pc>85?"mid":""}" style="width:${Math.min(100,pc)}%"></u></i></button>`}
+  return html}
+function renderAweeks(){const w=$("#aweeks"),bar=$("#awb");if(!w)return;bar.hidden=tab!=="agenda"||!loaded;if(bar.hidden)return;
+  const sl=w.scrollLeft;w.innerHTML=aweeksHTML();const se=w.querySelector(".awk.sel");if(se)w.scrollLeft=Math.max(0,se.offsetLeft-w.offsetLeft-3*81);else w.scrollLeft=sl}
+$("#aweeks").addEventListener("click",e=>{const b=e.target.closest("[data-awk]");if(!b)return;const m=parse(b.dataset.awk);
+  if(zoom==="jour"||zoom==="liste"){const wd=(view.getDay()+6)%7;view=addD(m,ymd(monday(new Date()))===b.dataset.awk?(new Date().getDay()+6)%7:Math.min(wd,4))}else view=m;render()});
 function render(){
-  renderNow();
+  renderNow();renderAweeks();
   const m=me(),pt=document.querySelector('.tab[data-tab="params"]');
   pt.hidden=!m.admin;if(tab==="params"&&!m.admin)tab="agenda";
   $("#btn-new").hidden=m.role==="lecture";if(loaded)rattCount();
