@@ -224,6 +224,9 @@ td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 html.embed header.top,html.embed .brandline{display:none!important}html.embed .wrap{padding-top:10px}
 @media (max-width:900px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.cols2{grid-template-columns:1fr}.big3{grid-template-columns:1fr}}
 @media (max-width:520px){.tile b{font-size:30px}.grid{grid-template-columns:1fr}.hero h1{font-size:26px}.hero .hic{width:44px;height:44px;font-size:24px}}
+.termp summary{cursor:pointer;list-style:none}.termp summary::-webkit-details-marker{display:none}.termp summary::before{content:"▸ ";color:var(--muted)}.termp[open] summary::before{content:"▾ "}
+.tblw{overflow-x:auto;margin-top:10px}.tterm{width:100%;border-collapse:collapse;font-size:14px}.tterm th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tterm td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}.tterm .num{text-align:right;white-space:nowrap}.tterm tr[data-open]{cursor:pointer}.tterm tr[data-open]:hover td{background:var(--soft,#f6f6f6)}.tterm .sub{font-size:12px;color:var(--muted)}
 </style>
 <style>
 .xrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.xsp{flex:1;min-width:0}
@@ -480,6 +483,17 @@ window.__toPlanning=async c=>{
   await gx("POST",`/sites/${siteId}/lists/${planList}/items`,{fields:{Title:"chantiers/"+id,Valeur:JSON.stringify(v)}});
   return {id,cree:true,planifie:false};
 };
+/* fin de chantier : on prévient aussi le Planning chantiers (il part dans « À facturer ») */
+window.__planFin=async(c,fini)=>{
+  if(!planList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!planList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName==="Planning chantiers");if(f)planList=f.id;url=r["@odata.nextLink"]}}
+  if(!planList)return false;
+  let u=`/sites/${siteId}/lists/${planList}/items?$expand=fields($select=Title,Valeur)&$top=500`;
+  while(u){const r=await gx("GET",u);for(const it of (r.value||[])){const k=it.fields&&it.fields.Title;if(!k||!k.startsWith("chantiers/"))continue;let v={};try{v=JSON.parse(it.fields.Valeur||"{}")}catch(e){}
+      if(v.suiviId===c.id||(c.devisRef&&v.devisRef===c.devisRef)){
+        if(fini&&(v.statut==="termine"||v.statut==="solde"))return true;
+        const n=fini?{...v,statut:"termine",aFacturer:true,dateFin:new Date().toISOString().slice(0,10)}:{...v,statut:v.debut?"planifie":"aplanifier",aFacturer:false};
+        await gx("PATCH",`/sites/${siteId}/lists/${planList}/items/${it.id}/fields`,{Valeur:JSON.stringify(n)});return true}}u=r["@odata.nextLink"]}
+  return false};
 
 /* ---------- démarrage ---------- */
 let ready=null;
@@ -736,6 +750,13 @@ function heuresGauge(k,noE){const max=Math.max(k.hv,k.conso)||1,pc=k.conso/max*1
 function factGauge(k,c,noE){const pc=k.fact/c.ht*100,mk=k.realise/c.ht*100;
   return `<div class="gauge"><div class="gl"><span>Facturé <b>${eur(k.fact)}</b> / ${eur(c.ht)}</span>${noE?"":`<span class="nw">${k.aFact>500?`<b style="color:var(--c4)">${eur(k.aFact)} à facturer</b>`:"à jour"}</span>`}</div>
    <div class="bar" title="Trait noir : réalisé (${eur(k.realise)})"><i style="width:${pc}%;--gc:var(--c4)"></i><span class="mk" style="left:${mk}%"></span></div></div>`}
+var termOpen=false;document.addEventListener("toggle",e=>{if(e.target.classList&&e.target.classList.contains("termp"))termOpen=e.target.open},true);
+function termHTML(){const T=CH.filter(c=>c.statut==="terminé").sort((a,b)=>String(b.finLe||b.fin||"").localeCompare(String(a.finLe||a.fin||"")));if(!T.length)return"";
+  const rows=T.map(c=>{const k=calc(c),pc=k.hv?Math.round(k.conso/k.hv*100):0,ach=c.ht?Math.round(k.achats/c.ht*100):0,raf=Math.max(0,(+c.ht||0)-k.fact);
+    return `<tr data-open="${c.id}"><td><b>${esc(c.client)}</b><div class="sub">${esc([c.objet,c.charge].filter(Boolean).join(" · "))}</div></td><td>${c.finLe||c.fin?fd(c.finLe||c.fin):"–"}</td><td class="num">${eur(c.ht)}</td><td class="num">${H(k.hv)}</td><td class="num">${H(k.conso)}</td><td class="num"><span class="badge ${pc<=100?"go":"bad"}">${pc} %</span></td><td class="num">${ach} %</td><td class="num">${raf>1?`<b style="color:var(--c4)">${eur(raf)}</b>`:"soldé"}</td></tr>`}).join("");
+  return `<details class="panel termp"${termOpen?" open":""}><summary><h2 style="display:inline">✅ Chantiers terminés <small>${T.length} · pour revenir dessus ou comparer</small></h2></summary>
+   <div class="tblw"><table class="tterm"><thead><tr><th>Chantier</th><th>Fini le</th><th class="num">Vendu HT</th><th class="num">Heures vendues</th><th class="num">Heures passées</th><th class="num">Consommé</th><th class="num">Achats / HT</th><th class="num">Reste à facturer</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <p class="hint">Consommé = heures passées ÷ heures vendues : au-dessus de 100 %, le chantier a coûté plus d'heures que prévu. Un clic sur une ligne rouvre la fiche (bouton ↩️ Rouvrir si besoin).</p></details>`}
 function renderBureau(){
   const act=CH.filter(c=>c.statut!=="terminé"),K=act.map(c=>({c,k:calc(c)}));
   const hv=K.reduce((a,x)=>a+x.k.hv,0),hc=K.reduce((a,x)=>a+x.k.conso,0),ec=K.reduce((a,x)=>a+x.k.ecart,0),af=K.reduce((a,x)=>a+Math.max(0,x.k.aFact),0),rca=K.reduce((a,x)=>a+x.k.resteCA,0);
@@ -763,6 +784,7 @@ function renderBureau(){
       ${heuresGauge(k)}${factGauge(k,c)}
       <div class="ft"><span class="badge">🛒 Achats ${eur(k.achats)} · ${c.ht?Math.round(k.achats/c.ht*100):0} %</span>${FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length?`<span class="badge bad">📣 ${FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length} remontée(s)</span>`:""}${k.proj?`<span class="badge ${k.proj<=k.hv?"go":"bad"}">Projection fin ${H(k.proj)}</span>`:""}</div>
     </button>`).join("")}</div></div>
+  ${termHTML()}
   <p class="hint">Les chantiers arriveront d'Organilog quand le lien sera branché : les heures viennent des interventions Organilog des techniciens sur le chantier, les achats des commandes du chantier, les situations des factures Organilog, et les heures vendues des lignes main-d'œuvre du devis.</p>`;
 }
 function filHTML(f,showCh){const c=CH.find(x=>x.id===f.ch),T={materiel:["📦","Matériel","mat"],question:["❓","Question","q"],photo:["📷","Photo","ph"],info:["💬","Info",""]}[f.type]||["💬","Info",""];
@@ -824,7 +846,7 @@ function renderSheet(){
   if(stab==="fil")body=`<div class="panel"><div class="feed" style="max-height:none">${f.map(x=>filHTML(x,false)).join("")||'<p class="hint">Rien pour l\'instant.</p>'}</div></div>`;
   if(stab==="jour")stab="equipe";
   if(["equipe","dossier","reunions"].includes(stab))body=xbody(c,stab);
-  $("#sheet").innerHTML=`<div class="sh-h"><div><div class="eyebrow">${esc([c.ref,c.devisRef?"devis "+c.devisRef:"",c.charge].filter(Boolean).join(" · "))}</div><h2>${esc(c.client)}</h2><button class="btn small" type="button" data-toplan style="margin:4px 0 2px">🏗️ Mettre au planning chantier</button><div class="hint">${esc([c.objet,c.commune,c.societe].filter(Boolean).join(" · "))}${c.debut&&c.fin?` · du ${fd(c.debut)} au ${fd(c.fin)}`:c.fin?` · fin prévue ${fd(c.fin)}`:c.debut?` · début ${fd(c.debut)}`:""}</div>${c.heuresAnte?`<div class="hint">Repris de la feuille de route : ${H(+c.heuresAnte)} déjà réalisées${c.acompte?" · acompte reçu "+eur(+c.acompte)+" (hors CA)":""}${c.tsupp?" · dont travaux supp. "+eur(+c.tsupp):""}</div>`:""}${c.note?`<div class="hint">📝 ${esc(c.note)}</div>`:""}${!(c.postes||[]).length?`<label class="hint" style="display:inline-flex;gap:6px;align-items:center;margin-top:4px">Avancement (sans postes détaillés) <input type="text" inputmode="decimal" data-avm="${esc(c.id)}" value="${c.avManuel??""}" style="width:64px;padding:3px 6px"> %</label>`:""}</div><div style="display:flex;gap:8px;flex-wrap:wrap">${(window.__me||"")==="d.blin@chassaing-technologies.fr"?`<button class="btn" type="button" data-chdel="${esc(c.id)}">🗑️ Supprimer</button>`:""}<button class="btn" type="button" data-close>Fermer</button></div></div>
+  $("#sheet").innerHTML=`<div class="sh-h"><div><div class="eyebrow">${esc([c.ref,c.devisRef?"devis "+c.devisRef:"",c.charge].filter(Boolean).join(" · "))}</div><h2>${esc(c.client)}</h2>${c.statut==="terminé"?`<span class="badge go" style="margin:4px 6px 2px 0">✅ Terminé${c.finLe?" le "+fd(c.finLe):""}</span><button class="btn small" type="button" data-rouvrir style="margin:4px 0 2px">↩️ Rouvrir</button>`:`<button class="btn small" type="button" data-toplan style="margin:4px 6px 2px 0">🏗️ Mettre au planning chantier</button><button class="btn small" type="button" data-finch style="margin:4px 0 2px">🏁 Chantier terminé</button>`}<div class="hint">${esc([c.objet,c.commune,c.societe].filter(Boolean).join(" · "))}${c.debut&&c.fin?` · du ${fd(c.debut)} au ${fd(c.fin)}`:c.fin?` · fin prévue ${fd(c.fin)}`:c.debut?` · début ${fd(c.debut)}`:""}</div>${c.heuresAnte?`<div class="hint">Repris de la feuille de route : ${H(+c.heuresAnte)} déjà réalisées${c.acompte?" · acompte reçu "+eur(+c.acompte)+" (hors CA)":""}${c.tsupp?" · dont travaux supp. "+eur(+c.tsupp):""}</div>`:""}${c.note?`<div class="hint">📝 ${esc(c.note)}</div>`:""}${!(c.postes||[]).length?`<label class="hint" style="display:inline-flex;gap:6px;align-items:center;margin-top:4px">Avancement (sans postes détaillés) <input type="text" inputmode="decimal" data-avm="${esc(c.id)}" value="${c.avManuel??""}" style="width:64px;padding:3px 6px"> %</label>`:""}</div><div style="display:flex;gap:8px;flex-wrap:wrap">${(window.__me||"")==="d.blin@chassaing-technologies.fr"?`<button class="btn" type="button" data-chdel="${esc(c.id)}">🗑️ Supprimer</button>`:""}<button class="btn" type="button" data-close>Fermer</button></div></div>
    <div class="big3"><div class="k"><span class="t">Avancement réel</span><div style="display:flex;gap:12px;align-items:center">${ringHTML(k.av,CHG[c.charge],70)}<div><div class="v">${eur(k.realise)}</div><div class="hint">réalisés sur ${eur(c.ht)} HT</div></div></div></div>
     <div class="k"><span class="t">Heures · ${k.ecart>=0?"d'avance":"de retard"}</span><div class="v ${k.ecart>=0?"pos":"neg"}">${k.ecart>=0?"+":""}${H(k.ecart)}</div>${heuresGauge(k,1)}<div class="hint">reste ${H(k.reste)} sur ${H(k.hv)} vendues</div></div>
     <div class="k"><span class="t">À facturer maintenant</span><div class="v" style="color:var(--c4)">${eur(Math.max(0,k.aFact))}</div>${factGauge(k,c,1)}<div class="hint">achats ${eur(k.achats)} · ${c.ht?Math.round(k.achats/c.ht*100):0} % du HT</div></div></div>
@@ -868,6 +890,15 @@ async function majChantier(id,patch){try{await db.doc("chantiers/"+id).update(pa
 /* ---------- import de la « Feuille de route – Réunion hebdo » (onglet Chantier) ----------
    Le fichier est lu dans le navigateur (rien ne part sur GitHub) puis chaque chantier est créé ou mis à jour. */
 /* ---------- « Mettre au planning chantier » : crée le chantier dans « À planifier » du Planning chantiers (ou le retrouve) et l'ouvre ---------- */
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-finch],[data-rouvrir]");if(!b)return;
+  const c=CH.find(x=>x.id===open);if(!c)return;const fini=b.hasAttribute("data-finch");
+  if(fini&&!b.classList.contains("armed")){b.classList.add("armed");b.textContent="Confirmer : chantier terminé";return}
+  b.disabled=true;
+  try{await majChantier(c.id,fini?{statut:"terminé",finLe:new Date().toISOString().slice(0,10)}:{statut:"en cours",finLe:""});
+    let lie=false;if(window.__planFin){try{lie=await window.__planFin(c,fini)}catch(_){}}
+    toast(fini?"« "+c.client+" » terminé : rangé dans Chantiers terminés"+(lie?" · au planning, il part dans « À facturer »":""):"« "+c.client+" » rouvert");
+  }catch(err){b.disabled=false}
+});
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-toplan]");if(!b)return;
   const c=CH.find(x=>x.id===open);if(!c)return;
   if(!window.__toPlanning){toast("Disponible dans la version en ligne : le chantier part dans « À planifier » du Planning chantiers.");return}

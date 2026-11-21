@@ -492,6 +492,17 @@ async function token(scopes){
   try{return (await msalApp.acquireTokenSilent({scopes,account})).accessToken}
   catch(e){await msalApp.acquireTokenRedirect({scopes,account});throw new Error("redirect")}
 }
+/* fin de chantier : on range aussi le chantier dans « Chantiers terminés » du Suivi de chantier */
+let suiviList=null;
+window.__suiviFin=async x=>{
+  if(!x.suiviId&&!x.devisRef)return false;
+  if(!suiviList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!suiviList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName==="Suivi chantiers");if(f)suiviList=f.id;url=r["@odata.nextLink"]}}
+  if(!suiviList)return false;
+  let u=`/sites/${siteId}/lists/${suiviList}/items?$expand=fields($select=Title,Valeur)&$top=500`;
+  while(u){const r=await gx("GET",u);for(const it of (r.value||[])){const k=it.fields&&it.fields.Title;if(!k||!k.startsWith("chantiers/"))continue;let v={};try{v=JSON.parse(it.fields.Valeur||"{}")}catch(e){}
+      if(k.slice(10)===x.suiviId||(x.devisRef&&v.devisRef===x.devisRef)){if(v.statut==="terminé")return true;
+        await gx("PATCH",`/sites/${siteId}/lists/${suiviList}/items/${it.id}/fields`,{Valeur:JSON.stringify({...v,statut:"terminé",finLe:new Date().toISOString().slice(0,10)})});return true}}u=r["@odata.nextLink"]}
+  return false};
 async function gx(method,path,body,scopes){
   const t=await token(scopes||SCOPES);
   const r=await fetch(path.startsWith("http")?path:"https://graph.microsoft.com/v1.0"+path,{method,headers:{Authorization:"Bearer "+t,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
@@ -1511,7 +1522,8 @@ $("#view").addEventListener("click",async e=>{
     await finChantier(fb.dataset.fin);return}
   const fa=e.target.closest("[data-facture]");if(fa){if(!fa.classList.contains("armed")){fa.classList.add("armed");fa.textContent="Confirmer : facture faite";return}
     const x=items.find(i=>i.id===fa.dataset.facture);if(!x)return;await save(x.id,{aFacturer:false,statut:"solde",dateFacture:ymd(new Date())},x.client+" : facture faite, chantier soldé");render();return}});
-async function finChantier(id){const x=items.find(i=>i.id===baseId(id));if(!x)return;await save(x.id,{statut:"termine",aFacturer:true,dateFin:ymd(new Date())},x.client+" terminé · il est dans « À facturer »");render()}
+async function finChantier(id){const x=items.find(i=>i.id===baseId(id));if(!x)return;await save(x.id,{statut:"termine",aFacturer:true,dateFin:ymd(new Date())},x.client+" terminé · il est dans « À facturer »");render();
+  if(window.__suiviFin){try{if(await window.__suiviFin(x))toast(x.client+" terminé · à facturer, et rangé dans les terminés du Suivi de chantier")}catch(e){}}}
 document.addEventListener("click",e=>{const d=document.querySelector("details.opts[open]");if(d&&!e.target.closest("details.opts"))d.open=false});
 $("#view").addEventListener("click",e=>{const c=e.target.closest("[data-panel]");if(!c)return;openP=openP===c.dataset.panel?null:c.dataset.panel;render()});
 $("#weeks").addEventListener("click",e=>{const w=e.target.closest("[data-wk]");if(!w)return;viewDate=parse(w.dataset.wk);if(zoom==="jour"){}render()});
