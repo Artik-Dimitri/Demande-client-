@@ -415,8 +415,6 @@ html.tmode .bt{font-size:16px;padding:7px 6px}
 .toast.bad{background:var(--alert)}
 .banner{background:var(--todaybg);color:var(--today);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-weight:600}
 .empty{padding:40px;text-align:center;color:var(--muted)}
-.adblk{position:absolute;pointer-events:none;border-radius:5px;box-sizing:border-box;z-index:0;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--cc) 30%,transparent) 0 7px,color-mix(in srgb,var(--cc) 16%,transparent) 7px 14px);border:1.5px solid color-mix(in srgb,var(--cc) 60%,transparent);overflow:hidden}
-.adblk span{display:block;font-size:11px;font-weight:700;color:var(--cc);padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;filter:brightness(.75)}
 </style>
 
 <script>if(/[?&]mode=taches/.test(location.search))document.documentElement.classList.add("tmode")</script>
@@ -850,9 +848,8 @@ function jaugeHTML(p,list,d){const we=d.getDay()===0||d.getDay()===6,s=ymd(d);if
   return `<div class="jg ${cls}" title="${hTxt(b)} de rendez-vous sur ${hTxt(cap)} de journée"><div class="bar"><i style="width:${Math.min(100,b/cap*100)}%"></i></div><small>${r<0?"⚠️ "+hTxt(-r)+" de trop":r===cap?"journée libre · "+hTxt(cap):"reste "+hTxt(r)}</small></div>`}
 function adSpans(){const H=HOR(),md=hm(H.midiDeb),mf=Math.max(hm(H.midiFin),md),d0=hm(H.deb||"07:30"),f0=hm(H.fin||"19:00");
   return [[Math.min(md-240,Math.max(d0,md-240)),md],[mf,Math.max(mf+240,Math.min(f0,mf+240))]]}
-function adBlocks(ad,y,off,unit){ /* y(m) -> px ; blocs non cliquables : on clique sur l'étiquette « journée entière » au-dessus */
-  if(!ad.length)return "";const n=ad.length;
-  return ad.map((o,k)=>adSpans().map(([a,b])=>{const t=y(a),h=y(b)-t;return `<div class="adblk" style="top:${t.toFixed(1)}px;height:${Math.max(10,h-1).toFixed(1)}px;left:calc(${(k/n*100).toFixed(2)}% + 1px);width:calc(${(100/n).toFixed(2)}% - 2px);--cc:${evColor(o.e,o._row)}" title="${esc((o.e.titre||catOf(o.e.cat).nom)+" · journée entière")}"><span>${esc(o.e.titre||catOf(o.e.cat).nom)}</span></div>`}).join("")).join("")}
+/* RDV « journée entière » : affiché comme une bulle normale le matin et une l'après-midi (4 h chacune) */
+function adSplit(list){return list.flatMap(o=>o.e.allDay?adSpans().map(([a,b],i)=>({...o,_ad:i+1,e:{...o.e,debut:toHM(a),fin:toHM(b)}})):[o])}
 function weekHTML(){
   const ds=days(),ppl=cfg.personnes.filter(p=>!hidden.has(p.nom)),t=ymd(new Date());
   const occ=occurrences(ymd(ds[0]),ymd(ds[ds.length-1])),S=tlScale(occ),now=new Date(),nm=now.getHours()*60+now.getMinutes();
@@ -863,12 +860,12 @@ function weekHTML(){
   ppl.forEach(p=>{
     h+=`<div class="pl" style="--pc:${col(p.couleur)}"><i></i><span>${esc(p.nom)}<small>${+p.hj||+HOR().jour||8} h / jour</small></span></div>`;
     ds.forEach(d=>{const s=ymd(d),we=d.getDay()===0||d.getDay()===6,mine=occ.filter(o=>o.d===s&&who(o.e).includes(p.nom));
-      const ad=mine.filter(o=>o.e.allDay),tm=wkLanes(mine.filter(o=>!o.e.allDay));
+      const tm=wkLanes(adSplit(mine));
       const evs=tm.map(o=>{const top=S.y(hm(o.e.debut)),bot=S.y(Math.max(hm(o.e.fin),hm(o.e.debut)+15)),ht=Math.max(15,bot-top-1);
         const html=evHTML(o,p.nom),st=`top:${top.toFixed(1)}px;height:${ht.toFixed(1)}px;left:calc(${(o.k/o.n*100).toFixed(2)}% + 1px);width:calc(${(100/o.n).toFixed(2)}% - 2px)`;
-        return html.replace('class="ev','class="ev'+(ht<26?" tiny":"")).replace('style="','title="'+esc((o.e.debut||"")+"–"+(o.e.fin||"")+" "+(o.e.titre||catOf(o.e.cat).nom))+'" style="'+st+';')}).join("");
-      h+=`<div class="cell tlc${we?" we":""}${ferie(s)?" fer":""}${s===t?" today":""}${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}">${ad.map(o=>evHTML(o,p.nom)).join("")}
-        <div class="tl" style="height:${S.H.toFixed(0)}px">${grid.join("")}${midi}${adBlocks(ad.map(o=>({...o,_row:p.nom})),m=>S.y(m))}${evs}${s===t&&nm>=S.a&&nm<=S.b?`<div class="nowl" style="top:${S.y(nm).toFixed(1)}px"></div>`:""}</div>${jaugeHTML(p,mine,d)}</div>`});
+        return html.replace('class="ev','class="ev'+(ht<26?" tiny":"")).replace('style="','title="'+esc((o._ad?"Journée entière":(o.e.debut||"")+"–"+(o.e.fin||""))+" "+(o.e.titre||catOf(o.e.cat).nom))+'" style="'+st+';')}).join("");
+      h+=`<div class="cell tlc${we?" we":""}${ferie(s)?" fer":""}${s===t?" today":""}${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}">
+        <div class="tl" style="height:${S.H.toFixed(0)}px">${grid.join("")}${midi}${evs}${s===t&&nm>=S.a&&nm<=S.b?`<div class="nowl" style="top:${S.y(nm).toFixed(1)}px"></div>`:""}</div>${jaugeHTML(p,mine,d)}</div>`});
   });
   if(!ppl.length)h+=`<div class="empty" style="grid-column:1/-1">Aucune personne affichée.</div>`;
   return h+`</div></div>`+legendHTML();
@@ -1129,14 +1126,14 @@ function lanes(list){const l=list.slice().sort((x,y)=>hm(x.e.debut)-hm(y.e.debut
 const H0=7,H1=20;
 function dayHTML(){
   const d=new Date(view),s=ymd(d),ppl=cfg.personnes.filter(p=>!hidden.has(p.nom)),occ=occurrences(s,s);
-  const nad=Math.max(0,...ppl.map(p=>occ.filter(o=>who(o.e).includes(p.nom)&&o.e.allDay).length)),adh=Math.max(30,nad*44+8);
+  const adh=30;
   let h=`<div class="gridwrap"><div class="day" style="--adh:${adh}px;grid-template-columns:56px repeat(${Math.max(1,ppl.length)},minmax(140px,1fr))"><div class="hd"></div>`;
   ppl.forEach(p=>{h+=`<div class="hd" style="--pc:${col(p.couleur)}"><i></i>${esc(p.nom)}</div>`});
   h+=`<div class="hours"><div style="height:var(--adh);border-bottom:1px solid var(--line);font-size:11px;padding-top:6px">journée</div>${[...Array(H1-H0)].map((_,i)=>`<div>${H0+i}h</div>`).join("")}</div>`;
   ppl.forEach(p=>{const mine=occ.filter(o=>who(o.e).includes(p.nom));
-    h+=`<div class="dcol${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}"><div class="adlist">${mine.filter(o=>o.e.allDay).map(o=>evHTML(o,p.nom)).join("")}</div><div style="position:relative">${[...Array(H1-H0)].map((_,i)=>`<div class="hl" data-h="${H0+i}"></div>`).join("")}${(()=>{const Hh=HOR(),a=Math.max(hm(Hh.midiDeb),H0*60),b=Math.min(hm(Hh.midiFin),H1*60);return b>a?`<div class="midi" style="top:${(a-H0*60)/60*48}px;height:${(b-a)/60*48}px"><span>🍽 Pause de midi</span></div>`:""})()}${adBlocks(mine.filter(o=>o.e.allDay).map(o=>({...o,_row:p.nom})),m=>(Math.max(H0*60,Math.min(H1*60,m))-H0*60)/60*48)}
-    ${lanes(mine.filter(o=>!o.e.allDay)).map(o=>{const a=Math.max(hm(o.e.debut),H0*60),b=Math.min(Math.max(hm(o.e.fin),a+20),H1*60),c=catOf(o.e.cat);
-      return `<div class="dev${isDone(o.e,s)?" fait":prioCls(o.e)}" data-ev="${o.e.id}" data-d="${s}" style="top:${(a-H0*60)/60*48}px;height:${Math.max(22,(b-a)/60*48-2)}px;left:calc(4px + (100% - 8px) * ${o.lane}/${o.nl});right:auto;width:calc((100% - 8px) / ${o.nl} - ${o.nl>1?3:0}px);--cc:${evColor(o.e,p.nom)};--pc:${col(p.couleur)}" data-row="${esc(p.nom)}">${badge(o.e)}${c.icone} <b>${esc(o.e.titre||c.nom)}</b><small>${esc(o.e.debut)}–${esc(o.e.fin)}${o.e.lieu?" · "+esc(o.e.lieu):""}</small>${withHTML(who(o.e).filter(n=>n!==p.nom))}${rappel(o.e)}${canEdit(o.e)?'<span class="rz" aria-hidden="true"></span>':""}</div>`}).join("")}
+    h+=`<div class="dcol${canFor(p.nom)?"":" ro"}" data-p="${esc(p.nom)}" data-d="${s}"><div class="adlist"></div><div style="position:relative">${[...Array(H1-H0)].map((_,i)=>`<div class="hl" data-h="${H0+i}"></div>`).join("")}${(()=>{const Hh=HOR(),a=Math.max(hm(Hh.midiDeb),H0*60),b=Math.min(hm(Hh.midiFin),H1*60);return b>a?`<div class="midi" style="top:${(a-H0*60)/60*48}px;height:${(b-a)/60*48}px"><span>🍽 Pause de midi</span></div>`:""})()}
+    ${lanes(adSplit(mine)).map(o=>{const a=Math.max(hm(o.e.debut),H0*60),b=Math.min(Math.max(hm(o.e.fin),a+20),H1*60),c=catOf(o.e.cat);
+      return `<div class="dev${isDone(o.e,s)?" fait":prioCls(o.e)}" data-ev="${o.e.id}" data-d="${s}" style="top:${(a-H0*60)/60*48}px;height:${Math.max(22,(b-a)/60*48-2)}px;left:calc(4px + (100% - 8px) * ${o.lane}/${o.nl});right:auto;width:calc((100% - 8px) / ${o.nl} - ${o.nl>1?3:0}px);--cc:${evColor(o.e,p.nom)};--pc:${col(p.couleur)}" data-row="${esc(p.nom)}">${badge(o.e)}${c.icone} <b>${esc(o.e.titre||c.nom)}</b><small>${o._ad?"journée entière":esc(o.e.debut)+"–"+esc(o.e.fin)}${o.e.lieu?" · "+esc(o.e.lieu):""}</small>${withHTML(who(o.e).filter(n=>n!==p.nom))}${rappel(o.e)}${canEdit(o.e)?'<span class="rz" aria-hidden="true"></span>':""}</div>`}).join("")}
     ${s===ymd(new Date())?(()=>{const n=new Date(),m=n.getHours()*60+n.getMinutes();return m>=H0*60&&m<=H1*60?`<div class="nowline" style="top:${(m-H0*60)/60*48}px"></div>`:""})():""}</div></div>`});
   return h+`</div></div>`+legendHTML();
 }
