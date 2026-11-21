@@ -337,11 +337,13 @@ const SS=(k,v)=>{try{localStorage.setItem("rd-"+k,JSON.stringify(v))}catch(e){}}
 let P=Object.assign(JSON.parse(JSON.stringify(DEF)),LS("params3")||{});if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));if(!P.pvF||!P.pvF.dep)P.pvF=JSON.parse(JSON.stringify(DEF.pvF));
 let DEVIS=LS("devis2")||[];
 let F=Object.assign({q:"",charge:"",cat:"",statut:"actifs",soc:"",du:"",au:"",perdus:false,sk:"date",sd:-1},LS("filtres")||{});
-let VUE=LS("vue")||OWNER;
+let VUE=LS("vue")||OWNER;F.charge=TOUT_VOIR.includes(VUE)?VUE:"";
 const RD=window.__RD||null;let ME=null; /* sur le site : fourni par la partie en ligne (compte Microsoft + SharePoint) */
 let view="liste",cur=null,E={h:0,prix:0,ach:0,mo:0};
 const isOwner=()=>ME?ME.owner:VUE===OWNER,seeAll=()=>ME?ME.seeAll:TOUT_VOIR.includes(VUE);
 const $=s=>document.querySelector(s);
+/* liste des chargés pour les menus : la liste des paramètres + moi + la valeur déjà enregistrée */
+const chargesL=(...x)=>[...new Set([...P.charges,VUE,...x].filter(Boolean))];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=v=>{const x=parseFloat(String(v??"").replace(/[\s €h%]/g,"").replace(",","."));return isFinite(x)?x:0};
 const inV=v=>v===""||v==null?"":String(v).replace(".",",");
@@ -360,7 +362,7 @@ function boom(){if(matchMedia("(prefers-reduced-motion: reduce)").matches)return
   for(let i=0;i<60;i++){const b=document.createElement("i");b.className="boom";b.style.background=cols[i%5];b.style.left=innerWidth/2+"px";b.style.top=innerHeight/3+"px";document.body.appendChild(b);
     const a=Math.random()*Math.PI*2,v=120+Math.random()*260;b.animate([{transform:"translate(0,0) rotate(0)",opacity:1},{transform:`translate(${Math.cos(a)*v}px,${Math.sin(a)*v+200}px) rotate(${Math.random()*720}deg)`,opacity:0}],{duration:1100+Math.random()*500,easing:"cubic-bezier(.2,.7,.4,1)"}).onfinish=()=>b.remove()}}
 const save=()=>{if(!RD)SS("devis2",DEVIS)},saveP=()=>{if(RD)RD.saveParams(P);else SS("params3",P)};
-const blank=()=>({id:"d"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ref:"",client:"",adresse:"",info:"",date:today(),charge:seeAll()?(P.charges[0]||""):VUE,soc:"artik",cat:"clim",act:0,statut:"brouillon",dEnvoi:"",dDecision:"",motif:"",
+const blank=()=>({id:"d"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ref:"",client:"",adresse:"",info:"",date:today(),charge:VUE,soc:"artik",cat:"clim",act:0,statut:"brouillon",dEnvoi:"",dDecision:"",motif:"",
   prix:"",achats:"",moV:"",hPrev:"",planning:null,reel:{h:[],cmd:[]},maj:""});
 const objectif=()=>(+((P.niveaux[P.niveau]||{}).m)||0)/100;
 /* marge visée selon la typologie du devis : montant (tranche) × composition (part du matériel dans le prix) */
@@ -451,14 +453,14 @@ function listeHTML(){const L=filtered().sort((a,b)=>{const f=SORTK[F.sk]||SORTK.
    ${seeAll()?"":`<div class="lock">👤 Tu vois uniquement tes devis, ${esc(VUE)}.</div>`}
    <div class="tools">
     <label class="f q"><span>Rechercher</span><input type="search" id="f-q" value="${esc(F.q)}" placeholder="Client, n° de devis, adresse…"></label>
-    ${seeAll()?`<label class="f"><span>Chargé d'affaires</span><select data-fl="charge">${opt("","Tous",F.charge)}${P.charges.map(c=>opt(c,c,F.charge)).join("")}</select></label>`:""}
+    ${seeAll()?`<label class="f"><span>Chargé d'affaires</span><select data-fl="charge">${opt(VUE,"Moi ("+VUE+")",F.charge)}${opt("","Tout le monde",F.charge)}${chargesL(F.charge).filter(c=>c!==VUE).map(c=>opt(c,c,F.charge)).join("")}</select></label>`:""}
     <label class="f"><span>Catégorie</span><select data-fl="cat">${opt("","Toutes",F.cat)}${CATS.map(c=>opt(c.k,c.n,F.cat)).join("")}</select></label>
     <label class="f"><span>Statut</span><select data-fl="statut">${opt("actifs","Tous sauf perdus",F.statut)}${STATUTS.map(([k,n])=>opt(k,n,F.statut)).join("")}</select></label>
     <label class="f"><span>Société</span><select data-fl="soc">${opt("","Les deux",F.soc)}${opt("artik","Artik",F.soc)}${opt("chassaing","Chassaing",F.soc)}</select></label>
     <div class="row2" style="gap:6px"><label class="f"><span>Du</span><input type="date" data-fl="du" value="${esc(F.du)}"></label><label class="f"><span>Au</span><input type="date" data-fl="au" value="${esc(F.au)}"></label></div>
     <label class="chk"><input type="checkbox" data-fl="perdus"${F.perdus?" checked":""}> Voir les perdus (${nPerdus})</label>
    </div>
-   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn pri" data-new>➕ Nouvelle analyse</button>${(F.q||(seeAll()&&F.charge)||F.cat||F.soc||F.du||F.au||F.statut!=="actifs"||F.perdus)?`<button type="button" class="btn sm" data-reset>Effacer les filtres</button>`:""}
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn pri" data-new>➕ Nouvelle analyse</button>${(F.q||(seeAll()&&F.charge!==VUE)||F.cat||F.soc||F.du||F.au||F.statut!=="actifs"||F.perdus)?`<button type="button" class="btn sm" data-reset>Effacer les filtres</button>`:""}
     <span class="hint" style="margin-left:auto">🎯 Marge visée de base : <b>${Math.round(objectif()*100)} %</b> (${esc((P.niveaux[P.niveau]||{}).n||"")})${P.typo&&P.typo.on?", ajustée devis par devis selon le montant et la part de matériel":""} · clic sur un titre de colonne pour trier</span></div>
    <div class="kpis">
     <div class="kpi"><span>Devis affichés</span><b>${L.length}</b></div>
@@ -473,7 +475,7 @@ function listeHTML(){const L=filtered().sort((a,b)=>{const f=SORTK[F.sk]||SORTK.
      <td class="n"><b>${r.vide?"—":eur(r.prix)}</b></td><td class="n"><span class="mg ${r.zone}">${r.vide?"—":eur(r.M)}</span></td><td class="n"><span class="mg ${r.zone}" title="${esc(v[1])}">${v[0]} ${pc(r.pct)}</span></td>
      <td class="n">${isFinite(r.ecart)&&!r.vide?`<span class="mg ${r.ecart<0?"mid":""}">${sH(r.ecart)}</span>`:"—"}</td>
      <td><span class="pill st-${d.statut}">${STATUTS.find(s=>s[0]===d.statut)[1]}</span>${d.planning?' <span title="Passé au planning chantier">🏗️</span>':""}${d.statut==="perdu"&&d.motif?`<div class="hint">${esc(d.motif)}</div>`:""}</td></tr>`}).join("")}</tbody></table></div>`
-   :`<div class="empty">${mesDevis().length?`<p class="hint">Aucun devis ne correspond à ces filtres.</p><button type="button" class="btn sm" data-reset>Effacer les filtres</button>`
+   :`<div class="empty">${mesDevis().length?`<p class="hint">Aucun devis ne correspond à ces filtres.${seeAll()&&F.charge===VUE?" Tu vois seulement tes analyses : choisis « Tout le monde » dans Chargé d'affaires pour voir celles des autres.":""}</p><button type="button" class="btn sm" data-reset>Effacer les filtres</button>`
      :`<p><b>Aucune analyse pour l'instant.</b></p><p class="hint">Crée la première avant d'envoyer ton prochain devis.</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button type="button" class="btn pri" data-new>➕ Nouvelle analyse</button>${DEVIS.length||RD?"":`<button type="button" class="btn" data-demo>Charger 5 exemples pour tester</button>`}</div>`}</div>`}
    ${DEVIS.some(d=>d.ex)?`<div><button type="button" class="btn sm" data-demox>Effacer les exemples</button></div>`:""}
   </section>`}
@@ -489,7 +491,7 @@ function ficheHTML(){const d=cur;
     <label class="f"><span>📍 Chantier / adresse</span><input type="text" data-dv="adresse" value="${esc(d.adresse)}"></label>
     <div class="row2"><label class="f"><span>🧾 N° de devis</span><input type="text" data-dv="ref" value="${esc(d.ref)}"></label><label class="f"><span>📅 Date</span><input type="date" data-dv="date" value="${esc(d.date)}"></label></div>
     <div class="row2"><label class="f"><span>🏢 Société</span><select data-dv="soc"><option value="artik"${d.soc==="artik"?" selected":""}>Artik</option><option value="chassaing"${d.soc==="chassaing"?" selected":""}>Chassaing</option></select></label>
-     <label class="f"><span>🧑‍💼 Chargé d'affaires</span>${seeAll()?`<select data-dv="charge">${P.charges.map(c=>`<option${c===d.charge?" selected":""}>${esc(c)}</option>`).join("")}</select>`:`<input type="text" value="${esc(d.charge)}" disabled>`}</label></div>
+     <label class="f"><span>🧑‍💼 Chargé d'affaires</span>${seeAll()?`<select data-dv="charge">${chargesL(d.charge).map(c=>`<option${c===d.charge?" selected":""}>${esc(c)}</option>`).join("")}</select>`:`<input type="text" value="${esc(d.charge)}" disabled>`}</label></div>
     <div class="row2"><label class="f"><span>Catégorie</span><select data-dv="cat">${CATS.map(c=>`<option value="${c.k}"${c.k===d.cat?" selected":""}>${c.n}</option>`).join("")}</select></label>
      <label class="f"><span>🛠 Activité (taux MO)</span><select data-dv="act">${P.act.map((a,i)=>`<option value="${i}"${+d.act===i?" selected":""}>${esc(a.n)} · ${inV(a.t)} €/h</option>`).join("")}</select></label></div>
     <label class="f"><span>📝 Info libre</span><input type="text" data-dv="info" value="${esc(d.info)}"></label>
@@ -644,7 +646,7 @@ function pvHTML(){const L_=mesPV();if(!pv||!PVS.includes(pv)&&!L_.some(x=>x.id==
    <section class="card"><h2>📁 Le dossier</h2>
     <label class="f">Client<input type="text" data-pk="client" value="${esc(d.client)}"></label>
     <label class="f">N° de devis<input type="text" data-pk="ref" value="${esc(d.ref)}"></label>
-    ${seeAll()?`<label class="f">Chargé d'affaires<select data-pk="charge">${P.charges.map(c=>`<option${c===d.charge?" selected":""}>${esc(c)}</option>`).join("")}</select></label>`:""}
+    ${seeAll()?`<label class="f">Chargé d'affaires<select data-pk="charge">${chargesL(d.charge).map(c=>`<option${c===d.charge?" selected":""}>${esc(c)}</option>`).join("")}</select></label>`:""}
     <label class="f">Société<select data-pk="soc"><option value="artik"${d.soc!=="chassaing"?" selected":""}>Artik</option><option value="chassaing"${d.soc==="chassaing"?" selected":""}>Chassaing</option></select></label>
     <label class="f">Métier<select data-pk="cat">${CATS.map(c=>`<option value="${c.k}"${d.cat===c.k?" selected":""}>${esc(c.n)}</option>`).join("")}</select></label>
     <label class="f">Main-d'œuvre vendue au taux<select data-pk="act">${P.act.map((a,i)=>`<option value="${i}"${+d.act===i?" selected":""}>${esc(a.n)} · ${f2(a.t)} €/h</option>`).join("")}</select></label>
@@ -718,7 +720,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,tr[data-o
   if(d.view){if(d.view==="fiche"&&!cur){cur=blank();resetE()}view=d.view;render();scrollTo(0,0);return}
   if(d.new!==undefined){cur=blank();resetE();view="fiche";render();scrollTo(0,0);return}
   if(d.sort){if(F.sk===d.sort)F.sd=-F.sd;else{F.sk=d.sort;F.sd=["client","charge","cat","ref","statut"].includes(d.sort)?1:-1}SS("filtres",F);render();return}
-  if(d.reset!==undefined){F={...F,q:"",charge:"",cat:"",statut:"actifs",soc:"",du:"",au:"",perdus:false};SS("filtres",F);render();return}
+  if(d.reset!==undefined){F={...F,q:"",charge:seeAll()?VUE:"",cat:"",statut:"actifs",soc:"",du:"",au:"",perdus:false};SS("filtres",F);render();return}
   if(d.demo!==undefined){DEVIS=demo().concat(DEVIS);save();render();toast("5 exemples ajoutés");return}
   if(d.demox!==undefined){DEVIS=DEVIS.filter(x=>!x.ex);if(cur&&cur.ex){cur=null;view="liste"}save();render();toast("Exemples effacés");return}
   if(isOwner()){
@@ -782,10 +784,10 @@ document.addEventListener("input",e=>{const t=e.target,d=t.dataset;
   if(d.ln){const [k,i,f]=d.ln.split("|");const arr=k==="rh"?cur.reel.h:cur.reel.cmd;arr[+i][f]=t.classList.contains("num")?(t.value.trim()===""?"":num(t.value)):t.value;persist();refresh();return}
 });
 document.addEventListener("change",e=>{const t=e.target;
-  if(t.id==="vue"){VUE=t.value;SS("vue",VUE);if(cur&&!seeAll()&&cur.charge!==VUE){cur=null;if(view==="fiche")view="liste"}F.charge="";render();toast("Tu vois le site comme "+VUE);return}
+  if(t.id==="vue"){VUE=t.value;SS("vue",VUE);if(cur&&!seeAll()&&cur.charge!==VUE){cur=null;if(view==="fiche")view="liste"}F.charge=VUE;render();toast("Tu vois le site comme "+VUE);return}
   if(t.dataset.dv&&t.tagName==="SELECT"){keepFocus(render);return}
 });
-(async()=>{if(RD){try{const x=await RD.load();ME=x.me;VUE=ME.nom;DEVIS=x.devis||[];PVS=x.pvs||[];if(x.params)P=Object.assign(JSON.parse(JSON.stringify(DEF)),x.params);if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));if(!P.pvF||!P.pvF.dep)P.pvF=JSON.parse(JSON.stringify(DEF.pvF));if(!ME.seeAll)F.charge=""}catch(e){if(e.message!=="redirect"&&e.message!=="stop"){const g=document.getElementById("gate");if(g){g.innerHTML=`<div class="gatecard"><h2>Lecture impossible</h2><p>${esc(e.message)}</p></div>`;g.hidden=false}}return}}render()})();
+(async()=>{if(RD){try{const x=await RD.load();ME=x.me;VUE=ME.nom;DEVIS=x.devis||[];PVS=x.pvs||[];if(x.params)P=Object.assign(JSON.parse(JSON.stringify(DEF)),x.params);if(!P.typo||!P.typo.grille)P.typo=JSON.parse(JSON.stringify(DEF.typo));if(!P.pvF||!P.pvF.dep)P.pvF=JSON.parse(JSON.stringify(DEF.pvF));F.charge=ME.seeAll?VUE:""}catch(e){if(e.message!=="redirect"&&e.message!=="stop"){const g=document.getElementById("gate");if(g){g.innerHTML=`<div class="gatecard"><h2>Lecture impossible</h2><p>${esc(e.message)}</p></div>`;g.hidden=false}}return}}render()})();
 </script>
 
 </body>
