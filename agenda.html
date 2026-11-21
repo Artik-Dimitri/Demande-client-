@@ -1201,16 +1201,16 @@ function openSheet(id,pre,occDate){
   if(!x&&!canFor(pre.personne||"")){pre={...pre,personne:m0.nom}}
   const e=x||{personne:pre.personne||(m0.role==="charge"?m0.nom:ls("me"))||m0.nom||cfg.personnes[0].nom,cat:pre.cat||cfg.categories[0].nom,date:pre.date||ymd(new Date()),debut:pre.debut||"09:00",fin:pre.fin||"10:00",allDay:false,rec:{freq:"none"},titre:pre.titre||"",lieu:pre.lieu||"",note:pre.note||"",prio:pre.prio||"",ref:pre.ref||""};
   if(!x){const c=catOf(e.cat);if(c.jour)e.allDay=true}
-  const rec=(e.rec&&e.rec.freq)||"none",isRec=rec!=="none";
+  const rec=(e.rec&&e.rec.freq)||"none",isRec=rec!=="none",oneOcc=!!(x&&isRec&&occDate);
   const sh=$("#sheet");
   sh.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>${x?"Modifier":"Nouveau"}</h2><button class="btn small" type="button" data-close>Fermer</button></div>
    ${x?bilanHTML(x,occDate||x.date):""}
-   ${x&&isRec?`<div class="recnote">↻ Rendez-vous répété. Les modifications s'appliquent à toute la série${occDate?` · occurrence du ${fmtD(parse(occDate))}`:""}.</div>`:""}
+   ${x&&isRec?(oneOcc?`<div class="recnote">↻ Rendez-vous répété · vous modifiez celui du <b>${fmtD(parse(occDate))}</b> · « Enregistrer cette fois » ne touche pas aux autres dates ; « Toute la série » les change toutes.</div>`:`<div class="recnote">↻ Rendez-vous répété. Les modifications s'appliquent à toute la série.</div>`):""}
    <div class="field"><span>Qui</span><div class="chips" id="f-p">${cfg.personnes.filter(p=>canFor(p.nom)).map(p=>`<button type="button" data-v="${esc(p.nom)}" style="--c:${col(p.couleur)}" aria-pressed="${(x?who(x):[e.personne]).includes(p.nom)}"><i></i>${esc(p.nom)}</button>`).join("")}</div>${cfg.personnes.filter(p=>canFor(p.nom)).length>1?'<small class="hint">Touchez plusieurs noms pour un rendez-vous à plusieurs.</small>':""}</div>
    <div class="field"><span>Quoi</span><div class="chips" id="f-c">${cfg.categories.map(c=>`<button type="button"${c.pour&&c.pour!==e.personne&&c.nom!==e.cat?" hidden":""} data-v="${esc(c.nom)}" data-j="${c.jour?1:0}" style="--c:${col(c.couleur)}" aria-pressed="${c.nom===e.cat}">${c.icone} ${esc(c.nom)}</button>`).join("")}</div></div>
    <label class="field"><span>Client / précision</span><input id="f-t" list="f-tl" autocomplete="off" value="${esc(e.titre||"")}" placeholder="Tapez un client : les demandes de devis sont proposées"><datalist id="f-tl">${clientSuggest().map(c=>`<option value="${esc(c)}">`).join("")}</datalist></label>
    <label class="switch"><input type="checkbox" id="f-ad"${e.allDay?" checked":""}> Journée entière</label>
-   <div class="grid2"><label class="field"><span id="f-dl">${e.allDay?"Du":"Le"}</span><input type="date" id="f-d" value="${esc(e.date)}"></label>
+   <div class="grid2"><label class="field"><span id="f-dl">${e.allDay?"Du":"Le"}</span><input type="date" id="f-d" value="${esc(oneOcc?occDate:e.date)}"></label>
      <label class="field" id="f-dfw"${e.allDay?"":" hidden"}><span>Au (inclus)</span><input type="date" id="f-df" value="${esc(e.dateFin||e.date)}"></label></div>
    <div class="grid2" id="f-hw"${e.allDay?" hidden":""}><label class="field"><span>De</span><input type="time" id="f-h1" step="900" value="${esc(e.debut||"09:00")}"></label><label class="field"><span>À</span><input type="time" id="f-h2" step="900" value="${esc(e.fin||"10:00")}"></label></div>
    <label class="field"><span>Lieu</span><input id="f-l" value="${esc(e.lieu||"")}" placeholder="ex. Creissels, chantier Saint-Affrique…"></label>
@@ -1222,7 +1222,7 @@ function openSheet(id,pre,occDate){
    <label class="field"><span>Texte affiché en clair sur la bulle (si vide : la note)</span><input id="f-rp" maxlength="60" value="${esc(e.rappel||"")}" placeholder="ex. Ne pas oublier les plans"></label>
    <label class="field"><span>Note (visible en passant la souris sur la bulle)</span><textarea id="f-n" rows="2">${esc(e.note||"")}</textarea></label>
    <p class="err" id="f-err" hidden></p>
-   <div class="acts"><div style="display:flex;gap:8px;flex-wrap:wrap">${x?(isRec&&occDate?`<button class="btn danger" type="button" id="f-del1">Supprimer cette fois</button><button class="btn danger" type="button" id="f-del">Supprimer la série</button>`:`<button class="btn danger" type="button" id="f-del">Supprimer</button>`):""}</div><button class="btn primary" type="button" id="f-ok">${x?"Enregistrer":"Ajouter"}</button></div>`;
+   <div class="acts"><div style="display:flex;gap:8px;flex-wrap:wrap">${x?(isRec&&occDate?`<button class="btn danger" type="button" id="f-del1">Supprimer cette fois</button><button class="btn danger" type="button" id="f-del">Supprimer la série</button>`:`<button class="btn danger" type="button" id="f-del">Supprimer</button>`):""}</div><div style="display:flex;gap:8px;flex-wrap:wrap">${oneOcc?'<button class="btn" type="button" id="f-okall">Toute la série</button>':""}<button class="btn primary" type="button" id="f-ok">${oneOcc?"Enregistrer cette fois":x?"Enregistrer":"Ajouter"}</button></div></div>`;
   $("#overlay").hidden=false;setTimeout(()=>{const t=$("#f-t");if(t&&!x)t.focus()},50);
   if(x)wireBilan(x,occDate||x.date);
   const pick=(wrap,btn)=>{wrap.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===btn))};
@@ -1235,7 +1235,9 @@ function openSheet(id,pre,occDate){
   $("#f-pr").addEventListener("click",ev=>{const b=ev.target.closest("button");if(b)pick($("#f-pr"),b)});
   $("#f-r").addEventListener("change",ev=>{$("#f-uw").hidden=ev.target.value==="none"});
   $("#f-h1").addEventListener("change",ev=>{const a=hm(ev.target.value),b=hm($("#f-h2").value);if(b<=a){const n=a+60;$("#f-h2").value=p2(Math.floor(n/60)%24)+":"+p2(n%60)}});
-  $("#f-ok").addEventListener("click",async()=>{
+  const okAll=$("#f-okall");if(okAll)okAll.addEventListener("click",()=>saveEv(true));
+  $("#f-ok").addEventListener("click",()=>saveEv(false));
+  async function saveEv(serie){
     const sel=w=>{const b=$(w).querySelector("[aria-pressed=true]");return b?b.dataset.v:""};
     const ad=$("#f-ad").checked,d=$("#f-d").value,df=$("#f-df").value,h1=$("#f-h1").value,h2=$("#f-h2").value,err=$("#f-err");
     const fail=t=>{err.textContent=t;err.hidden=false};
@@ -1248,11 +1250,20 @@ function openSheet(id,pre,occDate){
     const fr=$("#f-r").value;
     const data={ref:e.ref||"",personne:ppl[0],personnes:ppl,cat:sel("#f-c"),titre:$("#f-t").value.trim(),lieu:$("#f-l").value.trim(),note:$("#f-n").value.trim(),prio:($("#f-pr [aria-pressed=true]")||{dataset:{v:""}}).dataset.v,rappel:$("#f-rp").value.trim(),alerte:!$("#f-al")?(e.alerte||null):$("#f-al").checked?{n:Math.min(99,Math.max(1,parseInt($("#f-aln").value,10)||30)),u:$("#f-alu").value||"m"}:null,date:d,allDay:ad,dateFin:ad&&df&&df>d?df:"",debut:ad?"":h1,fin:ad?"":h2,rec:{freq:fr,jusqu:fr==="none"?"":$("#f-u").value}};
     ls("me",data.personne);
-    $("#f-ok").disabled=true;
+    $("#f-ok").disabled=true;if(okAll)okAll.disabled=true;
+    if(oneOcc&&!serie){ /* cette fois seulement : on retire ce jour de la série et on crée un RDV simple */
+      try{const {id,...base}=x;
+        await db.doc("events/"+x.id).update({ex:[...new Set([...(x.ex||[]),occDate])]});
+        await db.collection("events").doc("e"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)).set({...base,...data,rec:{freq:"none",jusqu:""},ex:[],serie:x.id,cree:new Date().toISOString()});
+        close();toast("Modifié pour le "+fmtD(parse(occDate))+" seulement");avancerDevis(data)}
+      catch(e2){$("#f-ok").disabled=false;if(okAll)okAll.disabled=false;fail("Enregistrement impossible ("+(e2.code||e2.message)+").")}
+      return}
+    if(oneOcc&&serie){ /* toute la série : la date affichée est celle de l'occurrence, on décale le début de la série d'autant */
+      const shift=Math.round((parse(d)-parse(occDate))/864e5);data.date=ymd(addD(parse(x.date),shift));if(data.dateFin)data.dateFin=ymd(addD(parse(x.dateFin||x.date),shift));}
     try{if(x)await db.doc("events/"+x.id).update(data);else await db.collection("events").doc("e"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)).set({...data,ex:[],cree:new Date().toISOString()});
       close();toast(x?"Enregistré":"Ajouté à l'agenda");avancerDevis(data);if(!x&&pre&&pre._suite){try{await db.doc("suites/"+pre._suite).delete()}catch(e3){}}}
-    catch(e2){$("#f-ok").disabled=false;fail("Enregistrement impossible ("+(e2.code||e2.message)+").")}
-  });
+    catch(e2){$("#f-ok").disabled=false;if(okAll)okAll.disabled=false;fail("Enregistrement impossible ("+(e2.code||e2.message)+").")}
+  }
   const del=$("#f-del");if(del){let armed=false;del.addEventListener("click",async()=>{if(!armed){armed=true;del.textContent=isRec?"Confirmer : toute la série":"Confirmer la suppression";return}
     try{await db.doc("events/"+x.id).delete();close();toast("Supprimé")}catch(e2){toast("Suppression impossible",true)}})}
   const d1=$("#f-del1");if(d1)d1.addEventListener("click",async()=>{try{await db.doc("events/"+x.id).update({ex:[...(x.ex||[]),occDate]});close();toast("Supprimé pour le "+fmtD(parse(occDate)))}catch(e2){toast("Suppression impossible",true)}});
