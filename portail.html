@@ -247,7 +247,7 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
    ===================================================================== */
 const CONFIG={tenantId:"14b03bce-aec8-408e-9686-c43ea4a503d8",clientId:"f66f2711-d9e4-4fd3-be11-57367c333c87",site:"root",liste:"Portail acces"};
 const OWNER="d.blin@chassaing-technologies.fr";   // seul à gérer les paramètres
-const BUILD_V="202611170700"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
+const BUILD_V="202611211630"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
 const MODULES=[
   {k:"accueil",ic:"🏠",lab:"Accueil",sh:"Accueil",url:"accueil.html?embed=1",tc:"var(--c-blue)",tous:true,g:"quot"},
   {k:"agenda",ic:"📅",lab:"Agenda",sh:"Agenda",url:"agenda.html?embed=1",tc:"var(--c-orange)",g:"quot"},
@@ -262,6 +262,7 @@ const MODULES=[
   {k:"planning",ic:"🏗️",lab:"Planning chantiers",sh:"Chantiers",url:"planning.html?embed=1",tc:"var(--c-ocre)",g:"chan"},
   {k:"suivi",ic:"📈",lab:"Suivi de chantier",sh:"Suivi",url:"suivi.html?embed=1",tc:"var(--c-orange)",g:"chan"},
   {k:"terrain",ic:"👷",lab:"Mes chantiers (techs)",sh:"Terrain",url:"suivi.html?embed=1&mode=terrain",tc:"var(--c-blue)",g:"chan"},
+  {k:"sav",ic:"🛠️",lab:"Suivi SAV",sh:"SAV",url:"sav.html?embed=1",tc:"var(--c-orange)",g:"gest"},
   {k:"heures",ic:"⏱️",lab:"Heures Artik",sh:"Heures Artik",url:"heures.html?embed=1",tc:"var(--c-bordeaux)",g:"gest"},
   {k:"heures-ch",ic:"⏱️",lab:"Heures Chassaing",sh:"Heures Chass.",url:"heures.html?embed=1&soc=chassaing",tc:"var(--c-ocre)",g:"gest"},
   {k:"chiffres",ic:"📈",lab:"Chiffres mensuels",sh:"Chiffres",url:"chiffres.html?embed=1",tc:"var(--c-blue)",g:"gest"},
@@ -305,7 +306,7 @@ async function loadAcces(){
   const r=await gx("GET",`/sites/${siteId}/lists/${listId}/items?$expand=fields($select=Title,Valeur)&$top=50`);
   const it=(r.value||[]).find(i=>i.fields&&i.fields.Title==="acces");
   if(it){itemId=it.id;try{acces=JSON.parse(it.fields.Valeur||"{}")}catch(e){acces=DEF_ACCES}}else{acces=JSON.parse(JSON.stringify(DEF_ACCES));if(isOwner())await saveAcces()}
-  const rg=(r.value||[]).find(i=>i.fields&&i.fields.Title==="reglages");
+  const rg=(r.value||[]).find(i=>i.fields&&i.fields.Title==="reglages");window.__regLu=!!rg;window.__accLu=!!it;window.__nbItems=(r.value||[]).length;
   if(rg){regId=rg.id;try{reglages=JSON.parse(rg.fields.Valeur||"{}")}catch(e){}if(!reglages.taches)reglages.taches=JSON.parse(JSON.stringify(DEF_REGLAGES.taches))}else if(isOwner())await saveReglages();
 }
 /* réglages par onglet (vous seul) : lus par les onglets eux-mêmes */
@@ -519,6 +520,7 @@ $("#out").addEventListener("click",()=>app.logoutRedirect({account}));
   gate("Chargement…","Ouverture de votre espace.");
   try{await loadAcces()}catch(e){if(e.message==="redirect")return;gate("Accès illisibles",esc(e.message),"Réessayer",()=>location.reload());return}
   if(!acces){gate("Espace pas encore prêt","Dimitri doit d'abord ouvrir l'espace une première fois.");return}
+  if(!isOwner()&&!window.__regLu){gate("Réglages illisibles",`Votre compte (${esc(account.username)}) ne peut pas lire les réglages de l'Espace équipe sur SharePoint (liste « ${esc(CONFIG.liste)} », ${window.__nbItems} élément(s) visible(s)). Dimitri doit vérifier les autorisations de cette liste : toute l'équipe doit pouvoir la lire.`);return}
   if(!isOwner()&&!(reglages&&reglages.ouvert)){gate("Bientôt disponible","Le nouvel Espace équipe est en cours de rodage. En attendant, continuez avec les pages habituelles : rien ne change pour vous.");return}
   $("#main").innerHTML="";$("#head").hidden=false;$("#tabs").hidden=false;$("#bbar").hidden=false;$("#who").textContent=account.name||account.username;
   show((location.hash||"").slice(1)||"accueil");
