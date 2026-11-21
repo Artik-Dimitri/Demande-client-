@@ -984,6 +984,8 @@ async function idToken(force){
   if(!r.idToken||expSoon(r.idToken))r=await msalApp.acquireTokenSilent({scopes:["User.Read"],account,forceRefresh:true});
   return r.idToken;
 }
+window.__diagIdToken=idToken;
+
 async function gx(method,path,body,scopes){
   const t=await token(scopes||SCOPES);
   const r=await fetch(path.startsWith("http")?path:"https://graph.microsoft.com/v1.0"+path,{method,headers:{Authorization:"Bearer "+t,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
@@ -1249,5 +1251,15 @@ function go(){var w=document.querySelector(".wrap");if(!w||document.querySelecto
  mv();new MutationObserver(mv).observe(document.body,{childList:true,subtree:true});}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();})();</script>
 <!--/SKIN-->
+<script>/* Diagnostic Organilog pour le Suivi SAV : ouvrir heures.html#diag */
+(function(){if(location.hash!=="#diag")return;
+const d=document.createElement("div");d.style.cssText="position:fixed;inset:auto 16px 16px 16px;z-index:9999;background:#fff;border:2px solid #1F7FC4;border-radius:12px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);font:14px system-ui,sans-serif;color:#222";
+d.innerHTML='<b>Diagnostic Organilog (Suivi SAV)</b> · rien n\'est modifié dans Organilog<br>N° d\'intervention <input id="dg-id" value="5990" style="width:90px;padding:6px"> <button id="dg-go" type="button" style="padding:7px 12px;background:#E4670A;color:#fff;border:0;border-radius:8px;font-weight:700">Lancer</button> <button id="dg-cp" type="button" style="padding:7px 12px;background:#1F7FC4;color:#fff;border:0;border-radius:8px;font-weight:700">Copier le résultat</button> <span id="dg-st"></span><textarea id="dg-out" readonly style="display:block;width:100%;height:240px;margin-top:8px;font:11px monospace"></textarea>';
+document.body.appendChild(d);const st=t=>document.getElementById("dg-st").textContent=t;
+document.getElementById("dg-go").onclick=async()=>{if(!window.__diagIdToken){st("Connectez-vous d'abord (attendez que la page soit chargée).");return}st("Lecture…");
+ try{const r=await fetch("https://red-sun-fb1f.d-blin.workers.dev/?probe=1&id="+encodeURIComponent(document.getElementById("dg-id").value.trim()),{headers:{Authorization:"Bearer "+await window.__diagIdToken(true)}});
+  document.getElementById("dg-out").value=await r.text();st(r.ok?"Terminé : copiez et collez à Claude.":"Erreur "+r.status+" : le relais est-il à jour ?")}catch(e){st("Erreur : "+(e.message||e))}};
+document.getElementById("dg-cp").onclick=async()=>{const o=document.getElementById("dg-out");try{await navigator.clipboard.writeText(o.value);st("Copié ✓")}catch(e){o.select();st("Sélectionné : Ctrl+C")}};
+})();</script>
 </body>
 </html>
