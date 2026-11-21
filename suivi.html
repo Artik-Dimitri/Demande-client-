@@ -227,6 +227,7 @@ html.embed header.top,html.embed .brandline{display:none!important}html.embed .w
 .termp summary{cursor:pointer;list-style:none}.termp summary::-webkit-details-marker{display:none}.termp summary::before{content:"▸ ";color:var(--muted)}.termp[open] summary::before{content:"▾ "}
 .tblw{overflow-x:auto;margin-top:10px}.tterm{width:100%;border-collapse:collapse;font-size:14px}.tterm th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 .tterm td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}.tterm .num{text-align:right;white-space:nowrap}.tterm tr[data-open]{cursor:pointer}.tterm tr[data-open]:hover td{background:var(--soft,#f6f6f6)}.tterm .sub{font-size:12px;color:var(--muted)}
+.hact .nb{background:var(--c4,#d76421);color:#fff;border-radius:999px;padding:0 7px;font-size:12px;margin-left:4px}
 </style>
 <style>
 .xrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.xsp{flex:1;min-width:0}
@@ -476,13 +477,31 @@ window.__toPlanning=async c=>{
       if(v.suiviId===c.id||(c.devisRef&&v.devisRef===c.devisRef)){found={id:k.slice(10),v};break}}u=r["@odata.nextLink"]}
   if(found)return {id:found.id,cree:false,planifie:!!found.v.debut};
   const id="s"+String(c.id).replace(/[^a-zA-Z0-9]/g,"").slice(0,30);
-  const v={client:c.client||"Chantier",societe:c.societe==="chassaing"||/chassaing/i.test(c.societe||"")?"chassaing":"artik",categorie:"",charge:c.charge||"",
-    montant:c.ht?Number(c.ht):null,heures:c.heuresVendues?Number(c.heuresVendues):null,statut:"aplanifier",debut:"",pm:false,slots:2,
-    heuresPassees:null,facture:null,achats:null,techs:[],equipe:"",note:[c.objet,c.commune,c.ref].filter(Boolean).join(" · "),
-    devisRef:c.devisRef||"",suiviId:c.id,exemple:false,createdAt:new Date().toISOString()};
+  const v=planPayload(c);
   await gx("POST",`/sites/${siteId}/lists/${planList}/items`,{fields:{Title:"chantiers/"+id,Valeur:JSON.stringify(v)}});
   return {id,cree:true,planifie:false};
 };
+function planPayload(c){return {client:c.client||"Chantier",societe:c.societe==="chassaing"||/chassaing/i.test(c.societe||"")?"chassaing":"artik",categorie:"",charge:c.charge||"",
+    montant:c.ht?Number(c.ht):null,heures:c.heuresVendues?Number(c.heuresVendues):null,statut:"aplanifier",debut:"",pm:false,slots:2,
+    heuresPassees:null,facture:null,achats:null,techs:[],equipe:"",note:[c.objet,c.commune,c.ref].filter(Boolean).join(" · "),
+    devisRef:c.devisRef||"",suiviId:c.id,exemple:false,createdAt:new Date().toISOString()}}
+/* lien automatique : chaque chantier en cours du Suivi a son double dans le Planning (même clé suiviId) */
+async function planFind(){
+  if(!planList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!planList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName==="Planning chantiers");if(f)planList=f.id;url=r["@odata.nextLink"]}}
+  if(!planList)return null;const out=[];
+  let u=`/sites/${siteId}/lists/${planList}/items?$expand=fields($select=Title,Valeur)&$top=500`;
+  while(u){const r=await gx("GET",u);for(const it of (r.value||[])){const k=it.fields&&it.fields.Title;if(!k||!k.startsWith("chantiers/"))continue;let v={};try{v=JSON.parse(it.fields.Valeur||"{}")}catch(e){}out.push({itemId:it.id,key:k,v})}u=r["@odata.nextLink"]}
+  return out}
+window.__syncPlanning=async list=>{
+  const P=await planFind();if(!P)return null;let crees=0,lies=0;const linked=new Set();
+  for(const c of list){
+    let m=P.find(x=>x.v.suiviId===c.id)||(c.devisRef?P.find(x=>!x.v.suiviId&&x.v.devisRef===c.devisRef):null);
+    if(m){linked.add(c.id);if(!m.v.suiviId){m.v={...m.v,suiviId:c.id};await gx("PATCH",`/sites/${siteId}/lists/${planList}/items/${m.itemId}/fields`,{Valeur:JSON.stringify(m.v)});lies++}continue}
+    if(c.statut==="terminé")continue;
+    const key="chantiers/s"+String(c.id).replace(/[^a-zA-Z0-9]/g,"").slice(0,30);
+    if(P.some(x=>x.key===key)){linked.add(c.id);continue}
+    const v=planPayload(c);await gx("POST",`/sites/${siteId}/lists/${planList}/items`,{fields:{Title:key,Valeur:JSON.stringify(v)}});P.push({key,v});linked.add(c.id);crees++}
+  window.__planLinked=linked;return {crees,lies,total:linked.size}};
 /* fin de chantier : on prévient aussi le Planning chantiers (il part dans « À facturer ») */
 window.__planFin=async(c,fini)=>{
   if(!planList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!planList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName==="Planning chantiers");if(f)planList=f.id;url=r["@odata.nextLink"]}}
@@ -716,7 +735,14 @@ function sub(col,setter,seed,key){db.collection(col).onSnapshot(s=>{let arr=s.do
   const old=arr.filter(x=>isDemo(col,x));if(old.length){old.forEach(x=>db.collection(col).doc(x.id).delete().catch(()=>{}));arr=arr.filter(x=>!isDemo(col,x))}
   setter(arr);loaded[key]=1;if(loaded.c)render()},()=>{loaded[key]=1;render()})}
 db.collection("etat").onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());const live=new Set(CH.map(c=>c.id));Object.keys(o).forEach(k=>{if(k.startsWith("muse~")&&!live.has("muse")){db.collection("etat").doc(k).delete().catch(()=>{});delete o[k]}});ETAT=o;if(loaded.c)render()},()=>{});
-sub("pointage",a=>PT=a,null,"p");sub("chantiers",a=>CH=a,demo,"c");sub("fil",a=>FIL=a,demoFil,"f");sub("jour",a=>JOUR=a,demoJour,"j");
+/* lien auto Suivi -> Planning : au chargement puis à chaque nouveau chantier (bureau seulement) */
+let syncSig="",syncRun=false;
+async function autoSync(force){
+  if(TERRAIN||!window.__syncPlanning||syncRun)return;const sig=CH.map(c=>c.id+":"+c.statut).sort().join("|");if(!force&&sig===syncSig)return;
+  syncRun=true;try{const r=await window.__syncPlanning(CH);if(r){syncSig=sig;if(r.crees||force)toast(r.crees?r.crees+" chantier"+(r.crees>1?"s":"")+" ajouté"+(r.crees>1?"s":"")+" au Planning chantiers (à planifier)":"Tous les chantiers en cours sont déjà au Planning ✓");render()}}
+  catch(e){if(force)toast("Lien avec le planning impossible : "+(e.message||e))}finally{syncRun=false}}
+setInterval(()=>{if(loaded.c)autoSync()},20000);
+sub("pointage",a=>PT=a,null,"p");sub("chantiers",a=>{CH=a;setTimeout(autoSync,1500)},demo,"c");sub("fil",a=>FIL=a,demoFil,"f");sub("jour",a=>JOUR=a,demoJour,"j");
 
 /* ---------- calculs ---------- */
 function posteAv(c,p){const L=allTasks(c,t=>t.poste===p.id);if(!L.length)return {auto:false,p:(+p.av||0)/100,n:0};const s=pStat(L);return {auto:true,p:s.p,n:s.tot,done:s.done}}
@@ -766,7 +792,7 @@ function renderBureau(){
   const svg=`<svg viewBox="0 0 ${W} ${Hh+40}" role="img" aria-label="CA restant à facturer par mois">${months.map((m,i)=>{let y=Hh;const parts=act.map((c,j)=>{const v=(out[i]||{})[c.id]||0;if(!v)return "";const h=v/mx*(Hh-26);y-=h;return `<rect x="${i*bw+bw*.18}" y="${y}" width="${bw*.64}" height="${Math.max(0,h-2)}" rx="6" fill="${PAL[j%4]}"><title>${esc(c.client)} : ${eur(v)}</title></rect>`}).join("");const tot=Object.values(out[i]||{}).reduce((a,b)=>a+b,0);
     return parts+(tot?`<text class="val" x="${i*bw+bw/2}" y="${y-6}" text-anchor="middle">${Math.round(tot/1000)} k€</text>`:"")+`<text class="lbl" x="${i*bw+bw/2}" y="${Hh+20}" text-anchor="middle">${m.toLocaleDateString("fr-FR",{month:"short"})}</text>`}).join("")}<line x1="0" x2="${W}" y1="${Hh}" y2="${Hh}" stroke="var(--line)"/></svg>`;
   $("#view").innerHTML=`
-  <section class="hero" style="--acc:var(--c3)"><span class="hic">📈</span><div class="htx"><h1>Suivi de chantier</h1><p>Vendu, consommé, acheté, facturé : où en est chaque chantier, en temps réel.</p></div><div class="hact">${isBoss()?`<button class="btn" type="button" data-imp>📥 Importer la feuille de route</button><input type="file" id="impf" accept=".xlsx,.xlsm" hidden>`:""}${isBoss()?`<button class="btn" type="button" data-muse>🏨 Dossier Hôtel de la Muse</button>`:""}<span class="trial">Organilog pas encore branché</span></div></section>
+  <section class="hero" style="--acc:var(--c3)"><span class="hic">📈</span><div class="htx"><h1>Suivi de chantier</h1><p>Vendu, consommé, acheté, facturé : où en est chaque chantier, en temps réel.</p></div><div class="hact">${isBoss()?`<button class="btn" type="button" data-imp>📥 Importer la feuille de route</button><input type="file" id="impf" accept=".xlsx,.xlsm" hidden>`:""}${isBoss()?`<button class="btn" type="button" data-muse>🏨 Dossier Hôtel de la Muse</button>`:""}${TERRAIN?"":`<button class="btn" type="button" data-syncplan title="Le lien se fait aussi tout seul à l'ouverture de la page">🔗 Mettre au planning les chantiers non transférés${(()=>{const n=window.__planLinked?CH.filter(c=>c.statut!=="terminé"&&!window.__planLinked.has(c.id)).length:0;return n?` <b class="nb">${n}</b>`:""})()}</button>`}<span class="trial">Organilog pas encore branché</span></div></section>
   ${IMP?impHTML():""}
   <section class="tiles">
     <div class="tile"><span>Chantiers en cours</span><b>${act.filter(c=>c.statut==="en cours").length}</b><small>+ ${act.filter(c=>c.statut!=="en cours").length} à démarrer</small></div>
@@ -782,7 +808,7 @@ function renderBureau(){
     <button type="button" class="cc" data-open="${c.id}" style="--pc:${CHG[c.charge]||"var(--c1)"}">
       <div class="h">${ringHTML(k.av,CHG[c.charge])}<div style="min-width:0"><h3>${esc(c.client)}</h3><div class="sub">${esc(c.objet)}</div><div class="sub">${esc([c.societe,c.charge,c.resp&&c.resp!==c.charge?"resp. "+c.resp:"",c.ref].filter(Boolean).join(" · "))} · ${c.statut==="à démarrer"?(c.debut?"démarre le "+fd(c.debut):"à démarrer"):(c.fin?"fin prévue "+fd(c.fin):"en cours")}</div></div></div>
       ${heuresGauge(k)}${factGauge(k,c)}
-      <div class="ft"><span class="badge">🛒 Achats ${eur(k.achats)} · ${c.ht?Math.round(k.achats/c.ht*100):0} %</span>${FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length?`<span class="badge bad">📣 ${FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length} remontée(s)</span>`:""}${k.proj?`<span class="badge ${k.proj<=k.hv?"go":"bad"}">Projection fin ${H(k.proj)}</span>`:""}</div>
+      <div class="ft">${window.__planLinked?(window.__planLinked.has(c.id)?'<span class="badge go" title="Relié au Planning chantiers">🏗️ au planning</span>':'<span class="badge bad">pas au planning</span>'):""}<span class="badge">🛒 Achats ${eur(k.achats)} · ${c.ht?Math.round(k.achats/c.ht*100):0} %</span>${FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length?`<span class="badge bad">📣 ${FIL.filter(f=>f.ch===c.id&&f.statut!=="traite").length} remontée(s)</span>`:""}${k.proj?`<span class="badge ${k.proj<=k.hv?"go":"bad"}">Projection fin ${H(k.proj)}</span>`:""}</div>
     </button>`).join("")}</div></div>
   ${termHTML()}
   <p class="hint">Les chantiers arriveront d'Organilog quand le lien sera branché : les heures viennent des interventions Organilog des techniciens sur le chantier, les achats des commandes du chantier, les situations des factures Organilog, et les heures vendues des lignes main-d'œuvre du devis.</p>`;
@@ -890,6 +916,8 @@ async function majChantier(id,patch){try{await db.doc("chantiers/"+id).update(pa
 /* ---------- import de la « Feuille de route – Réunion hebdo » (onglet Chantier) ----------
    Le fichier est lu dans le navigateur (rien ne part sur GitHub) puis chaque chantier est créé ou mis à jour. */
 /* ---------- « Mettre au planning chantier » : crée le chantier dans « À planifier » du Planning chantiers (ou le retrouve) et l'ouvre ---------- */
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-syncplan]");if(!b)return;
+  if(!window.__syncPlanning){toast("Disponible dans la version en ligne");return}b.disabled=true;await autoSync(true);b.disabled=false});
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-finch],[data-rouvrir]");if(!b)return;
   const c=CH.find(x=>x.id===open);if(!c)return;const fini=b.hasAttribute("data-finch");
   if(fini&&!b.classList.contains("armed")){b.classList.add("armed");b.textContent="Confirmer : chantier terminé";return}

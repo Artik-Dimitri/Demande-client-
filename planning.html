@@ -494,10 +494,34 @@ async function token(scopes){
 }
 /* fin de chantier : on range aussi le chantier dans « Chantiers terminés » du Suivi de chantier */
 let suiviList=null;
+async function suiviListId(){if(!suiviList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!suiviList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName==="Suivi chantiers");if(f)suiviList=f.id;url=r["@odata.nextLink"]}}return suiviList}
+/* lien automatique : chaque chantier en cours du Suivi de chantier a son double ici (clé suiviId), créé « à planifier » */
+let syncBusy=false;
+async function syncFromSuivi(){
+  if(syncBusy)return 0;syncBusy=true;let crees=0;
+  try{if(!await suiviListId())return 0;
+    const CHs=[];let u=`/sites/${siteId}/lists/${suiviList}/items?$expand=fields($select=Title,Valeur)&$top=500`;
+    while(u){const r=await gx("GET",u);for(const it of (r.value||[])){const k=it.fields&&it.fields.Title;if(!k||!k.startsWith("chantiers/"))continue;let v={};try{v=JSON.parse(it.fields.Valeur||"{}")}catch(e){}CHs.push({...v,id:k.slice(10)})}u=r["@odata.nextLink"]}
+    const P=Object.entries(docs).filter(([k])=>k.startsWith("chantiers/"));
+    for(const c of CHs){
+      const m=P.find(([k,v])=>v.suiviId===c.id)||(c.devisRef?P.find(([k,v])=>!v.suiviId&&v.devisRef===c.devisRef):null);
+      if(m){if(!m[1].suiviId){docs[m[0]]={...m[1],suiviId:c.id};await write(m[0],docs[m[0]])}
+        else if(c.statut==="terminé"&&m[1].statut!=="termine"&&m[1].statut!=="solde"){docs[m[0]]={...m[1],statut:"termine",aFacturer:true,dateFin:m[1].dateFin||c.finLe||new Date().toISOString().slice(0,10)};await write(m[0],docs[m[0]])}
+        continue}
+      if(c.statut==="terminé")continue;
+      const key="chantiers/s"+String(c.id).replace(/[^a-zA-Z0-9]/g,"").slice(0,30);if(docs[key])continue;
+      const v={client:c.client||"Chantier",societe:c.societe==="chassaing"||/chassaing/i.test(c.societe||"")?"chassaing":"artik",categorie:"",charge:c.charge||"",
+        montant:c.ht?Number(c.ht):null,heures:c.heuresVendues?Number(c.heuresVendues):null,statut:"aplanifier",debut:"",pm:false,slots:2,
+        heuresPassees:null,facture:null,achats:null,techs:[],equipe:"",note:[c.objet,c.commune,c.ref].filter(Boolean).join(" · "),
+        devisRef:c.devisRef||"",suiviId:c.id,exemple:false,createdAt:new Date().toISOString()};
+      docs[key]=v;await write(key,v);crees++}
+    if(crees){notify();if(typeof toast==="function")toast(crees+" chantier"+(crees>1?"s":"")+" du Suivi de chantier ajouté"+(crees>1?"s":"")+" (à planifier)")}
+  }catch(e){}finally{syncBusy=false}
+  return crees}
+window.__syncFromSuivi=syncFromSuivi;
 window.__suiviFin=async x=>{
   if(!x.suiviId&&!x.devisRef)return false;
-  if(!suiviList){let url=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(url&&!suiviList){const r=await gx("GET",url);const f=(r.value||[]).find(l=>l.displayName==="Suivi chantiers");if(f)suiviList=f.id;url=r["@odata.nextLink"]}}
-  if(!suiviList)return false;
+  if(!await suiviListId())return false;
   let u=`/sites/${siteId}/lists/${suiviList}/items?$expand=fields($select=Title,Valeur)&$top=500`;
   while(u){const r=await gx("GET",u);for(const it of (r.value||[])){const k=it.fields&&it.fields.Title;if(!k||!k.startsWith("chantiers/"))continue;let v={};try{v=JSON.parse(it.fields.Valeur||"{}")}catch(e){}
       if(k.slice(10)===x.suiviId||(x.devisRef&&v.devisRef===x.devisRef)){if(v.statut==="terminé")return true;
@@ -580,7 +604,7 @@ ready=(async()=>{
     const created=await openList();
     await pull();
     if(created||!("config/reglages" in docs)){await db.doc("config/reglages").set(PSEED)}
-    await loadDevis();
+    await loadDevis();syncFromSuivi();
   }catch(e){
     if(e.message==="redirect")return new Promise(()=>{});
     if(e.status===403||e.status===401)showGate("Accès non autorisé",`Le compte <b>${esc(account.username)}</b> n'a pas accès au planning. Demandez à Dimitri de l'ajouter.`,"Changer de compte",()=>msalApp.logoutRedirect({account}));
@@ -593,7 +617,7 @@ ready=(async()=>{
     $("#p-sync").addEventListener("click",async()=>{try{await pull();await loadDevis()}catch(e){}});
     $("#p-out").addEventListener("click",()=>msalApp.logoutRedirect({account}));}
   /* les modifications des collègues arrivent toutes les minutes et au retour sur l'onglet */
-  const refresh=async()=>{if(document.hidden||document.querySelector(".bar.dragging")||!$("#overlay").hidden)return;try{await pull();await loadDevis()}catch(e){}};
+  const refresh=async()=>{if(document.hidden||document.querySelector(".bar.dragging")||!$("#overlay").hidden)return;try{await pull();await loadDevis();await syncFromSuivi()}catch(e){}};
   setInterval(refresh,60000);document.addEventListener("visibilitychange",refresh);
   hideGate();
   return db;
