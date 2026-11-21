@@ -30,8 +30,8 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
 .btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
 .btn:disabled{opacity:.5;cursor:default}
 .btn.pri{background:var(--orange);border-color:var(--orange);color:#fff}
-.files{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
-@media (max-width:1000px){.files{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.files{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:14px}
+@media (max-width:1100px){.files{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:640px){.files{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .file{font:inherit;text-align:left;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--c);border-radius:10px;padding:12px 14px;cursor:pointer;color:inherit;display:flex;flex-direction:column;gap:2px;position:relative;min-width:0}
 .file[aria-pressed=true]{border-color:var(--c);box-shadow:inset 0 -4px 0 var(--c)}
@@ -91,6 +91,32 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
 .gatecard{background:var(--surface);border:1px solid var(--line);border-top:5px solid var(--orange);border-radius:14px;padding:26px;max-width:440px;text-align:center}
 .gatecard img{height:44px;margin-bottom:8px}.gatecard h2{font-family:var(--f-display);font-size:28px;margin:4px 0 8px}.gatecard p{color:var(--muted);margin:0 0 14px}
 :focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.qual{margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--soft)}
+.qual h4{margin:0 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chips label{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer}
+.chips input{position:absolute;opacity:0;pointer-events:none}
+.chips label:has(input:checked){background:var(--c);border-color:var(--c);color:#fff;font-weight:700}
+.chips label:has(input:focus-visible){outline:2px solid var(--orange)}
+.qg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;margin-bottom:8px}
+@media (max-width:700px){.qg{grid-template-columns:1fr}}
+.qf{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted);min-width:0}
+.qf input,.qf select,.pl input{font:inherit;font-size:13.5px;color:var(--ink);border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 9px;min-width:0}
+.pl{display:grid;grid-template-columns:minmax(0,1fr) 70px 110px 28px;gap:6px;margin-bottom:6px;align-items:center}
+.pl .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px}
+.costs{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+.costs div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;color:var(--muted)}
+.costs b{display:block;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
+.costs .k1{border-top:3px solid var(--orange)}.costs .k2{border-top:3px solid var(--bleu)}
+.qact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gsum{font-size:13px;margin-top:6px}.gsum b{color:var(--ink)}
+.recap{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--c);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.recap .tw{overflow-x:auto}
+.recap table{width:100%;border-collapse:collapse;font-size:13.5px}
+.recap th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:5px 6px;border-bottom:1px solid var(--line)}
+.recap td{padding:5px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.recap td.r,.recap th.r{text-align:right}.recap tfoot td{font-weight:700;border-bottom:0}
+.recap .hd{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.recap select{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:5px 8px}
 </style>
 </head>
 <body>
@@ -110,6 +136,7 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
   <label class="ck"><input type="checkbox" id="late"> En retard seulement</label>
 </div>
 <div class="steps" id="steps"></div>
+<div id="recap"></div>
 <div class="list" id="list"></div>
 <div class="bulk" id="bulk" hidden><b id="nsel"></b><span>sélectionnée(s) →</span><select id="bstep" aria-label="Action"></select><button type="button" id="bgo">Appliquer</button><button type="button" id="bclear" style="background:transparent;color:inherit;border:1px solid currentColor">Annuler</button></div>
 <p class="note" id="foot"></p>
@@ -283,7 +310,7 @@ async function syncOrg(){
     for(let i=0;i<nc.length;i+=300){const r=await relais("sav=cli&ids="+nc.slice(i,i+300).join(","));Object.assign(C.cli,r.clients);nc.slice(i,i+300).forEach(c=>{if(!C.cli[c])C.cli[c]={t:"Client n° "+c,v:""}})}
     await saveCache();
     setSync("Organilog lu à "+nowS().slice(11));
-    render();
+    if(!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".qual")))render();
   }catch(e){if(e.message!=="redirect"){setSync("Organilog : "+e.message,true);console.error(e)}}
   finally{busy=false;$("#refresh").disabled=false}
 }
@@ -321,9 +348,9 @@ function build(){
 function fin(d){const a=A[d.key]||{};const done=d.ivs.filter(x=>x.f),last=d.ivs[d.ivs.length-1],ld=done[done.length-1];
   d.cat=d.ivs.some(x=>CFG.cats[x.cat]==="SAV")?"SAV":"Maintenance";
   d.v=ld?ld.v:0;d.retour=!last.f?last:null;d.last=ld;
-  d.clos=!!(a.fac||a.clos)||d.v===5;
+  d.clos=!!(a.fac||a.clos)||(d.v===5&&!!a.g);
   d.ouvert=!d.clos&&[2,3,4].includes(d.v)&&!(d.v===3&&a.dv===3);
-  d.file=d.clos?"fini":{1:"fac",2:"piece",3:"devis",4:"pas",0:"rien"}[d.v];
+  d.file=d.clos?"fini":{1:"fac",2:"piece",3:"devis",4:"pas",5:"gar",0:"rien"}[d.v];
   d.techs=[...new Set(d.ivs.flatMap(x=>x.techs))];d.a=a}
 
 /* ---------- files et étapes ---------- */
@@ -333,9 +360,10 @@ const FILES=[
  {k:"devis",c:"var(--bleu)",ico:"📄",n:"Devis",sub:"Devis à faire",seuil:5,steps:["À faire","Envoyé","Accepté","Retour planifié"]},
  {k:"pas",c:"var(--ocre)",ico:"📅",n:"À repasser",sub:"Prochain passage",seuil:10,steps:["À planifier","Retour planifié"]},
  {k:"rien",c:"var(--gris)",ico:"❓",n:"Rien coché",sub:"Effectuée, aucune case",seuil:2,steps:["À vérifier"]},
+ {k:"gar",c:"#C5372C",ico:"🛡️",n:"Non facturables",sub:"À traiter : pourquoi, combien",seuil:7,steps:["À traiter"]},
  {k:"fini",c:"var(--ok)",ico:"✅",n:"Terminés",sub:"Facturés ou clos",seuil:1e9,steps:["Facturés","Non facturables","Clos"]}];
 function stepOf(d){const a=d.a;
-  if(d.file==="fini")return a.fac?0:d.v===5?1:2;
+  if(d.file==="fini")return a.fac?0:a.g?1:2;
   if(d.file==="piece")return d.retour?3:Math.min(a.pc||0,2);
   if(d.file==="devis")return d.retour?3:Math.min(a.dv||0,2);
   if(d.file==="pas")return d.retour?1:0;
@@ -354,6 +382,80 @@ function histOf(d){const h=[];
     if(x.vtx)h.push({t:(x.vat||"").slice(0,16),w:x.techs.map(techN).join(", "),q:"a coché « "+x.vtx+" »",o:1})});
   return h.concat((d.a.h||[])).sort((a,b)=>String(a.t).localeCompare(String(b.t)))}
 
+/* =====================================================================
+   NON FACTURABLES : motif, cause, pièces, coût et manque à gagner
+   ===================================================================== */
+let COST=null;          /* versions du coût horaire (page « Coût horaire ») */
+const MOTIFS=[["mat","🔧 Garantie matériel"],["chan","🏗️ Garantie chantier"],["sav","🛠️ Reprise SAV"],["tech","👷 Erreur technicien"],["off","🎁 Offert au client"],["autre","❔ Autre"]];
+const motifN=k=>(MOTIFS.find(m=>m[0]===k)||["","—"])[1];
+const EDIT=new Set(),DR={};
+const num=v=>{const x=parseFloat(String(v??"").replace(/\s/g,"").replace(",","."));return isFinite(x)?x:0};
+const eur=(n,d=0)=>(isFinite(n)?n:0).toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d})+" €";
+const hh=n=>{const m=Math.round(n*60);return Math.floor(m/60)+" h"+(m%60?" "+String(m%60).padStart(2,"0"):"")};
+function rateAt(date){if(!COST||!COST.versions||!COST.versions.length)return null;
+  const v=COST.versions.filter(x=>x.du<=date).sort((a,b)=>b.du.localeCompare(a.du))[0]||COST.versions.slice().sort((a,b)=>a.du.localeCompare(b.du))[0];
+  const sal=v.techs.reduce((s,t)=>s+num(t.cm)*12,0),h=v.techs.reduce((s,t)=>s+num(t.hp)*12*num(t.pp)/100,0),fx=v.fixes.reduce((s,f)=>s+num(f.m),0);
+  if(!h)return null;return {ch:v.base==="sal"?sal/h:(sal+fx)/h,vente:num(v.vente),depV:num(v.depV),depC:num(v.depC),coef:num(v.coef)||1,du:v.du}}
+const hOf=x=>{const m=/^(\d+):(\d+)/.exec(x.h||"");let v=m?+m[1]+(+m[2])/60:0;
+  if(!v&&x.hs&&x.he){const a=/^(\d+):(\d+)/.exec(x.hs),b=/^(\d+):(\d+)/.exec(x.he);if(a&&b)v=Math.max(0,(+b[1]*60+ +b[2]-(+a[1]*60+ +a[2]))/60)}return v};
+function hoursOf(d){let t=0;d.ivs.filter(x=>x.f).forEach(x=>x.ids.forEach(id=>{const o=C.ivs[id];if(o)t+=hOf(o)}));return t}
+function costOf(d,g){const done=d.ivs.filter(x=>x.f),date=(d.last&&d.last.dd)||today(),r=rateAt(date);
+  const H=g.hc!==""&&g.hc!=null?num(g.hc):hoursOf(d),P=done.length,pa=(g.pieces||[]).reduce((s,x)=>s+num(x.q)*num(x.pu),0),rb=g.remb?num(g.rm):0;
+  if(!r)return {H,P,pa,rb,ok:false};
+  return {H,P,pa,rb,ok:true,r,mo:H*r.ch,dep:P*r.depC,cout:H*r.ch+P*r.depC+pa-rb,mag:H*r.vente+P*r.depV+pa*r.coef}}
+function draft(d){return DR[d.key]||(DR[d.key]=JSON.parse(JSON.stringify(d.a.g||{motif:"",cause:"",orig:"",pieces:[],remb:false,rm:"",hc:""})))}
+function costsHTML(d,g){const c=costOf(d,g);
+  if(!c.ok)return `<div class="costs"><div>⏱️ <b>${hh(c.H)}</b>${c.P} passage(s)</div><div>🧩 <b>${eur(c.pa,2)}</b>pièces (achat)</div><div>Coût horaire non renseigné : page « Coût horaire »</div></div>`;
+  return `<div class="costs"><div>⏱️ <b>${hh(c.H)}</b>${c.P} passage(s)</div><div>🧩 <b>${eur(c.pa-c.rb,2)}</b>pièces nettes</div>
+  <div class="k1" title="Main d'œuvre ${eur(c.mo)} + déplacements ${eur(c.dep)} + pièces nettes">💸 <b>${eur(c.cout)}</b>coût pour nous</div>
+  <div class="k2" title="Heures × taux de vente + déplacements facturés + pièces au prix de vente">📉 <b>${eur(c.mag)}</b>manque à gagner</div></div>`}
+function qualHTML(d,edit){const g=edit?draft(d):d.a.g;const k=d.key;
+  if(!edit){const c=costOf(d,g);return `<div class="gsum">🛡️ <b>${esc(motifN(g.motif))}</b> · ${esc(g.cause)}${g.orig?" · origine : "+esc(g.orig):""}${(g.pieces||[]).length?" · "+g.pieces.map(x=>esc(x.d)+(num(x.q)!==1?" ×"+x.q:"")).join(", "):""}</div>${costsHTML(d,g)}<div class="qact"><span class="num">Classé par ${esc(g.w||"")} le ${fd(g.t)}</span><button type="button" class="act ghost" data-gedit="${k}">Modifier</button></div>`}
+  const prev=Object.values(C.ivs).filter(x=>x.c===d.c&&!d.ivs.some(y=>y.ids.includes(x.id))&&dOf(x)<=dOf(d.ivs[0])).sort((a,b)=>dOf(b).localeCompare(dOf(a))).slice(0,8);
+  const causes=[...new Set(Object.values(A).map(a=>a.g&&a.g.cause).filter(Boolean))].slice(-60);
+  return `<div class="qual" data-q="${k}"><h4>Pourquoi on ne facture pas</h4>
+  <div class="chips">${MOTIFS.map(([m,n])=>`<label><input type="radio" name="m${k}" data-gk="motif" value="${m}"${g.motif===m?" checked":""}>${n}</label>`).join("")}</div>
+  <div class="qg"><label class="qf">Cause (le comment du pourquoi) *<input data-gk="cause" list="causes" value="${esc(g.cause)}" placeholder="ex. carte HS après 3 mois, fuite sur brasure de la pose…"></label>
+   <label class="qf">Origine<input data-gk="orig" list="orig${k}" value="${esc(g.orig)}" placeholder="chantier, devis ou intervention d'origine"><datalist id="orig${k}">${prev.map(x=>`<option value="n° ${esc(x.n)} du ${fd(dOf(x))}${x.com?" – "+esc(x.com.slice(0,50)):""}">`).join("")}</datalist></label></div>
+  <h4>Pièces posées (prix d'achat HT)</h4>
+  ${(g.pieces||[]).map((x,i)=>`<div class="pl"><input data-pi="${i}" data-pk="d" value="${esc(x.d)}" placeholder="Désignation" aria-label="Désignation"><input data-pi="${i}" data-pk="q" value="${esc(x.q)}" inputmode="decimal" aria-label="Quantité"><input data-pi="${i}" data-pk="pu" value="${esc(x.pu)}" inputmode="decimal" placeholder="€ achat" aria-label="Prix d'achat unitaire"><button type="button" class="x" data-pdel="${i}" title="Retirer">✕</button></div>`).join("")}
+  <div class="qact"><button type="button" class="btn" data-padd="${k}">+ Une pièce</button><label class="ck"><input type="checkbox" data-gk="remb"${g.remb?" checked":""}> Remboursé par le fabricant</label>${g.remb?`<input data-gk="rm" value="${esc(g.rm)}" inputmode="decimal" placeholder="€ remboursés" aria-label="Montant remboursé" style="width:120px;font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:var(--surface);color:var(--ink)">`:""}
+   <label class="ck">Heures <input data-gk="hc" value="${esc(g.hc)}" inputmode="decimal" placeholder="${hh(hoursOf(d))}" title="Laisse vide pour prendre les heures d'Organilog" style="width:90px;font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:var(--surface);color:var(--ink)"></label></div>
+  <div data-cost="${k}">${costsHTML(d,g)}</div>
+  <div class="qact"><button type="button" class="act" data-gok="${k}">✅ Valider</button>${d.a.g?`<button type="button" class="act ghost" data-gcancel="${k}">Annuler</button>`:""}<span class="num">* motif et cause obligatoires</span></div>
+  <datalist id="causes">${causes.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>`}
+function recapHTML(){const L=DOS.filter(d=>d.a.g&&(!catF||d.cat===catF));
+  const ms=[...new Set(L.map(d=>dOf(d.last||d.ivs[0]).slice(0,7)))].sort().reverse();if(!RM||!ms.includes(RM))RM=ms[0]||"";
+  if(!L.length)return `<div class="recap" style="--c:#C5372C"><b>🛡️ Coût des non facturables</b><p class="num">Rien de classé pour l'instant : le récap du mois apparaîtra ici.</p></div>`;
+  const M=L.filter(d=>RM==="tout"||dOf(d.last||d.ivs[0]).startsWith(RM)),rows={};let T={n:0,H:0,c:0,m:0,ok:true};
+  M.forEach(d=>{const c=costOf(d,d.a.g),r=rows[d.a.g.motif]=rows[d.a.g.motif]||{n:0,H:0,c:0,m:0};r.n++;r.H+=c.H;T.n++;T.H+=c.H;if(c.ok){r.c+=c.cout;r.m+=c.mag;T.c+=c.cout;T.m+=c.mag}else T.ok=false});
+  const mn=m=>m==="tout"?"Depuis le début":new Date(m+"-15T12:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  return `<div class="recap" style="--c:#C5372C"><div class="hd"><b>🛡️ Coût des non facturables</b><select id="rm" aria-label="Mois">${ms.concat(["tout"]).map(m=>`<option value="${m}"${m===RM?" selected":""}>${mn(m)}</option>`).join("")}</select>${T.ok?"":`<span class="num">⚠️ coût horaire non renseigné</span>`}</div>
+  <div class="tw"><table><thead><tr><th>Motif</th><th class="r">Nb</th><th class="r">Heures</th><th class="r">Coût pour nous</th><th class="r">Manque à gagner</th></tr></thead>
+  <tbody>${MOTIFS.filter(([k])=>rows[k]).map(([k,n])=>`<tr><td>${n}</td><td class="r">${rows[k].n}</td><td class="r">${hh(rows[k].H)}</td><td class="r">${eur(rows[k].c)}</td><td class="r">${eur(rows[k].m)}</td></tr>`).join("")}</tbody>
+  <tfoot><tr><td>Total</td><td class="r">${T.n}</td><td class="r">${hh(T.H)}</td><td class="r">${eur(T.c)}</td><td class="r">${eur(T.m)}</td></tr></tfoot></table></div>
+  <p class="num" style="margin:6px 0 0">Coût pour nous : heures × coût horaire + déplacements + pièces nettes. Manque à gagner : ce que ces heures, déplacements et pièces auraient rapporté facturés (chez ce client ou ailleurs).</p></div>`}
+let RM="";
+/* saisie dans le formulaire : on met à jour le brouillon et les montants sans tout redessiner */
+$("#list").addEventListener("input",e=>{const q=e.target.closest("[data-q]");if(!q)return;const key=q.dataset.q,d=DOS.find(x=>x.key===key);if(!d)return;const g=draft(d),el=e.target;
+  if(el.dataset.gk){g[el.dataset.gk]=el.type==="checkbox"?el.checked:el.value}else if(el.dataset.pi!=null){g.pieces[+el.dataset.pi][el.dataset.pk]=el.value}else return;
+  const box=q.querySelector(`[data-cost="${key}"]`);if(box)box.innerHTML=costsHTML(d,g)});
+$("#list").addEventListener("change",e=>{const q=e.target.closest("[data-q]");if(!q)return;const el=e.target;if(el.dataset.gk==="remb"||el.dataset.gk==="motif"){const d=DOS.find(x=>x.key===q.dataset.q);draft(d)[el.dataset.gk]=el.type==="checkbox"?el.checked:el.value;if(el.dataset.gk==="remb")render()}},true);
+$("#list").addEventListener("click",e=>{const b=e.target.closest("[data-padd],[data-pdel],[data-gok],[data-gedit],[data-gcancel]");if(!b)return;
+  const q=b.closest("[data-q]"),key=b.dataset.padd||b.dataset.gok||b.dataset.gedit||b.dataset.gcancel||(q&&q.dataset.q),d=DOS.find(x=>x.key===key);if(!d)return;
+  if(b.dataset.padd){draft(d).pieces.push({d:"",q:"1",pu:""});render();const ins=document.querySelectorAll(`[data-q="${key}"] [data-pk="d"]`);if(ins.length)ins[ins.length-1].focus();return}
+  if(b.dataset.pdel!=null){draft(d).pieces.splice(+b.dataset.pdel,1);render();return}
+  if(b.dataset.gedit){EDIT.add(key);delete DR[key];render();return}
+  if(b.dataset.gcancel){EDIT.delete(key);delete DR[key];render();return}
+  if(b.dataset.gok){const g=draft(d);if(!g.motif){toast("Choisis le motif");return}if(String(g.cause||"").trim().length<3){toast("Écris la cause : c'est elle qui sert à progresser");q.querySelector('[data-gk="cause"]').focus();return}
+    g.pieces=(g.pieces||[]).filter(x=>String(x.d).trim()||num(x.pu));const c=costOf(d,g);const a=A[key]=A[key]||{};const first=!a.g;
+    a.g={...g,w:ME,t:nowS(),H:c.H,cout:c.ok?Math.round(c.cout*100)/100:null,mag:c.ok?Math.round(c.mag*100)/100:null};
+    log(key,(first?"a classé : ":"a modifié : ")+motifN(g.motif).replace(/^\S+\s/,"")+" – "+g.cause+(c.ok?" ("+eur(c.cout)+")":""));
+    delete DR[key];EDIT.delete(key);saveA(key);toast("Classé · passe dans Terminés › Non facturables");render()}});
+document.addEventListener("change",e=>{if(e.target.id==="rm"){RM=e.target.value;render()}});
+async function loadCost(){try{let u=`/sites/${siteId}/lists?$select=id,displayName&$top=200`,lid=null;while(u&&!lid){const r=await gx("GET",u);const f=(r.value||[]).find(l=>l.displayName==="Couts entreprise");if(f)lid=f.id;u=r["@odata.nextLink"]}
+  if(!lid)return;const r=await gx("GET",`/sites/${siteId}/lists/${lid}/items?$expand=fields($select=Title,Valeur)&$top=50`);const it=(r.value||[]).find(i=>i.fields&&i.fields.Title==="versions");if(it)COST=JSON.parse(it.fields.Valeur||"null")}catch(e){console.warn("coût horaire",e)}}
+
 /* ---------- affichage ---------- */
 function filtered(f){const q=$("#q").value.trim().toLowerCase(),t=$("#tech").value,p=$("#pris").value,l=$("#late").checked;
   return DOS.filter(d=>d.file===f.k&&(!catF||d.cat===catF)&&(!t||d.techs.includes(t))
@@ -363,8 +465,9 @@ function rowHTML(f,d){const cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},a=ageOf(d)
   const sel_=f.k==="piece"&&!d.retour?`<select data-pc="${d.key}" aria-label="Étape pièce">${["À commander","Commandée","Reçue"].map((s,i)=>`<option value="${i}"${i===st?" selected":""}>${s}</option>`).join("")}</select>`
     :f.k==="devis"&&!d.retour?`<select data-dv="${d.key}" aria-label="Étape devis">${["À faire","Envoyé","Accepté","Refusé (clore)"].map((s,i)=>`<option value="${i}"${i===st?" selected":""}>${s}</option>`).join("")}</select>`:"";
   const btn=f.k==="fac"?`<button type="button" class="act" data-fac="${d.key}">🧾 Facturé</button>`
-    :f.k==="fini"?`<button type="button" class="act ghost" data-rouvrir="${d.key}">Rouvrir</button>`
+    :f.k==="fini"?(d.a.g?"":`<button type="button" class="act ghost" data-rouvrir="${d.key}">Rouvrir</button>`)
     :f.k==="rien"?`<button type="button" class="act ghost" data-clos="${d.key}">Clore</button>`:"";
+  const qual=f.k==="gar"||(f.k==="fini"&&d.a.g)?qualHTML(d,f.k==="gar"||EDIT.has(d.key)):"";
   const w=d.a.pris;const pris=f.k==="fini"?(d.a.fac?`<span class="taken">🧾 ${esc(d.a.fac.w.split(" ")[0])} · ${fd(d.a.fac.t)}</span>`:""):
     w?`<span class="taken${w===ME?" me":""}" title="Pris en charge">👤 ${esc(w===ME?"Moi":w.split(" ")[0])}</span>${w===ME?`<button type="button" class="take" data-lacher="${d.key}">Lâcher</button>`:""}`:`<button type="button" class="take" data-take="${d.key}">✋ Je prends</button>`;
   const chain=d.ivs.length>1?`<ul class="chain">${d.ivs.map(x=>`<li><b>n° ${esc(x.n)}</b> · ${x.f?"faite le "+fd(x.dd):"prévue le "+fd(x.pd)} · ${esc(x.techs.map(techN).join(", "))}${x.vtx?" · <b>"+esc(x.vtx)+"</b>":""}${x.com?"<br>"+esc(x.com.slice(0,240)):""}</li>`).join("")}</ul>`
@@ -375,7 +478,7 @@ function rowHTML(f,d){const cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},a=ageOf(d)
   <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span><span class="tag">👷 ${esc(d.techs.map(techN).join(", ")||"—")}</span>
    <span>${L.f?"faite le "+fd(L.dd):"prévue le "+fd(L.pd)}</span>${a!=null&&f.k!=="fini"?`<span class="ag${lt?" l":""}">il y a ${a} j</span>`:""}${L.h&&L.h!=="00:00"?`<span>${esc(L.h)} sur place</span>`:""}
    ${d.retour?`<span class="tag ret">📅 Retour prévu le ${fd(d.retour.pd)}${d.retour.techs.length?" · "+esc(d.retour.techs.map(techN).join(", ")):""}</span>`:""}${d.ivs.length>1?`<span class="tag">${d.ivs.length} passages</span>`:""}${L.k?`<span class="tag">contrat</span>`:""}</div>
-  ${chain}
+  ${chain}${qual}
   <details class="hist"><summary>🕘 Historique (${H.length})</summary><ol>${H.map(e=>`<li>${esc(fd(e.t))} ${esc(String(e.t).slice(11,16))} · <b>${esc(e.w)}</b> ${esc(e.q)}${e.o?" <em>(Organilog)</em>":""}</li>`).join("")}</ol></details></div>
   <div class="right"><span class="num">n° ${esc(d.ivs.map(x=>x.n).join(", "))}</span>${pris}${sel_}${btn}</div></div>`}
 let render=function(){
@@ -387,7 +490,8 @@ let render=function(){
   $("#steps").innerHTML=f.steps.length>1?f.steps.map((s,i)=>`<button type="button" data-s="${i}" aria-pressed="${i===step}">${s}<span class="n">${L.filter(d=>stepOf(d)===i).length}</span></button>`).join(""):"";
   const rows=L.filter(d=>f.steps.length<2||stepOf(d)===step).sort((a,b)=>f.k==="fini"?dOf(b.last||b.ivs[0]).localeCompare(dOf(a.last||a.ivs[0])):dOf(a.last||a.ivs[0]).localeCompare(dOf(b.last||b.ivs[0])));
   $("#list").innerHTML=rows.slice(0,f.k==="fini"?150:1000).map(d=>rowHTML(f,d)).join("")||`<div class="empty">${DOS.length?"Rien ici. 👌":"Aucune intervention SAV ou maintenance depuis le "+fd(DEP())+" pour l'instant."}</div>`;
-  const opts=f.k==="fac"?[["fac","🧾 Facturé"]]:f.k==="piece"?[["pc1","Commandée"],["pc2","Reçue"],["pc0","À commander"]]:f.k==="devis"?[["dv1","Envoyé"],["dv2","Accepté"],["dv3","Refusé (clore)"],["dv0","À faire"]]:f.k==="fini"?[["rouvrir","Rouvrir"]]:[["clos","Clore"]];
+  $("#recap").innerHTML=f.k==="gar"||(f.k==="fini"&&step===1)?recapHTML():"";
+  const opts=f.k==="gar"?[]:f.k==="fac"?[["fac","🧾 Facturé"]]:f.k==="piece"?[["pc1","Commandée"],["pc2","Reçue"],["pc0","À commander"]]:f.k==="devis"?[["dv1","Envoyé"],["dv2","Accepté"],["dv3","Refusé (clore)"],["dv0","À faire"]]:f.k==="fini"?[["rouvrir","Rouvrir"]]:[["clos","Clore"]];
   $("#bstep").innerHTML=[["take","✋ Je prends"]].concat(opts).map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
   $("#bulk").hidden=!sel.size;$("#nsel").textContent=sel.size;
   $("#foot").textContent={fac:"Clique « Facturé » une fois la facture faite dans Organilog : la ligne passe dans Terminés. Retard : plus de 7 jours.",
@@ -395,6 +499,7 @@ let render=function(){
     devis:"Devis accepté → planifie le retour dans Organilog : la ligne suit seule. Devis refusé → la ligne est close.",
     pas:"Dès qu'une intervention est planifiée chez ce client dans Organilog, la ligne passe à « Retour planifié ».",
     rien:"Interventions effectuées sans « Suite intervention » : à voir avec le tech. La case étant obligatoire, cette file doit rester vide.",
+    gar:"Le tech a coché « Terminé, non facturable ». Dis pourquoi (motif + cause), ajoute les pièces posées : le coût et le manque à gagner se calculent seuls. Validé, la ligne part dans Terminés › Non facturables.",
     fini:"Les 150 dernières. « Rouvrir » remet la ligne dans sa file."}[f.k];
   $("#essai").innerHTML=`Comptage à partir du ${fd(CFG.depart)} 2026. <label class="ck" style="display:inline-flex"><input type="checkbox" id="ess" ${essai?"checked":""}> Essai : voir aussi depuis le 1er novembre</label>`;
   renderJ()};
@@ -448,11 +553,19 @@ async function start(){
     let u=`/sites/${siteId}/lists?$select=id,displayName&$top=200`;while(u&&!listId){const r=await gx("GET",u);const f=(r.value||[]).find(l=>l.displayName===CFG.liste);if(f)listId=f.id;u=r["@odata.nextLink"]}
     if(!listId){if(EMAIL!==CFG.owner){showGate("Pas encore ouvert","Le suivi SAV n'a pas encore été activé par Dimitri.");return}
       listId=(await gx("POST",`/sites/${siteId}/lists`,{displayName:CFG.liste,list:{template:"genericList"},columns:[{name:"Valeur",text:{allowMultipleLines:true,textType:"plain"}}]},SCA)).id}
-    applyPull(await pull());gate.hidden=true;render();
+    applyPull(await pull());await loadCost();gate.hidden=true;render();
     await syncOrg();
     setInterval(()=>{if(document.visibilityState==="visible")syncOrg()},5*60e3);
   }catch(e){if(e.message!=="redirect")showGate("Erreur",esc(e.message),"Recharger",()=>location.reload())}
 }
+/* test : où Organilog range les pièces posées (ouvrir sav.html#pieces) */
+if(location.hash==="#pieces"){const d=document.createElement("div");d.style.cssText="position:fixed;inset:auto 16px 16px 16px;z-index:40;background:var(--surface);border:2px solid var(--bleu);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)";
+  d.innerHTML=`<b>🔍 Test des pièces Organilog</b><div class="bar" style="margin:8px 0"><label class="ck">N° d'une intervention avec des pièces <input id="pz" style="width:90px;font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px"></label><button class="btn pri" type="button" id="pgo">Lancer</button><button class="btn" type="button" id="pcp">Copier le résultat</button><span id="pst" class="num"></span></div><textarea id="pout" style="width:100%;height:140px;font:12px monospace"></textarea>`;
+  document.body.appendChild(d);
+  d.querySelector("#pgo").onclick=async()=>{const n=d.querySelector("#pz").value.trim(),st=d.querySelector("#pst");const iv=Object.values(C.ivs).find(x=>x.n===n);
+    if(!iv){st.textContent="N° introuvable dans le suivi (coche l'essai depuis le 1er novembre ?)";return}st.textContent="Lecture…";
+    try{d.querySelector("#pout").value=JSON.stringify(await relais("sav=probe&id="+iv.id));st.textContent="Terminé : copie et colle à Claude"}catch(e){st.textContent="Erreur : "+e.message}};
+  d.querySelector("#pcp").onclick=async()=>{const o=d.querySelector("#pout");try{await navigator.clipboard.writeText(o.value);d.querySelector("#pst").textContent="Copié ✓"}catch(e){o.select()}}}
 window.__SAV={get C(){return C},get A(){return A},build,render};
 start();
 })();
