@@ -288,7 +288,8 @@ window.__RD={
     const email=String(account.username||"").toLowerCase();
     siteId=(await gx("GET","/sites/root?$select=id")).id;await lists();
     if(!L[CFG.liste]){if(email===CFG.owner)await ensureList();else{showGate("Pas encore ouvert","La rentabilité des devis n'a pas encore été activée par Dimitri.");throw new Error("stop")}}
-    const [mine,acc,pl]=await Promise.all([items(CFG.liste),items(CFG.acces),items(CFG.planning)]);
+    const [mine,acc,pl,ce]=await Promise.all([items(CFG.liste),items(CFG.acces),items(CFG.planning),items("Couts entreprise").catch(()=>[])]);
+    window.__COUTH=((ce.find(x=>x.t==="coutH")||{}).v)||null;
     const devis=[],pvs=[];let params=null;
     mine.forEach(x=>{ids[CFG.liste+"|"+x.t]=x.id;if(x.t.startsWith("pv/"))pvs.push(x.v);else if(x.t.startsWith("devis/"))devis.push(x.v);else if(x.t==="config/params")params=x.v});
     pl.forEach(x=>{ids[CFG.planning+"|"+x.t]=x.id;if(x.t.startsWith("chantiers/")&&x.v&&x.v.rentaId)planning[x.v.rentaId]={cid:x.t.slice(10),...x.v}});
@@ -377,7 +378,10 @@ function objectifD(prix,ach){const b=objectif(),t=typoOf(prix,ach);return Math.m
    coût réel MO   = heures prévues × coût horaire réel de la société
    marge nette    = prix HT − achats matériel − coût réel MO
    x = petit essai (heures, prix, achats, prix MO en plus ou en moins), sans toucher au devis */
-function calc(d,x){x=x||{h:0,prix:0,ach:0,mo:0};const A=P.act[+d.act]||P.act[0]||{n:"",t:0},ch=+P.coutH[d.soc]||0;
+/* coût horaire réel : celui du mois du devis, saisi chaque mois dans Gestion › Coût horaire (sinon les paramètres ci-dessous) */
+function coutHAt(soc,date){const C=window.__COUTH;if(C&&C.mois){const m=String(date||today()).slice(0,7),ks=Object.keys(C.mois).filter(k=>k<=m).sort(),k=ks[ks.length-1]||Object.keys(C.mois).sort()[0];
+  const v=k&&C.mois[k]?parseFloat(C.mois[k][soc]):NaN;if(isFinite(v)&&v>0)return v}return +P.coutH[soc]||0}
+function calc(d,x){x=x||{h:0,prix:0,ach:0,mo:0};const A=P.act[+d.act]||P.act[0]||{n:"",t:0},ch=coutHAt(d.soc,d.date);
   const vide=d.prix==="";
   const prix=num(d.prix)+x.prix,ach=num(d.achats)+x.ach,moV=num(d.moV)+x.mo,hp=Math.max(0,num(d.hPrev)+x.h);
   const hv=A.t>0?moV/A.t:NaN,coutMO=hp*ch,M=prix-ach-coutMO,pct=prix>0?M/prix:NaN,ecart=hv-hp;
@@ -583,8 +587,8 @@ function paramsHTML(){const lk=!isOwner(),dis=lk?" disabled":"";
    <div class="tbl"><table><thead><tr><th>Activité</th><th>Taux de vente (€ HT/h)</th><th></th></tr></thead><tbody>${P.act.map((a,i)=>`<tr><td><input type="text" data-an="${i}" value="${esc(a.n)}"${dis}></td><td>${nI(`data-at="${i}"`,a.t)}</td><td>${!lk&&P.act.length>1?`<button type="button" class="x" data-ax="${i}" aria-label="Supprimer">✕</button>`:""}</td></tr>`).join("")}</tbody></table></div>
    ${lk?"":`<div><button type="button" class="btn sm" data-aadd>+ Ajouter une activité</button></div>`}</section>
   <section class="card"><h2>👷 Coût horaire réel par société</h2>
-   <div class="row2"><label class="f"><span>Artik (€/h)</span>${nI('data-pc="artik"',P.coutH.artik,"100%")}</label><label class="f"><span>Chassaing (€/h)</span>${nI('data-pc="chassaing"',P.coutH.chassaing,"100%")}</label></div>
-   <p class="hint">Repris de ta fiche Excel. Sert au coût réel de la main-d'œuvre.</p></section>
+    ${window.__COUTH?`<div class="row2"><div class="f"><span>Artik (€/h)</span><b>${coutHAt("artik",today())} €/h</b></div><div class="f"><span>Chassaing (€/h)</span><b>${coutHAt("chassaing",today())} €/h</b></div></div><p class="hint">Mis à jour chaque mois dans <b>Gestion › Coût horaire</b>. Chaque analyse prend le coût du mois de son devis.</p>`:`<div class="row2"><label class="f"><span>Artik (€/h)</span>${nI('data-pc="artik"',P.coutH.artik,"100%")}</label><label class="f"><span>Chassaing (€/h)</span>${nI('data-pc="chassaing"',P.coutH.chassaing,"100%")}</label></div>
+   <p class="hint">Repris de ta fiche Excel. Sert au coût réel de la main-d'œuvre.</p>`}</section>
   <section class="card"><h2>🚚 Prix de vente : frais annexes</h2>
    <div class="row2"><label class="f"><span>Heures par journée</span>${nI('data-pf="base"',P.pvF.base,"100%")}</label><label class="f"><span>Techniciens par véhicule</span>${nI('data-pf="parVeh"',P.pvF.parVeh,"100%")}</label></div>
    <div class="tbl"><table><thead><tr><th>🚐 Zone de déplacement</th><th>Prix aller-retour (€ HT)</th><th></th></tr></thead><tbody>${P.pvF.dep.map((z,i)=>`<tr><td><input type="text" data-pdn="${i}" value="${esc(z.n)}"${dis}></td><td>${nI(`data-pdp="${i}"`,z.p)}</td><td>${lk?"":`<button type="button" class="x" data-pdx="${i}" title="Retirer">✕</button>`}</td></tr>`).join("")}</tbody></table></div>

@@ -392,10 +392,8 @@ const EDIT=new Set(),DR={};
 const num=v=>{const x=parseFloat(String(v??"").replace(/\s/g,"").replace(",","."));return isFinite(x)?x:0};
 const eur=(n,d=0)=>(isFinite(n)?n:0).toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d})+" €";
 const hh=n=>{const m=Math.round(n*60);return Math.floor(m/60)+" h"+(m%60?" "+String(m%60).padStart(2,"0"):"")};
-function rateAt(date){if(!COST||!COST.versions||!COST.versions.length)return null;
-  const v=COST.versions.filter(x=>x.du<=date).sort((a,b)=>b.du.localeCompare(a.du))[0]||COST.versions.slice().sort((a,b)=>a.du.localeCompare(b.du))[0];
-  const sal=v.techs.reduce((s,t)=>s+num(t.cm)*12,0),h=v.techs.reduce((s,t)=>s+num(t.hp)*12*num(t.pp)/100,0),fx=v.fixes.reduce((s,f)=>s+num(f.m),0);
-  if(!h)return null;return {ch:v.base==="sal"?sal/h:(sal+fx)/h,vente:num(v.vente),depV:num(v.depV),depC:num(v.depC),coef:num(v.coef)||1,du:v.du}}
+function rateAt(date){if(!COST||!COST.mois)return null;const m=date.slice(0,7),ks=Object.keys(COST.mois).filter(k=>k<=m).sort(),k=ks[ks.length-1]||Object.keys(COST.mois).sort()[0];
+  const ch=k?num(COST.mois[k].artik):0;if(!ch)return null;const v=COST.vente||{};return {ch,vente:num(v.sav),depV:num(v.depV),depC:num(v.depC),coef:num(v.coef)||1,mois:k}}
 const hOf=x=>{const m=/^(\d+):(\d+)/.exec(x.h||"");let v=m?+m[1]+(+m[2])/60:0;
   if(!v&&x.hs&&x.he){const a=/^(\d+):(\d+)/.exec(x.hs),b=/^(\d+):(\d+)/.exec(x.he);if(a&&b)v=Math.max(0,(+b[1]*60+ +b[2]-(+a[1]*60+ +a[2]))/60)}return v};
 function hoursOf(d){let t=0;d.ivs.filter(x=>x.f).forEach(x=>x.ids.forEach(id=>{const o=C.ivs[id];if(o)t+=hOf(o)}));return t}
@@ -405,9 +403,9 @@ function costOf(d,g){const done=d.ivs.filter(x=>x.f),date=(d.last&&d.last.dd)||t
   return {H,P,pa,rb,ok:true,r,mo:H*r.ch,dep:P*r.depC,cout:H*r.ch+P*r.depC+pa-rb,mag:H*r.vente+P*r.depV+pa*r.coef}}
 function draft(d){return DR[d.key]||(DR[d.key]=JSON.parse(JSON.stringify(d.a.g||{motif:"",cause:"",orig:"",pieces:[],remb:false,rm:"",hc:""})))}
 function costsHTML(d,g){const c=costOf(d,g);
-  if(!c.ok)return `<div class="costs"><div>⏱️ <b>${hh(c.H)}</b>${c.P} passage(s)</div><div>🧩 <b>${eur(c.pa,2)}</b>pièces (achat)</div><div>Coût horaire non renseigné : page « Coût horaire »</div></div>`;
+  if(!c.ok)return `<div class="costs"><div>⏱️ <b>${hh(c.H)}</b>${c.P} passage(s)</div><div>🧩 <b>${eur(c.pa,2)}</b>pièces (achat)</div><div>Coût horaire non renseigné : Gestion › Coût horaire</div></div>`;
   return `<div class="costs"><div>⏱️ <b>${hh(c.H)}</b>${c.P} passage(s)</div><div>🧩 <b>${eur(c.pa-c.rb,2)}</b>pièces nettes</div>
-  <div class="k1" title="Main d'œuvre ${eur(c.mo)} + déplacements ${eur(c.dep)} + pièces nettes">💸 <b>${eur(c.cout)}</b>coût pour nous</div>
+  <div class="k1" title="${hh(c.H)} × ${eur(c.r.ch,2)}/h (${c.r.mois}) = ${eur(c.mo)} + déplacements ${eur(c.dep)} + pièces nettes">💸 <b>${eur(c.cout)}</b>coût pour nous</div>
   <div class="k2" title="Heures × taux de vente + déplacements facturés + pièces au prix de vente">📉 <b>${eur(c.mag)}</b>manque à gagner</div></div>`}
 function qualHTML(d,edit){const g=edit?draft(d):d.a.g;const k=d.key;
   if(!edit){const c=costOf(d,g);return `<div class="gsum">🛡️ <b>${esc(motifN(g.motif))}</b> · ${esc(g.cause)}${g.orig?" · origine : "+esc(g.orig):""}${(g.pieces||[]).length?" · "+g.pieces.map(x=>esc(x.d)+(num(x.q)!==1?" ×"+x.q:"")).join(", "):""}</div>${costsHTML(d,g)}<div class="qact"><span class="num">Classé par ${esc(g.w||"")} le ${fd(g.t)}</span><button type="button" class="act ghost" data-gedit="${k}">Modifier</button></div>`}
@@ -454,7 +452,7 @@ $("#list").addEventListener("click",e=>{const b=e.target.closest("[data-padd],[d
     delete DR[key];EDIT.delete(key);saveA(key);toast("Classé · passe dans Terminés › Non facturables");render()}});
 document.addEventListener("change",e=>{if(e.target.id==="rm"){RM=e.target.value;render()}});
 async function loadCost(){try{let u=`/sites/${siteId}/lists?$select=id,displayName&$top=200`,lid=null;while(u&&!lid){const r=await gx("GET",u);const f=(r.value||[]).find(l=>l.displayName==="Couts entreprise");if(f)lid=f.id;u=r["@odata.nextLink"]}
-  if(!lid)return;const r=await gx("GET",`/sites/${siteId}/lists/${lid}/items?$expand=fields($select=Title,Valeur)&$top=50`);const it=(r.value||[]).find(i=>i.fields&&i.fields.Title==="versions");if(it)COST=JSON.parse(it.fields.Valeur||"null")}catch(e){console.warn("coût horaire",e)}}
+  if(!lid)return;const r=await gx("GET",`/sites/${siteId}/lists/${lid}/items?$expand=fields($select=Title,Valeur)&$top=50`);const it=(r.value||[]).find(i=>i.fields&&i.fields.Title==="coutH");if(it)COST=JSON.parse(it.fields.Valeur||"null")}catch(e){console.warn("coût horaire",e)}}
 
 /* ---------- affichage ---------- */
 function filtered(f){const q=$("#q").value.trim().toLowerCase(),t=$("#tech").value,p=$("#pris").value,l=$("#late").checked;
