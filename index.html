@@ -214,7 +214,8 @@ legend::before{content:"";width:14px;height:3px;background:var(--orange)}
 .pjn small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
 .pjadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:2px dashed var(--line);border-radius:10px;padding:12px;cursor:pointer;font-weight:600;margin-top:8px}
 .pjadd small{font-weight:400;color:var(--muted)}
-.pjadd:hover{border-color:var(--muted)}
+.pjadd:hover,.pjadd.over{border-color:var(--muted);background:var(--soft,#f6f5f4)}
+.pjin{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 .field{display:grid;gap:5px;min-width:0}
 .field>span{font-size:13px;font-weight:600;color:var(--muted)}
 .field>span em{color:var(--alert);font-style:normal}
@@ -630,17 +631,30 @@ const pjPath=ref=>encodeURIComponent(PJ_ROOT)+"/"+encodeURIComponent(pjSafe(ref)
 const pjSize=b=>b>=1048576?(b/1048576).toFixed(1).replace(".",",")+" Mo":Math.max(1,Math.round(b/1024))+" ko";
 const pjIc=n=>/\.pdf$/i.test(n)?"📄":/\.(png|jpe?g|gif|heic|webp)$/i.test(n)?"🖼️":/\.(dwg|dxf)$/i.test(n)?"📐":/\.(xlsx?|csv)$/i.test(n)?"📊":"📎";
 let pjNew=[];
+const pjErr=(st,j)=>{const m=(j&&j.error&&(j.error.message||j.error.code))||"";
+  return st===401?"connexion Microsoft expirée, recharge la page (erreur 401)":st===403?"pas le droit d'écrire dans SharePoint › Documents : accès à demander à Dimitri (erreur 403"+(m?" · "+m:"")+")":st===409||st===423?"fichier verrouillé ou déjà en cours d'envoi, réessaie (erreur "+st+")":st===413?"fichier trop lourd (erreur 413)":(m||"erreur")+" (erreur "+st+")"};
+/* on lit le fichier tout de suite : sur Mac (Safari), un fichier iCloud pas encore téléchargé ou une référence perdue échoue ici, avec un message clair */
+async function pjGrab(list){const out=[];
+  for(const f of list){if(f.size>PJ_MAX){toast(f.name+" : trop lourd (60 Mo maximum)",true);continue}
+    try{const buf=await f.arrayBuffer();out.push(new File([buf],String(f.name).normalize("NFC"),{type:f.type||"application/octet-stream",lastModified:f.lastModified}))}
+    catch(e){toast(f.name+" : fichier illisible. Sur Mac, s'il est dans iCloud, ouvre-le une fois (ou clic droit › Télécharger maintenant) puis recommence.",true)}}
+  return out}
+function pjDrop(){const z=document.querySelector(".pjadd"),inp=$("#pj-in");if(!z||!inp)return;
+  ["dragenter","dragover"].forEach(t=>z.addEventListener(t,e=>{e.preventDefault();z.classList.add("over")}));
+  ["dragleave","drop"].forEach(t=>z.addEventListener(t,e=>{e.preventDefault();z.classList.remove("over")}));
+  z.addEventListener("drop",e=>{const fl=e.dataTransfer&&e.dataTransfer.files;if(!fl||!fl.length)return;inp.__drop=[...fl];inp.dispatchEvent(new Event("change"))})}
+const pjPick=inp=>{const l=inp.__drop||[...(inp.files||[])];inp.__drop=null;return l};
 async function pjList(ref){try{const r=await gx("GET",`/sites/${siteId}/drive/root:/${pjPath(ref)}:/children?$select=id,name,size,webUrl,createdDateTime,createdBy&$top=200`);return (r.value||[]).filter(x=>!x.folder)}catch(e){if(e.status===404)return [];throw e}}
 async function pjUpload(ref,file,onp){
   const p=`/sites/${siteId}/drive/root:/${pjPath(ref)}/${encodeURIComponent(pjSafe(file.name))}:`;
   if(file.size<=4*1024*1024){const t=await token(SCOPES);
     const r=await fetch("https://graph.microsoft.com/v1.0"+p+"/content?@microsoft.graph.conflictBehavior=rename",{method:"PUT",headers:{Authorization:"Bearer "+t,"Content-Type":file.type||"application/octet-stream"},body:file});
-    const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error((j.error&&j.error.message)||("Erreur "+r.status));e.status=r.status;throw e}if(onp)onp(1);return j}
+    const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(pjErr(r.status,j));e.status=r.status;throw e}if(onp)onp(1);return j}
   const ses=await gx("POST",p+"/createUploadSession",{item:{"@microsoft.graph.conflictBehavior":"rename"}});
   const CH=320*1024*16;let off=0,j={};
   while(off<file.size){const end=Math.min(off+CH,file.size);
     const r=await fetch(ses.uploadUrl,{method:"PUT",headers:{"Content-Range":`bytes ${off}-${end-1}/${file.size}`},body:file.slice(off,end)});
-    if(!r.ok)throw new Error("Envoi interrompu ("+r.status+")");j=await r.json().catch(()=>({}));off=end;if(onp)onp(off/file.size)}
+    if(!r.ok){const jj=await r.json().catch(()=>({}));throw new Error(pjErr(r.status,jj))}j=await r.json().catch(()=>({}));off=end;if(onp)onp(off/file.size)}
   return j}
 function pjCount(d){let n=0;(d.notes||[]).forEach(x=>{if(/^📎 Ajouté :/.test(x.text))n++;else if(/^📎 Retiré :/.test(x.text))n--});return Math.max(0,n)}
 function pjAddFiles(list){const big=[...list].filter(f=>f.size>PJ_MAX);if(big.length)toast(big.map(f=>f.name).join(", ")+" : trop lourd (60 Mo maximum)",true);return [...list].filter(f=>f.size<=PJ_MAX)}
@@ -648,8 +662,8 @@ function pjNewHTML(){return pjNew.map((f,i)=>`<div class="pj"><span class="pjic"
 function pjFieldset(d){return `<fieldset><legend>Pièces jointes</legend>
     <div id="pj-list" class="pjl">${d&&d.id?'<p class="hint" style="margin:0">Chargement des fichiers…</p>':""}</div>
     <div id="pj-new" class="pjl">${d&&d.id?"":pjNewHTML()}</div>
-    <label class="pjadd" for="pj-in">📎 Ajouter des fichiers <small>plans, photos, cahier des charges…</small></label>
-    <input type="file" id="pj-in" multiple hidden>
+    <label class="pjadd" for="pj-in">📎 Ajouter des fichiers <small>clique, ou glisse-les ici · plans, photos, cahier des charges…</small></label>
+    <input type="file" id="pj-in" class="pjin" multiple tabindex="-1">
     <p class="hint">Rangés dans SharePoint › Documents › « ${PJ_ROOT} » › n° de la demande. Plusieurs fichiers possibles, 60 Mo maximum chacun.</p>
   </fieldset>`}
 async function pjLoad(d){const box=$("#pj-list");if(!box)return;
@@ -731,7 +745,7 @@ function openNew(){
     catch(e){$("#f-ok").disabled=false;$("#f-ok").textContent="Enregistrer la demande";writeErr(e,$("#f-err"))}
   });
 }
-function bindPjNew(){$("#pj-in").addEventListener("change",e=>{pjNew=pjNew.concat(pjAddFiles(e.target.files));e.target.value="";$("#pj-new").innerHTML=pjNewHTML()});
+function bindPjNew(){pjDrop();$("#pj-in").addEventListener("change",async e=>{const raw=pjPick(e.target);const got=await pjGrab(raw);e.target.value="";pjNew=pjNew.concat(got);$("#pj-new").innerHTML=pjNewHTML()});
   $("#pj-new").addEventListener("click",e=>{const b=e.target.closest("[data-pjrm]");if(!b)return;pjNew.splice(+b.dataset.pjrm,1);$("#pj-new").innerHTML=pjNewHTML()})}
 function bindReprise(){const inp=$("#f-client");const go=()=>{const n=inp.value.trim().toLowerCase();if(!n)return;
     const p=docs.filter(x=>String(x.client||"").trim().toLowerCase()===n).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0];if(!p)return;
@@ -777,7 +791,8 @@ function openDetail(id){
   </div></div>`;
   o.hidden=false;bindSeg(o);o.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",close));
   pjLoad(d);
-  $("#pj-in").addEventListener("change",async e=>{const files=pjAddFiles(e.target.files);e.target.value="";if(!files.length)return;
+  pjDrop();
+  $("#pj-in").addEventListener("change",async e=>{const raw=pjPick(e.target);const files=await pjGrab(raw);e.target.value="";if(!files.length)return;
     const ok=await pjSend(d,files,$("#pj-new"));
     if(ok.length){try{await gx("PATCH",`/sites/${siteId}/lists/${listId}/items/${d.id}/fields`,toFields({notes:[...(d.notes||[]),...ok.map(n=>note("📎 Ajouté : "+n))]}));d.notes=[...(d.notes||[]),...ok.map(n=>note("📎 Ajouté : "+n))]}catch(_){}
       toast(ok.length+" fichier(s) ajouté(s)");$("#pj-new").innerHTML="";pjLoad(d)}});
