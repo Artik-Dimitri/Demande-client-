@@ -78,7 +78,8 @@ h1{font:700 40px/1 var(--fd);margin:2px 0 0}h2{font:700 24px/1.1 var(--fd);margi
 .mets label:has(input:checked){background:var(--c);color:#fff}
 .mets input{position:absolute;opacity:0;pointer-events:none}
 .tag.mt{background:var(--c);color:#fff}
-.g .nm{border-left:5px solid var(--mc,var(--line))}
+.g .nm{border-left:0;box-shadow:none;background-image:var(--mg,none);background-repeat:no-repeat;background-size:5px 100%;padding-left:12px}
+.row.mg{border-left-color:transparent;background-image:var(--mg);background-repeat:no-repeat;background-size:4px 100%;background-origin:border-box}
 .months{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
 .months label{display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:6px 2px;font-size:13px;cursor:pointer}
 .months label:has(input:checked){background:var(--orange);border-color:var(--orange);color:#fff;font-weight:700}
@@ -205,6 +206,8 @@ let CT=[],C={cats:{},cli:{},users:{},ivs:{},at:""},R={ct:{},ctm:[],rec:[],ign:[]
 let tab="v-an",F="",Q="",MF="",busy=false;
 /* types de contrat : les 4 couleurs des métiers (futur logo) */
 const MET=[["froid","❄️ Froid","var(--orange)"],["clim","🌬️ Clim · CVC","var(--bleu)"],["cuisine","🍳 Cuisine pro","var(--bord)"],["boul","🥖 Boulangerie","var(--ocre)"]];
+/* plusieurs métiers : liseré partagé en bandes de couleur */
+const metG=m=>{const c=(m||[]).map(k=>(MET.find(z=>z[0]===k)||[])[2]).filter(Boolean);if(c.length<2)return metC(m);const n=c.length;return "linear-gradient(to bottom,"+c.map((x,i)=>x+" "+(i*100/n)+"% "+((i+1)*100/n)+"%").join(",")+")"};
 const metC=m=>{const x=MET.find(z=>z[0]===(m||[])[0]);return x?x[2]:"var(--muted)"};
 const metTags=m=>m&&m.length?m.map(k=>MET.find(x=>x[0]===k)).filter(Boolean).map(x=>`<span class="tag mt" style="--c:${x[2]}">${x[1]}</span>`).join(" "):`<span class="tag" style="--c:var(--muted)">Type ?</span>`;
 const metPick=(id,sel,req)=>`<div class="fl w">Type de contrat${req?" *":""} <span class="note">(plusieurs possibles)</span><div class="mets" id="${id}">${MET.map(([k,n,c])=>`<label style="--c:${c}"><input type="checkbox" value="${k}"${(sel||[]).includes(k)?" checked":""}>${n}</label>`).join("")}</div></div>`;
@@ -284,14 +287,14 @@ function vAn(){const L=filt(lines()).sort((a,b)=>(!!b.ct-!!a.ct)||cliN(a.c).loca
    <span class="mets" role="group" aria-label="Métier">${[["","Tous métiers","var(--ink)"]].concat(MET,lines().some(l=>!l.met.length)?[["-","Type ?","var(--muted)"]]:[]).map(([k,n,c])=>`<label style="--c:${c}"><input type="radio" name="mf" data-mf="${k}"${k===MF?" checked":""}>${n}</label>`).join("")}</span></div>
   <div class="legend">${["fait","plan","todo","late","fut","fin"].map(s=>`<span><i class="s-${s}"></i>${STL[s]}</span>`).join("")}</div>
   <div class="gw"><div class="g"><div class="h" style="justify-content:flex-start">Client · maintenance</div>${M.map(m=>`<div class="h${m===tm?" now":""}">${MOIS[+m.slice(5)-1]}${m.endsWith("-01")||m===M[0]?" "+m.slice(2,4):""}</div>`).join("")}
-  ${L.map(l=>`<div class="nm" data-line="${l.key}" style="--mc:${metC(l.met)}"><b>${esc(cliN(l.c))}</b><small>${metTags(l.met)} ${l.ct?`<b>Contrat</b> · `:`Sans contrat · `}${l.freq}×/an${l.duree?" · "+String(l.duree).replace(".",",")+" h":""}${cliV(l.c)?" · "+esc(cliV(l.c)):""}</small></div>
+  ${L.map(l=>`<div class="nm" data-line="${l.key}" style="--mg:${metG(l.met).startsWith("linear")?metG(l.met):"linear-gradient("+metC(l.met)+","+metC(l.met)+")"}"><b>${esc(cliN(l.c))}</b><small>${metTags(l.met)} ${l.ct?`<b>Contrat</b> · `:`Sans contrat · `}${l.freq}×/an${l.duree?" · "+String(l.duree).replace(".",",")+" h":""}${cliV(l.c)?" · "+esc(cliV(l.c)):""}</small></div>
    ${M.map(m=>{const S=l.S.filter(s=>ym(s.iv?dOf(s.iv):s.d)===m&&s.st!=="old");return `<div class="cell">${S.map(s=>slotHTML(l,s)).join("")}</div>`}).join("")}`).join("")}</div></div>
   ${L.length?"":`<p class="note">Aucune maintenance à afficher. Ajoute tes contrats signés dans l'onglet « Contrats », et les clients entretenus sans contrat dans « Sans contrat ».</p>`}
   <p class="note">Une case = une échéance, calculée depuis le dernier passage (ou les mois choisis). Elle passe seule en <b>Planifié</b> puis <b>Fait</b> quand l'intervention existe dans Organilog. Clic sur un client : réglages et historique.</p>`;
   $("#q").oninput=e=>{Q=e.target.value;const p=e.target.selectionStart;vAn();const n=$("#q");n.focus();n.setSelectionRange(p,p)}}
 function vTodo(){const L=lines().filter(l=>l.next).sort((a,b)=>(!!b.ct-!!a.ct)||a.next.d.localeCompare(b.next.d));
   $("#v-todo").innerHTML=`<div class="idea" style="--c:var(--todo)">📥 <b>À planifier dans Organilog</b> : échéances en retard ou dans les ${CFG.aPlanifier} jours sans intervention prévue. Les <b>contrats d'abord</b> : ils sont dus. Dès que l'intervention est créée dans Organilog (catégorie Maintenance, ou liée au contrat), la ligne sort seule.</div>
-  <div class="list">${L.map(l=>{const s=l.next,j=days(today(),s.d);return `<div class="row" style="--c:${metC(l.met)}"><div><div class="t">${esc(cliN(l.c))}${cliV(l.c)?` <span class="note">· ${esc(cliV(l.c))}</span>`:""}</div>
+  <div class="list">${L.map(l=>{const s=l.next,j=days(today(),s.d);return `<div class="row${l.met.length>1?" mg":""}" style="--c:${metC(l.met)};--mg:${metG(l.met)}"><div><div class="t">${esc(cliN(l.c))}${cliV(l.c)?` <span class="note">· ${esc(cliV(l.c))}</span>`:""}</div>
    <div class="m">${metTags(l.met)}${l.ct?`<span class="tag" style="--c:var(--ink)">Contrat n° ${esc(l.ct.n)}</span>`:`<span class="tag" style="--c:var(--muted)">Sans contrat</span>`}<span>${esc(l.t)}</span><span>échéance ${s.st==="late"?"dépassée depuis "+(-j)+" j":"vers le "+fd(s.d)}</span>${l.duree?`<span>${String(l.duree).replace(".",",")} h</span>`:""}${l.tech?`<span>👷 ${esc(techN(l.tech)||l.tech)}</span>`:""}${l.H.filter(i=>i.f).length?`<span>dernier passage : ${fd(dOf(l.H.filter(i=>i.f).pop()))}</span>`:"<span>jamais passé</span>"}</div></div>
    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="pill s-${s.st}">${s.st==="late"?"En retard":"À planifier"}</span><button class="btn sm" type="button" data-line="${l.key}">Réglages</button></div></div>`}).join("")||`<p class="note">Tout est planifié. 👌</p>`}</div>
   <h2 style="margin-top:20px">Charge prévue, mois par mois</h2>${loadHTML()}`}
@@ -307,7 +310,7 @@ function vCt(){const t=today(),ln=lines();
   <div class="bar"><button class="btn pri" type="button" id="addct">+ Ajouter un contrat signé</button></div>
   <div class="list">${all.map(c=>{const key=c.manual?c.id:"c"+c.id,l=ln.find(x=>x.key===key),fin=c.au&&c.au!=="0000-00-00"?days(t,c.au):null,done=l?l.H.filter(i=>i.f&&(!c.du||dOf(i)>=c.du)).length:0;
    const cm=c.org?((R.ct||{})[c.id]||{}).met:c.met;
-   return `<div class="row" style="--c:${c.clos?"var(--muted)":metC(cm)}"><div><div class="t">${esc(cliN(c.c))} · <span style="font-weight:500">${esc(c.t||"Contrat")}</span></div>
+   return `<div class="row${!c.clos&&(cm||[]).length>1?" mg":""}" style="--c:${c.clos?"var(--muted)":metC(cm)};--mg:${metG(cm)}"><div><div class="t">${esc(cliN(c.c))} · <span style="font-weight:500">${esc(c.t||"Contrat")}</span></div>
    <div class="m">${metTags(cm)}${c.org?`<span class="tag" style="--c:var(--ink)">Organilog</span>`:""}${c.n&&c.n!=="—"?`<span>réf. ${esc(c.n)}</span>`:""}<span>${c.du?fd(c.du):"début ?"} → ${c.au&&c.au!=="0000-00-00"?fd(c.au):"sans fin"}</span>${+c.budget?`<span>${(+c.budget).toLocaleString("fr-FR")} € HT</span>`:""}<span>${l?l.freq:1} passage(s)/an · ${done} fait(s)</span></div></div>
    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${c.org&&(R.hide||{})[c.id]?`<span class="pill s-fin">Non suivi</span>`:c.clos?`<span class="pill s-fin">Clos</span>`:fin!=null&&fin<0?`<span class="pill s-late">Terminé · à renouveler</span>`:fin!=null&&fin<=60?`<span class="pill s-late">Fin dans ${fin} j</span>`:`<span class="pill s-fait">Actif</span>`}${l?`<button class="btn sm" type="button" data-line="${l.key}">Réglages</button>`:c.manual?`<button class="btn sm" type="button" data-reopen="${esc(c.id)}">Rouvrir</button>`:""}${c.org&&!(R.hide||{})[c.id]?`<button class="btn sm" type="button" data-hide="${esc(c.id)}">🗑️ Retirer</button>`:""}${c.org&&(R.hide||{})[c.id]?`<button class="btn sm" type="button" data-unhide="${esc(c.id)}">Suivre à nouveau</button>`:""}${c.manual?`<button class="btn sm" type="button" data-del="${esc(c.id)}">Supprimer</button>`:""}</div></div>`}).join("")||`<p class="note">Aucun contrat pour l'instant : ajoute le premier.</p>`}</div>`}
 async function clients(){if(ALLC)return ALLC;try{const r=await relais("clients=1");ALLC=r.clients.map(c=>({id:String(c.id),t:c.title,v:c.ville||""}))}catch(e){ALLC=Object.entries(C.cli).map(([id,c])=>({id,t:c.t,v:c.v}))}return ALLC}
