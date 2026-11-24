@@ -589,13 +589,14 @@ function axisHTML(r){
 function axisHead(){const pc=m=>((m-AX0)/(AX1-AX0)*100);let h='<div class="axhead">';for(let x=6;x<24;x+=2)h+=`<span style="left:${pc(x*60)}%">${x}h</span>`;return h+"</div>"}
 function legend(){return `<div class="legend"><span><i class="k-inter"></i>Intervention client</span><span><i class="k-trajet"></i>Trajet payé</span><span><i class="k-nd"></i>Trajet non dû</span><span><i class="k-depot"></i>Dépôt</span><span><i class="k-fourn"></i>Fournisseur</span><span><i class="k-repas"></i>Pause repas</span><span><i class="k-recup"></i>Récup</span><span><i class="k-conges"></i>Congés</span><span><i style="background:var(--surface);box-shadow:inset 0 -4px 0 var(--odk);border:1px solid var(--line)"></i>Heures majorées</span><span><i style="background:var(--o4);border:1px dashed var(--o2)"></i>Plage normale ${R.plageDeb}–${R.plageFin}</span></div>`}
 /* répartition calculée sur le seul temps de travail payé ; pause et trajet non dû affichés à part */
-const REP=[["inter","Interventions","k-inter"],["ecole","École / CFA","k-ecole"],["trajet","Trajet payé","k-trajet"],["depot","Dépôt","k-depot"],["atelier","Réparation atelier","k-atelier"],["fourn","Fournisseur","k-fourn"]];
+/* l'école / CFA reste du temps de travail pour la paie, mais sort des stats : ce n'est pas du temps terrain */
+const REP=[["inter","Interventions","k-inter"],["trajet","Trajet payé","k-trajet"],["depot","Dépôt","k-depot"],["atelier","Réparation atelier","k-atelier"],["fourn","Fournisseur","k-fourn"]];
 const HORS=[["pause","Pause repas","k-repas"],["trajetND","Trajet non dû","k-nd"]];
 function repartition(t){
   const tot=REP.reduce((a,[k])=>a+t[k],0)||1;
   const bar=REP.map(([k,l,c],n)=>{if(!t[k])return "";const p=t[k]/tot*100;return `<i class="${c}" style="width:${p}%;--d:${n*70}ms" title="${l} : ${fmt(t[k])} (${Math.round(p)} %)">${p>=9?`<em>${Math.round(p)} %</em>`:""}</i>`}).join("");
   const leg=REP.filter(([k])=>t[k]).map(([k,l,c])=>`<span class="lg"><i class="${c}"></i><span class="lx"><span class="lt">${l}</span><span class="lv"><b>${H(t[k])}</b><small>${Math.round(t[k]/tot*100)} %</small></span></span></span>`).join("")
-    +`<span class="hors">Hors temps de travail : `+HORS.map(([k,l,c])=>`<i class="${c}"></i>${l} <b>${H(t[k])}</b>`).join(" &nbsp; ")+`</span>`;
+    +`<span class="hors">Hors temps de travail : `+HORS.map(([k,l,c])=>`<i class="${c}"></i>${l} <b>${H(t[k])}</b>`).join(" &nbsp; ")+(t.ecole?` &nbsp;·&nbsp; À part (formation, payée mais hors stats) : <i class="k-ecole"></i>École / CFA <b>${H(t.ecole)}</b>`:"")+`</span>`;
   return {bar,leg,prod:Math.round(t.inter/tot*100)};
 }
 function techView(){
@@ -769,7 +770,7 @@ function pdfTech(doc,P,p,r){
   y+=Math.max(h1,h2)+4;
   const h3=box(14,y,cw,P.primeM?"Repas, astreinte et prime":"Repas et astreinte",[["Paniers repas",String(t.panier)],["Restaurants sans compte",String(t.resto)],["Restaurants en compte (payés "+window.__SOCN+")",String(t.restoEC)],["Repas à verser",(P.repasEur?eur2(P.repasEur).replace(/\s/g," "):"-")+(P.restoJustif?" + "+P.restoJustif+" sur justif.":"")],["Jours d'astreinte",P.permW+" j"],["Prime d'astreinte (brut)",eur(P.prime).replace(/\s/g," ")+" brut"]].concat(P.primeM?[["Prime mensuelle (brut)",eur(P.primeM).replace(/\s/g," ")+" brut"]]:[]),C4[2]);
   const rpT=REP.reduce((a,[k])=>a+t[k],0)||1;
-  const h4=box(14+cw+8,y,cw,"Répartition du temps de travail",REP.map(([k,l])=>[l,fm(t[k])+"  ("+Math.round(t[k]/rpT*100)+" %)"]).concat(HORS.map(([k,l])=>[l+" (non compté)",fm(t[k])])),C4[3]);
+  const h4=box(14+cw+8,y,cw,"Répartition du temps de travail",REP.map(([k,l])=>[l,fm(t[k])+"  ("+Math.round(t[k]/rpT*100)+" %)"]).concat(HORS.map(([k,l])=>[l+" (non compté)",fm(t[k])])).concat(t.ecole?[["École / CFA (payée, hors stats)",fm(t.ecole)]]:[]),C4[3]);
   y+=Math.max(h3,h4)+4;
   /* ce que l'on doit au salarié pour la période */
   {const due=[["Heures du contrat",P.contratP+" h"]];if(P.hs25)due.push(["Heures sup. +25 %",fmt(P.hs25*60)]);if(P.hs50)due.push(["Heures sup. +50 %",fmt(P.hs50*60)]);
