@@ -247,7 +247,7 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
    ===================================================================== */
 const CONFIG={tenantId:"14b03bce-aec8-408e-9686-c43ea4a503d8",clientId:"f66f2711-d9e4-4fd3-be11-57367c333c87",site:"root",liste:"Portail acces"};
 const OWNER="d.blin@chassaing-technologies.fr";   // seul à gérer les paramètres
-const BUILD_V="202611241000"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
+const BUILD_V="202611241540"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
 const MODULES=[
   {k:"accueil",ic:"🏠",lab:"Accueil",sh:"Accueil",url:"accueil.html?embed=1",tc:"var(--c-blue)",tous:true,g:"quot"},
   {k:"agenda",ic:"📅",lab:"Agenda",sh:"Agenda",url:"agenda.html?embed=1",tc:"var(--c-orange)",g:"quot"},
@@ -262,15 +262,15 @@ const MODULES=[
   {k:"planning",ic:"🏗️",lab:"Planning chantiers",sh:"Chantiers",url:"planning.html?embed=1",tc:"var(--c-ocre)",g:"chan"},
   {k:"suivi",ic:"📈",lab:"Suivi de chantier",sh:"Suivi",url:"suivi.html?embed=1",tc:"var(--c-orange)",g:"chan"},
   {k:"terrain",ic:"👷",lab:"Mes chantiers (techs)",sh:"Terrain",url:"suivi.html?embed=1&mode=terrain",tc:"var(--c-blue)",g:"chan"},
-  {k:"sav",ic:"🛠️",lab:"Suivi SAV",sh:"SAV",url:"sav.html?embed=1",tc:"var(--c-orange)",g:"gest"},
-  {k:"pmaint",ic:"🗓️",lab:"Planning maintenances",sh:"Maint.",url:"planmaint.html?embed=1",tc:"var(--c-blue)",g:"gest"},
+  {k:"sav",ic:"🛠️",lab:"Suivi SAV",sh:"SAV",url:"sav.html?embed=1",tc:"var(--c-orange)",g:"sav"},
+  {k:"pmaint",ic:"🗓️",lab:"Planning maintenances",sh:"Maint.",url:"planmaint.html?embed=1",tc:"var(--c-blue)",g:"sav"},
   {k:"couts",ic:"💶",lab:"Coût horaire",sh:"Coût h.",url:"couts.html?embed=1",tc:"var(--c-ocre)",g:"gest"},
   {k:"heures",ic:"⏱️",lab:"Heures Artik",sh:"Heures Artik",url:"heures.html?embed=1",tc:"var(--c-bordeaux)",g:"gest"},
   {k:"heures-ch",ic:"⏱️",lab:"Heures Chassaing",sh:"Heures Chass.",url:"heures.html?embed=1&soc=chassaing",tc:"var(--c-ocre)",g:"gest"},
   {k:"chiffres",ic:"📈",lab:"Chiffres mensuels",sh:"Chiffres",url:"chiffres.html?embed=1",tc:"var(--c-blue)",g:"gest"},
   {k:"stats",ic:"📊",lab:"Statistiques",sh:"Stats",url:"stats.html?embed=1",tc:"var(--c-blue)",g:"gest"}];
 /* les familles du menu (dans cet ordre) */
-const GROUPS=[{"k": "quot", "ic": "🏠", "n": "Mon quotidien"}, {"k": "com", "ic": "💼", "n": "Commercial"}, {"k": "chan", "ic": "🏗️", "n": "Chantiers"}, {"k": "gest", "ic": "📊", "n": "Gestion"}];
+const GROUPS=[{"k": "quot", "ic": "🏠", "n": "Mon quotidien"}, {"k": "com", "ic": "💼", "n": "Commercial"}, {"k": "chan", "ic": "🏗️", "n": "Chantiers"}, {"k": "sav", "ic": "🛠️", "n": "SAV et maintenance"}, {"k": "gest", "ic": "📊", "n": "Gestion"}];
 const NIVS=["🔴 Urgent","🟠 Important","⚪ Normal","☕ À temps perdu"],NIVC=["#C5372C","#E4670A","#8A9099","#1F7FC4"],NIVD=["À faire en premier, dès le matin","Dans la journée, avant le reste","Quand l'urgent et l'important sont faits","Quand tout le reste est bouclé"];
 const DEF_REGLAGES={accueil:{objectifMois:150000,defi:{libelle:"RDV de prospection",cat:"Prospection",cible:10}},devis:{relanceJ:10,relanceNiv:2,autoRelance:{"Dimitri":true}},taches:{"admin": {"1": ["Facturation", "Relance factures impayées", "Préparer la paie", "Déclaration TVA / charges"], "2": ["Traiter les mails", "Saisir les factures fournisseurs", "Valider les heures", "Relance devis en attente", "Rapprochement bancaire"], "3": ["Saisir les achats", "Commandes fournisseurs", "Planifier les visites d'entretien", "Mettre à jour les fiches clients", "Commander fournitures"], "4": ["Classer / scanner", "Archiver", "Mettre à jour les tableaux de suivi", "Trier la boîte mail"]}, "affaires": {"1": ["Envoyer un devis promis", "Urgence chantier", "Facturer (situation / fin de chantier)", "Commander le matériel (chantier imminent)"], "2": ["Faire le chiffrage", "Relancer", "Visite technique", "Préparer le dossier chantier", "Planifier les équipes", "PV de réception"], "3": ["Appeler le client", "Appeler le fournisseur", "Commander le matériel", "Point chantiers", "Mettre à jour le planning"], "4": ["Veille produits / catalogues", "Mettre à jour les tarifs", "Photos et références chantiers", "Classer les dossiers terminés"]}}};
 let reglages=JSON.parse(JSON.stringify(DEF_REGLAGES)),regId=null;
