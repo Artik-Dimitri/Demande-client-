@@ -247,7 +247,7 @@ var st,ct,ut,lt,dt,ht,pt,gt,ft,mt=function(){function t(e,t,r){this.networkInter
    ===================================================================== */
 const CONFIG={tenantId:"14b03bce-aec8-408e-9686-c43ea4a503d8",clientId:"f66f2711-d9e4-4fd3-be11-57367c333c87",site:"root",liste:"Portail acces"};
 const OWNER="d.blin@chassaing-technologies.fr";   // seul à gérer les paramètres
-const BUILD_V="202611211830"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
+const BUILD_V="202611241000"; /* numéro de version : force le navigateur à recharger les onglets après une mise à jour */
 const MODULES=[
   {k:"accueil",ic:"🏠",lab:"Accueil",sh:"Accueil",url:"accueil.html?embed=1",tc:"var(--c-blue)",tous:true,g:"quot"},
   {k:"agenda",ic:"📅",lab:"Agenda",sh:"Agenda",url:"agenda.html?embed=1",tc:"var(--c-orange)",g:"quot"},
@@ -263,6 +263,7 @@ const MODULES=[
   {k:"suivi",ic:"📈",lab:"Suivi de chantier",sh:"Suivi",url:"suivi.html?embed=1",tc:"var(--c-orange)",g:"chan"},
   {k:"terrain",ic:"👷",lab:"Mes chantiers (techs)",sh:"Terrain",url:"suivi.html?embed=1&mode=terrain",tc:"var(--c-blue)",g:"chan"},
   {k:"sav",ic:"🛠️",lab:"Suivi SAV",sh:"SAV",url:"sav.html?embed=1",tc:"var(--c-orange)",g:"gest"},
+  {k:"pmaint",ic:"🗓️",lab:"Planning maintenances",sh:"Maint.",url:"planmaint.html?embed=1",tc:"var(--c-blue)",g:"gest"},
   {k:"couts",ic:"💶",lab:"Coût horaire",sh:"Coût h.",url:"couts.html?embed=1",tc:"var(--c-ocre)",g:"gest"},
   {k:"heures",ic:"⏱️",lab:"Heures Artik",sh:"Heures Artik",url:"heures.html?embed=1",tc:"var(--c-bordeaux)",g:"gest"},
   {k:"heures-ch",ic:"⏱️",lab:"Heures Chassaing",sh:"Heures Chass.",url:"heures.html?embed=1&soc=chassaing",tc:"var(--c-ocre)",g:"gest"},
@@ -340,7 +341,7 @@ function renderTabs(){
   $("#sheetwrap").innerHTML=sheetOpen?`<div class="sheet" id="sheet"><div class="in"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font:700 22px var(--f-display)">Tous mes onglets</b><button type="button" class="btn" id="shx">Fermer</button></div>
     ${gs.map(g=>`<h3>${g.ic} ${esc(g.n)}</h3><div class="sgrid">${g.tabs.map(m=>`<button type="button" data-t="${m.k}" aria-selected="${tab===m.k}" style="--tc:${m.tc}"><span class="ic">${m.ic}</span>${esc(m.lab)}</button>`).join("")}</div>`).join("")}</div></div>`:"";
 }
-const TUTOS={accueil:"accueil",agenda:"agenda",taches:"taches",devis:"devis",prospect:"prospect",renta:"renta",chiffrage:"chiffrage",evts:"evts",planning:"planning",suivi:"suivi",terrain:"terrain",heures:"heures",sav:"sav",couts:"sav",chiffres:"chiffres",stats:"chiffres"};
+const TUTOS={accueil:"accueil",agenda:"agenda",taches:"taches",devis:"devis",prospect:"prospect",renta:"renta",chiffrage:"chiffrage",evts:"evts",planning:"planning",suivi:"suivi",terrain:"terrain",heures:"heures",sav:"sav",pmaint:"maint",couts:"sav",chiffres:"chiffres",stats:"chiffres"};
 const TUTO_OK={};
 async function tutoUrl(f){if(TUTO_OK[f])return TUTO_OK[f];for(const u of ["tutos/tuto-"+f+".pdf","tuto-"+f+".pdf"]){try{const r=await fetch(u,{method:"HEAD",cache:"no-store"});if(r.ok)return TUTO_OK[f]=u}catch(e){}}return null}
 function setTuto(k){const a=document.getElementById("tuto");if(!a)return;const f=TUTOS[k];a.hidden=true;if(!f)return;

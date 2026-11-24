@@ -30,7 +30,7 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
 .btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
 .btn:disabled{opacity:.5;cursor:default}
 .btn.pri{background:var(--orange);border-color:var(--orange);color:#fff}
-.files{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.files{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;margin-bottom:14px}
 @media (max-width:1100px){.files{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:640px){.files{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .file{font:inherit;text-align:left;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--c);border-radius:10px;padding:12px 14px;cursor:pointer;color:inherit;display:flex;flex-direction:column;gap:2px;position:relative;min-width:0}
@@ -235,7 +235,7 @@ const SC=["User.Read","Sites.ReadWrite.All"],SCA=["Sites.Manage.All"];
 const M=window.__MSAL_FAKE||window.msal;
 let app,account,siteId,listId,ME="",EMAIL="";
 const ids={};           /* Title -> id de l'élément SharePoint */
-let C={cats:{},cli:{},users:{},ivs:{},vals:{},valsAt:""};   /* cache partagé lu dans Organilog */
+let C={cats:{},cli:{},users:{},ivs:{},vals:{},apl:{},valsAt:""};   /* cache partagé lu dans Organilog */
 let A={};               /* actions faites ici, par dossier : a/<clé> */
 let busy=false,essai=false;
 try{essai=localStorage.getItem("sav-essai")==="1"}catch(e){}
@@ -267,13 +267,13 @@ async function put(k,v){const f={Valeur:JSON.stringify(v)};
 async function pull(){const out={};let u=`/sites/${siteId}/lists/${listId}/items?$expand=fields($select=Title,Valeur)&$top=500`;
   while(u){const r=await gx("GET",u);(r.value||[]).forEach(it=>{const t=it.fields&&it.fields.Title;if(!t)return;ids[t]=it.id;try{out[t]=JSON.parse(it.fields.Valeur||"{}")}catch(e){}});u=r["@odata.nextLink"]}
   return out}
-const CK=["cats","cli","users","ivs","vals","meta"];
+const CK=["cats","cli","users","ivs","vals","apl","meta"];const CKD=CK.filter(k=>k!=="meta");
 function applyPull(o){A={};for(const k in o){if(k.startsWith("a/"))A[k.slice(2)]=o[k]}
   for(const k of CK){const v=o["cache/"+k];if(!v)continue;if(k==="meta")C.valsAt=v.valsAt||"";else C[k]=v}}
 let lastSaved={};
-async function saveCache(){for(const k of CK){const v=k==="meta"?{valsAt:C.valsAt,le:nowS()}:C[k];const s=JSON.stringify(v);if(k!=="meta"&&lastSaved[k]===s)continue;if(k==="meta"&&!CK.slice(0,5).some(x=>lastSaved[x]!==JSON.stringify(C[x])))continue;
+async function saveCache(){for(const k of CK){const v=k==="meta"?{valsAt:C.valsAt,le:nowS()}:C[k];const s=JSON.stringify(v);if(k!=="meta"&&lastSaved[k]===s)continue;if(k==="meta"&&!CKD.some(x=>lastSaved[x]!==JSON.stringify(C[x])))continue;
   try{await put("cache/"+k,v)}catch(e){if(e.message!=="redirect")console.warn(e)}}
-  for(const k of CK.slice(0,5))lastSaved[k]=JSON.stringify(C[k])}
+  for(const k of CKD)lastSaved[k]=JSON.stringify(C[k])}
 const tmr={};
 function saveA(key){clearTimeout(tmr[key]);tmr[key]=setTimeout(()=>put("a/"+key,A[key]).catch(e=>{if(e.message!=="redirect")toast("Enregistrement impossible : "+e.message)}),400)}
 
@@ -283,7 +283,7 @@ async function syncOrg(){
   try{
     setSync("Lecture d'Organilog…");
     try{applyPull(await pull())}catch(e){if(e.message==="redirect")return;throw e}
-    lastSaved={};for(const k of CK.slice(0,5))lastSaved[k]=JSON.stringify(C[k]);
+    lastSaved={};for(const k of CKD)lastSaved[k]=JSON.stringify(C[k]);
     const t=today(),start=DEP()>addD(t,-60)?DEP():addD(t,-60),end=addD(t,45);
     const seen=new Set(),fresh=[];let first=true;
     for(let f=start;f<=end;f=addD(f,46)){const to=addD(f,45)>end?end:addD(f,45);
@@ -305,8 +305,14 @@ async function syncOrg(){
     const sa=startedAt;C.valsAt=sa.getFullYear()+"-"+String(sa.getMonth()+1).padStart(2,"0")+"-"+String(sa.getDate()).padStart(2,"0")+" "+sa.toTimeString().slice(0,8);
     if(essai)C.valsEssai=1;
     Object.keys(C.vals).forEach(id=>{if(!C.ivs[id]&&!seen.has(id)&&Object.keys(C.vals).length>3000)delete C.vals[id]});
+    /* interventions à planifier : sans date ou sans tech ; elles sortent seules dès qu'elles sont planifiées */
+    try{setSync("Interventions à planifier…");const r=await relais("sav=aplan&days=150");C.aplMode=r.mode+" · "+r.lus+" lues";
+      const needA=r.iv.filter(i=>!i.cat&&!C.cats[i.id]).map(i=>i.id);
+      for(let i=0;i<needA.length;i+=300){const rc=await relais("sav=cat&ids="+needA.slice(i,i+300).join(","));Object.assign(C.cats,rc.cats)}
+      const na={};r.iv.forEach(i=>{const cat=i.cat||(C.cats[i.id]||[])[0];if(CFG.cats[cat])na[i.id]={...i,cat}});C.apl=na;C.aplErr=""}
+    catch(e){if(e.message==="redirect")throw e;C.aplErr=e.message}
     /* noms des clients manquants */
-    const nc=[...new Set(Object.values(C.ivs).map(i=>i.c))].filter(c=>c&&!C.cli[c]);
+    const nc=[...new Set(Object.values(C.ivs).concat(Object.values(C.apl||{})).map(i=>i.c))].filter(c=>c&&!C.cli[c]);
     for(let i=0;i<nc.length;i+=300){const r=await relais("sav=cli&ids="+nc.slice(i,i+300).join(","));Object.assign(C.cli,r.clients);nc.slice(i,i+300).forEach(c=>{if(!C.cli[c])C.cli[c]={t:"Client n° "+c,v:""}})}
     await saveCache();
     setSync("Organilog lu à "+nowS().slice(11));
@@ -344,6 +350,7 @@ function build(){
       else if(x.f){open={key:x.id,c,ivs:[x]};D.push(open)}
       else continue;
       fin(open)}}
+  Object.values(C.apl||{}).forEach(x=>{const key="p"+x.id;D.push({key,c:x.c,apl:x,ivs:[{...x,f:0,techs:x.u?[x.u]:[],ids:[x.id],nums:[x.n],com:""}],file:"apl",cat:CFG.cats[x.cat],techs:x.u?[x.u]:[],a:A[key]||{},last:null,v:0,retour:null})});
   return D}
 function fin(d){const a=A[d.key]||{};const done=d.ivs.filter(x=>x.f),last=d.ivs[d.ivs.length-1],ld=done[done.length-1];
   d.cat=d.ivs.some(x=>CFG.cats[x.cat]==="SAV")?"SAV":"Maintenance";
@@ -355,6 +362,7 @@ function fin(d){const a=A[d.key]||{};const done=d.ivs.filter(x=>x.f),last=d.ivs[
 
 /* ---------- files et étapes ---------- */
 const FILES=[
+ {k:"apl",c:"var(--ink)",ico:"📥",n:"À planifier",sub:"Nouvelles, sans date",seuil:0,steps:["Plus anciennes d'abord","Urgentes d'abord"]},
  {k:"fac",c:"var(--orange)",ico:"🧾",n:"À facturer",sub:"Terminé, à facturer",seuil:7,steps:["À facturer"]},
  {k:"piece",c:"var(--bord)",ico:"🔧",n:"Pièces",sub:"Pièce à commander",seuil:3,steps:["À commander","Commandée","Reçue","Retour planifié"]},
  {k:"devis",c:"var(--bleu)",ico:"📄",n:"Devis",sub:"Devis à faire",seuil:5,steps:["À faire","Envoyé","Accepté","Retour planifié"]},
@@ -369,7 +377,10 @@ function stepOf(d){const a=d.a;
   if(d.file==="pas")return d.retour?1:0;
   return 0}
 const ageOf=d=>d.last&&d.last.dd?Math.round((new Date(today()+"T12:00")-new Date(d.last.dd+"T12:00"))/864e5):null;
-const isLate=(f,d)=>f.k!=="fini"&&stepOf(d)===0&&!d.retour&&ageOf(d)!=null&&ageOf(d)>f.seuil;
+const PRIO={"1":["🚨 Urgente","late"],"3":["Basse",""]};
+const aplAge=d=>{const t=d.apl&&d.apl.ad;return t?Math.max(0,Math.round((new Date(today()+"T12:00")-new Date(t.slice(0,10)+"T12:00"))/864e5)):0};
+const urg=d=>!!(d.a.urg||(d.apl&&d.apl.p==="1"));
+const isLate=(f,d)=>f.k==="apl"?(urg(d)||aplAge(d)>(d.cat==="SAV"?2:14)):f.k!=="fini"&&stepOf(d)===0&&!d.retour&&ageOf(d)!=null&&ageOf(d)>f.seuil;
 let cur="fac",step=0,sel=new Set(),catF="",DOS=[];
 try{const s=JSON.parse(localStorage.getItem("sav-vue")||"{}");if(s.cur)cur=s.cur;if(s.catF!=null)catF=s.catF}catch(e){}
 const saveVue=()=>{try{localStorage.setItem("sav-vue",JSON.stringify({cur,catF}))}catch(e){}};
@@ -459,7 +470,16 @@ function filtered(f){const q=$("#q").value.trim().toLowerCase(),t=$("#tech").val
   return DOS.filter(d=>d.file===f.k&&(!catF||d.cat===catF)&&(!t||d.techs.includes(t))
     &&(!q||[C.cli[d.c]&&C.cli[d.c].t,C.cli[d.c]&&C.cli[d.c].v,...d.ivs.map(x=>x.n+" "+x.com+" "+x.pc+" "+x.nom),...d.techs.map(techN)].join(" ").toLowerCase().includes(q))
     &&(!p||(p==="-"?!d.a.pris:p==="@"?d.a.pris===ME:d.a.pris===p))&&(!l||isLate(f,d)))}
-function rowHTML(f,d){const cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},a=ageOf(d),lt=isLate(f,d),st=stepOf(d),L=d.last||d.ivs[0];
+function aplRow(f,d){const x=d.apl,cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},ag=aplAge(d),lt=isLate(f,d),pr=PRIO[x.p],w=d.a.pris;
+  return `<div class="row${lt?" lt":""}" style="--c:${urg(d)?"var(--late)":f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
+  <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
+  <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span>${urg(d)?`<span class="tag" style="border-color:var(--late);color:var(--late);font-weight:700">🚨 Urgente</span>`:pr&&pr[0]!=="Basse"?"":pr?`<span class="tag">${pr[0]}</span>`:""}
+   <span>enregistrée le ${fd(x.ad)}</span><span class="ag${lt?" l":""}">${ag===0?"aujourd'hui":"il y a "+ag+" j"}</span>${x.u?`<span class="tag">👷 ${esc(techN(x.u))} · sans date</span>`:x.pd?`<span class="tag">📅 ${fd(x.pd)} · sans tech</span>`:""}${x.k?`<span class="tag">contrat</span>`:""}</div>
+  ${x.nom||x.pc?`<div class="com">${esc([x.nom,x.pc].filter(Boolean).join(" · ").slice(0,500))}</div>`:""}
+  <details class="hist"><summary>🕘 Historique (${(d.a.h||[]).length+1})</summary><ol><li>${esc(fd(x.ad))} ${esc(String(x.ad).slice(11,16))} · <b>Organilog</b> intervention n° ${esc(x.n)} enregistrée</li>${(d.a.h||[]).map(e=>`<li>${esc(fd(e.t))} ${esc(String(e.t).slice(11,16))} · <b>${esc(e.w)}</b> ${esc(e.q)}</li>`).join("")}</ol></details></div>
+  <div class="right"><span class="num">n° ${esc(x.n)}</span>${w?`<span class="taken${w===ME?" me":""}">👤 ${esc(w===ME?"Moi":w.split(" ")[0])}</span>${w===ME?`<button type="button" class="take" data-lacher="${d.key}">Lâcher</button>`:""}`:`<button type="button" class="take" data-take="${d.key}">✋ Je planifie</button>`}
+   ${x.p==="1"?"":`<button type="button" class="act ghost" data-urg="${d.key}">${d.a.urg?"Plus urgente":"🚨 Urgente"}</button>`}</div></div>`}
+function rowHTML(f,d){if(f.k==="apl")return aplRow(f,d);const cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},a=ageOf(d),lt=isLate(f,d),st=stepOf(d),L=d.last||d.ivs[0];
   const sel_=f.k==="piece"&&!d.retour?`<select data-pc="${d.key}" aria-label="Étape pièce">${["À commander","Commandée","Reçue"].map((s,i)=>`<option value="${i}"${i===st?" selected":""}>${s}</option>`).join("")}</select>`
     :f.k==="devis"&&!d.retour?`<select data-dv="${d.key}" aria-label="Étape devis">${["À faire","Envoyé","Accepté","Refusé (clore)"].map((s,i)=>`<option value="${i}"${i===st?" selected":""}>${s}</option>`).join("")}</select>`:"";
   const btn=f.k==="fac"?`<button type="button" class="act" data-fac="${d.key}">🧾 Facturé</button>`
@@ -486,13 +506,14 @@ let render=function(){
   const f=FILES.find(z=>z.k===cur),L=filtered(f);if(step>=f.steps.length)step=0;
   $("#steps").style.setProperty("--c",f.c);
   $("#steps").innerHTML=f.steps.length>1?f.steps.map((s,i)=>`<button type="button" data-s="${i}" aria-pressed="${i===step}">${s}<span class="n">${L.filter(d=>stepOf(d)===i).length}</span></button>`).join(""):"";
-  const rows=L.filter(d=>f.steps.length<2||stepOf(d)===step).sort((a,b)=>f.k==="fini"?dOf(b.last||b.ivs[0]).localeCompare(dOf(a.last||a.ivs[0])):dOf(a.last||a.ivs[0]).localeCompare(dOf(b.last||b.ivs[0])));
-  $("#list").innerHTML=rows.slice(0,f.k==="fini"?150:1000).map(d=>rowHTML(f,d)).join("")||`<div class="empty">${DOS.length?"Rien ici. 👌":"Aucune intervention SAV ou maintenance depuis le "+fd(DEP())+" pour l'instant."}</div>`;
+  if(f.k==="apl")$("#steps").innerHTML=f.steps.map((s,i)=>`<button type="button" data-s="${i}" aria-pressed="${i===step}">${s}</button>`).join("");
+  const rows=f.k==="apl"?L.slice().sort((a,b)=>(step===1?urg(b)-urg(a):0)||String(a.apl.ad).localeCompare(String(b.apl.ad))):L.filter(d=>f.steps.length<2||stepOf(d)===step).sort((a,b)=>f.k==="fini"?dOf(b.last||b.ivs[0]).localeCompare(dOf(a.last||a.ivs[0])):dOf(a.last||a.ivs[0]).localeCompare(dOf(b.last||b.ivs[0])));
+  $("#list").innerHTML=rows.slice(0,f.k==="fini"?150:1000).map(d=>rowHTML(f,d)).join("")||`<div class="empty">${f.k==="apl"?(C.aplErr?"Lecture impossible : "+esc(C.aplErr):"Tout est planifié. 👌"):DOS.length?"Rien ici. 👌":"Aucune intervention SAV ou maintenance depuis le "+fd(DEP())+" pour l'instant."}</div>`;
   $("#recap").innerHTML=f.k==="gar"||(f.k==="fini"&&step===1)?recapHTML():"";
-  const opts=f.k==="gar"?[]:f.k==="fac"?[["fac","🧾 Facturé"]]:f.k==="piece"?[["pc1","Commandée"],["pc2","Reçue"],["pc0","À commander"]]:f.k==="devis"?[["dv1","Envoyé"],["dv2","Accepté"],["dv3","Refusé (clore)"],["dv0","À faire"]]:f.k==="fini"?[["rouvrir","Rouvrir"]]:[["clos","Clore"]];
+  const opts=f.k==="apl"?[["urg","🚨 Urgente"]]:f.k==="gar"?[]:f.k==="fac"?[["fac","🧾 Facturé"]]:f.k==="piece"?[["pc1","Commandée"],["pc2","Reçue"],["pc0","À commander"]]:f.k==="devis"?[["dv1","Envoyé"],["dv2","Accepté"],["dv3","Refusé (clore)"],["dv0","À faire"]]:f.k==="fini"?[["rouvrir","Rouvrir"]]:[["clos","Clore"]];
   $("#bstep").innerHTML=[["take","✋ Je prends"]].concat(opts).map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
   $("#bulk").hidden=!sel.size;$("#nsel").textContent=sel.size;
-  $("#foot").textContent={fac:"Clique « Facturé » une fois la facture faite dans Organilog : la ligne passe dans Terminés. Retard : plus de 7 jours.",
+  $("#foot").textContent={apl:"Interventions SAV et maintenance enregistrées dans Organilog sans date ou sans tech. Dès qu'elles ont une date et un tech dans Organilog, elles sortent seules de la liste. En retard : SAV de plus de 2 jours, maintenance de plus de 14 jours, ou urgente."+(C.aplMode?" ("+C.aplMode+")":""),fac:"Clique « Facturé » une fois la facture faite dans Organilog : la ligne passe dans Terminés. Retard : plus de 7 jours.",
     piece:"Quand un retour est planifié dans Organilog chez ce client, la ligne passe seule à « Retour planifié ». Quand le tech coche « Terminé, à facturer » au retour, elle part dans À facturer.",
     devis:"Devis accepté → planifie le retour dans Organilog : la ligne suit seule. Devis refusé → la ligne est close.",
     pas:"Dès qu'une intervention est planifiée chez ce client dans Organilog, la ligne passe à « Retour planifié ».",
@@ -510,6 +531,7 @@ const F=()=>FILES.find(z=>z.k===cur);
 function act(key,what){const d=DOS.find(x=>x.key===key);if(!d)return;const a=A[key]=A[key]||{};const cl=(C.cli[d.c]||{}).t||"";
   if(what==="take"){a.pris=ME;log(key,"a pris en charge")}
   else if(what==="lacher"){delete a.pris;log(key,"a lâché")}
+  else if(what==="urg"){a.urg=!a.urg;log(key,a.urg?"a marqué urgente":"a retiré l'urgence")}
   else if(what==="fac"){a.fac={w:ME,t:nowS()};log(key,"a marqué facturé")}
   else if(what==="clos"){a.clos={w:ME,t:nowS()};log(key,"a clos la ligne")}
   else if(what==="rouvrir"){delete a.fac;delete a.clos;if(a.dv===3)a.dv=2;log(key,"a rouvert la ligne")}
@@ -524,9 +546,9 @@ $("#list").addEventListener("change",e=>{const c=e.target.closest("[data-sel]");
   const p=e.target.closest("[data-pc]"),v=e.target.closest("[data-dv]");
   if(p){act(p.dataset.pc,"pc"+p.value);toast("Pièce : "+["à commander","commandée","reçue"][+p.value]);render()}
   if(v){act(v.dataset.dv,"dv"+v.value);toast(+v.value===3?"Devis refusé : ligne close":"Devis : "+["à faire","envoyé","accepté"][+v.value]);render()}});
-$("#list").addEventListener("click",e=>{const b=e.target.closest("[data-take],[data-lacher],[data-fac],[data-clos],[data-rouvrir]");if(!b)return;
+$("#list").addEventListener("click",e=>{const b=e.target.closest("[data-take],[data-lacher],[data-fac],[data-clos],[data-rouvrir],[data-urg]");if(!b)return;
   const k=Object.keys(b.dataset)[0],key=b.dataset[k],cl=act(key,k);
-  toast({take:"C'est à toi : les autres voient ton nom",lacher:"Lâchée : de nouveau libre",fac:"Facturé · "+cl+" passe dans Terminés",clos:"Close",rouvrir:"Rouverte"}[k]);render()});
+  toast({urg:"Urgence mise à jour",take:"C'est à toi : les autres voient ton nom",lacher:"Lâchée : de nouveau libre",fac:"Facturé · "+cl+" passe dans Terminés",clos:"Close",rouvrir:"Rouverte"}[k]);render()});
 $("#bgo").addEventListener("click",()=>{const v=$("#bstep").value,n=sel.size;sel.forEach(k=>act(k,v));sel.clear();toast(n+" ligne(s) mise(s) à jour");render()});
 $("#bclear").addEventListener("click",()=>{sel.clear();render()});
 $("#refresh").addEventListener("click",()=>syncOrg());
