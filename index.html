@@ -518,7 +518,7 @@ function cardHTML(d){
   }else if(d.chiffreur){side+=`<span class="chip">${esc(d.chiffreur)}</span>`}
   if(d.montant&&(d.statut==="envoye"||d.statut==="signe"))side+=`<span class="amount">${eur(d.montant)}</span>`;
   if(d.statut==="envoye")side+=`<button class="btn small" type="button" data-relance="${d.id}">Relancé aujourd'hui</button>`;
-  const when=d.statut==="envoye"?"envoyé "+ago(d.envoyeAt):d.statut==="signe"||d.statut==="perdu"?ST[d.statut].toLowerCase()+" le "+fdate(d.closedAt):"reçue "+ago(d.createdAt)+(d.saisiPar?" · par "+esc(d.saisiPar):"");
+  const when=d.statut==="envoye"?"envoyé "+ago(d.envoyeAt):d.statut==="signe"||d.statut==="perdu"?ST[d.statut].toLowerCase()+" le "+fdate(d.closedAt)+(d.statut==="perdu"?" · "+esc(d.motifPerte||"raison non renseignée"):""):"reçue "+ago(d.createdAt)+(d.saisiPar?" · par "+esc(d.saisiPar):"");
   return `<article class="card ${esc(d.societe)}" data-open="${d.id}" tabindex="0">
     <div class="c-head"><span class="chip ${esc(d.societe)}">${d.societe==="chassaing"?"Chassaing":"Artik"}</span><span class="c-client">${esc(d.client)}</span></div>
     <div class="c-sub">${esc(d.commune)}${d.commune?" · ":""}${when}</div>
@@ -593,6 +593,10 @@ function bilanHTML(){
     <tbody>${mrows.map(r=>`<tr><td>${r.label}</td><td class="num">${r.a}</td><td class="num">${r.c}</td>
      <td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${r.recues/maxR*100}%;background:var(--orange)"></i></div>${r.recues}</div></td>
      <td class="num">${r.sig?r.sig.toLocaleString("fr-FR")+" €":"–"}</td></tr>`).join("")}</tbody></table></div></div>
+   ${(()=>{const L=docs.filter(d=>d.statut==="perdu"&&days(d.closedAt)<=365),by={};L.forEach(d=>{const k=String(d.motifPerte||"").split(" : ")[0]||"Non renseigné";(by[k]=by[k]||{n:0,mt:0}).n++;by[k].mt+=Number(d.montant)||0});
+     const R=Object.entries(by).sort((a,b)=>b[1].n-a[1].n),mx=Math.max(1,...R.map(r=>r[1].n));
+     return `<div class="panel" style="grid-column:1/-1"><h3>Pourquoi on perd (12 mois)</h3>${R.length?`<div class="tblwrap"><table><thead><tr><th>Raison</th><th>Devis perdus</th><th class="num">Montant HT</th></tr></thead><tbody>${R.map(([k,v])=>`<tr><td>${esc(k)}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${v.n/mx*100}%;background:var(--gray)"></i></div>${v.n}</div></td><td class="num">${v.mt?v.mt.toLocaleString("fr-FR")+" €":"–"}</td></tr>`).join("")}</tbody></table></div>
+      <p class="hint">Les précisions (« concurrent 15 % moins cher »…) sont dans chaque fiche, onglet Perdus. « Non renseigné » : devis perdus avant que la raison soit obligatoire.</p>`:`<p class="hint">Aucun devis perdu sur 12 mois.</p>`}</div>`})()}
    <div class="panel" style="grid-column:1/-1"><h3>Chiffreurs</h3>
     <label class="field"><span>Noms des chiffreurs, séparés par des virgules</span><input type="text" id="t-chif" value="${esc(team.chiffreurs.join(", "))}"></label>
     <div class="actions"><button class="btn" type="button" id="t-save">Enregistrer</button></div>
@@ -750,7 +754,8 @@ function openDetail(id){
       <div class="grid2">
         <label class="field"><span>Montant du devis HT (€)</span><input type="number" id="d-mt" min="0" step="1" value="${esc(d.montant||"")}"></label>
         <label class="field"><span>Date de visite</span><input type="date" id="d-vd" value="${esc(d.visiteDate)}"></label>
-        <label class="field" id="d-pw" ${d.statut==="perdu"?"":"hidden"}><span>Pourquoi perdu ?</span><select id="d-perte">${["","Prix","Délai","Concurrent","Projet abandonné","Pas de réponse","Autre"].map(x=>`<option${x===(d.motifPerte||"")?" selected":""}>${x}</option>`).join("")}</select></label>
+        <label class="field" id="d-pw" ${d.statut==="perdu"?"":"hidden"}><span>Pourquoi perdu ? <b style="color:var(--alert)">*</b></span><select id="d-perte" required>${["","Prix","Délai","Concurrent","Projet abandonné","Pas de réponse","Autre"].map(x=>`<option${x===String(d.motifPerte||"").split(" : ")[0]?" selected":""}>${x}</option>`).join("")}</select></label>
+        <label class="field" id="d-pw2" ${d.statut==="perdu"?"":"hidden"}><span>Précision <span id="d-p2r">${String(d.motifPerte||"").startsWith("Autre")?'<b style="color:var(--alert)">*</b>':"(facultatif)"}</span></span><input id="d-perte2" value="${esc(String(d.motifPerte||"").split(" : ").slice(1).join(" : "))}" placeholder="ex. concurrent 15 % moins cher, client a reporté à 2027…"></label>
       </div>
     </fieldset>
     <dl class="infos">
@@ -783,7 +788,8 @@ function openDetail(id){
       toast("Fichier supprimé");pjLoad(d)}catch(er){b.disabled=false;writeErr(er)}});
   let st=d.statut;
   $("#d-st").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;st=b.dataset.st;
-    $("#d-st").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#d-pw").hidden=st!=="perdu"});
+    $("#d-st").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#d-pw").hidden=st!=="perdu";$("#d-pw2").hidden=st!=="perdu";if(st==="perdu"&&!$("#d-perte").value)$("#d-perte").focus()});
+  $("#d-perte").addEventListener("change",()=>{$("#d-p2r").innerHTML=$("#d-perte").value==="Autre"?'<b style="color:var(--alert)">*</b>':"(facultatif)";$("#d-perte").style.borderColor=""});
   $("#d-addnote").addEventListener("click",async()=>{const t=$("#d-note").value.trim();if(!t)return;
     $("#d-addnote").disabled=true;
     if(await save(d.id,{notes:[...(d.notes||[]),note(t)]},"Note ajoutée"))openDetail(d.id);else $("#d-addnote").disabled=false});
@@ -792,7 +798,10 @@ function openDetail(id){
     const f=readForm(),err=validate(f);if(err){$("#f-err").textContent=err;$("#f-err").hidden=false;return}
     const now=new Date().toISOString();
     if(st==="nouvelle"&&f.chiffreur)st="chiffrage";
-    const patch={...f,statut:st,montant:$("#d-mt").value,visiteDate:$("#d-vd").value,motifPerte:st==="perdu"?$("#d-perte").value:""};
+    const mp=$("#d-perte").value,mp2=$("#d-perte2").value.trim();
+    if(st==="perdu"&&(!mp||(mp==="Autre"&&!mp2))){const m=!mp?"Indique pourquoi le devis est perdu : c'est obligatoire.":"Avec « Autre », précise la raison.";$("#f-err").textContent=m;$("#f-err").hidden=false;
+      const el=!mp?$("#d-perte"):$("#d-perte2");el.style.borderColor="var(--alert)";el.focus();el.scrollIntoView({block:"center"});toast(m);return}
+    const patch={...f,statut:st,montant:$("#d-mt").value,visiteDate:$("#d-vd").value,motifPerte:st==="perdu"?mp+(mp2?" : "+mp2:""):""};
     const notes=[...(d.notes||[])];
     if(st!==d.statut){notes.push(note("Statut : "+ST[st]+(st==="perdu"&&patch.motifPerte?" ("+patch.motifPerte+")":"")+"."));
       if(st==="envoye"&&!d.envoyeAt)patch.envoyeAt=now;
