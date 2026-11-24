@@ -30,14 +30,17 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
 .btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
 .btn:disabled{opacity:.5;cursor:default}
 .btn.pri{background:var(--orange);border-color:var(--orange);color:#fff}
-.files{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;margin-bottom:14px}
-@media (max-width:1100px){.files{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.files{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.files .file{padding:10px 10px}
+@media (max-width:1250px){.files{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:820px){.files{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:640px){.files{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .file{font:inherit;text-align:left;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--c);border-radius:10px;padding:12px 14px;cursor:pointer;color:inherit;display:flex;flex-direction:column;gap:2px;position:relative;min-width:0}
 .file[aria-pressed=true]{border-color:var(--c);box-shadow:inset 0 -4px 0 var(--c)}
 .file .lab{font-size:13px;font-weight:700;color:var(--c)}
 .file b{font-family:var(--f-display);font-size:38px;line-height:1;font-variant-numeric:tabular-nums}
 .file small{font-size:12px;color:var(--muted)}
+.file .hrs{order:8;font-size:12px;font-weight:700;color:var(--ink);margin-top:3px;font-variant-numeric:tabular-nums}
 .file .late{order:9;align-self:flex-start;margin-top:4px;background:var(--latebg);color:var(--late);font-size:12px;font-weight:700;border-radius:999px;padding:1px 8px}
 .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
 .bar input,.bar select{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 10px;min-width:0}
@@ -74,6 +77,8 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
 .chain{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
 .chain li{font-size:12.5px;color:var(--muted);border-left:3px solid var(--line);padding-left:8px}
 .chain li b{color:var(--ink)}
+.row.ignr{opacity:.6;border-style:dashed}
+.act.ign.armed{background:var(--late);border-color:var(--late);color:#fff}
 .empty{border:1px dashed var(--line);border-radius:10px;padding:22px;text-align:center;color:var(--muted);background:var(--surface)}
 .note{font-size:13px;color:var(--muted);margin:14px 0 0}
 .bulk{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;z-index:5}
@@ -226,7 +231,8 @@ const CFG={tenantId:"14b03bce-aec8-408e-9686-c43ea4a503d8",clientId:"f66f2711-d9
   relais:"https://red-sun-fb1f.d-blin.workers.dev",liste:"Suivi SAV",owner:"d.blin@chassaing-technologies.fr",
   depart:"2026-11-23",                                   /* on compte à partir de ce jour */
   cats:{"18409":"SAV","18414":"Maintenance"},            /* catégories Organilog suivies */
-  champs:["297835","393193"]};                           /* champ « Suite intervention » (SAV, Maintenance) */
+  champs:["297835","393193"],                            /* champ « Suite intervention » (SAV, Maintenance) */
+  estDef:{SAV:2,Maintenance:3}};                         /* heures estimées si Organilog ne donne pas de durée prévue */                           /* champ « Suite intervention » (SAV, Maintenance) */
 /* ===================================================================== */
 (function(){
 const $=s=>document.querySelector(s);
@@ -237,7 +243,7 @@ let app,account,siteId,listId,ME="",EMAIL="";
 const ids={};           /* Title -> id de l'élément SharePoint */
 let C={cats:{},cli:{},users:{},ivs:{},vals:{},apl:{},valsAt:""};   /* cache partagé lu dans Organilog */
 let A={};               /* actions faites ici, par dossier : a/<clé> */
-let busy=false,essai=false;
+let busy=false,essai=false,lastSync=0;
 try{essai=localStorage.getItem("sav-essai")==="1"}catch(e){}
 const DEP=()=>essai?"2026-11-01":CFG.depart;
 
@@ -284,17 +290,18 @@ async function syncOrg(){
     setSync("Lecture d'Organilog…");
     try{applyPull(await pull())}catch(e){if(e.message==="redirect")return;throw e}
     lastSaved={};for(const k of CKD)lastSaved[k]=JSON.stringify(C[k]);
-    const t=today(),start=DEP()>addD(t,-60)?DEP():addD(t,-60),end=addD(t,45);
+    const t=today(),start=DEP()>addD(t,-60)?DEP():addD(t,-60),end=addD(t,90);
     const seen=new Set(),fresh=[];let first=true;
     for(let f=start;f<=end;f=addD(f,46)){const to=addD(f,45)>end?end:addD(f,45);
       const r=await relais("sav=list&from="+f+"&to="+to+(first?"&users=1":""));first=false;
       if(r.users){C.users={};r.users.forEach(u=>C.users[u.id]=u.n)}
       r.iv.forEach(i=>{seen.add(i.id);fresh.push(i)})}
     /* catégories : seulement pour les interventions jamais vues */
-    const need=fresh.filter(i=>!C.cats[i.id]).map(i=>i.id);
+    const need=fresh.filter(i=>!C.cats[i.id]||(C.cats[i.id][3]||"")!==(i.md||"")).map(i=>i.id);
     for(let i=0;i<need.length;i+=300){setSync("Catégories Organilog… "+Math.min(i+300,need.length)+"/"+need.length);const r=await relais("sav=cat&ids="+need.slice(i,i+300).join(","));Object.assign(C.cats,r.cats)}
     /* on garde les SAV et maintenances ; on retire celles supprimées dans Organilog */
-    fresh.forEach(i=>{const c=C.cats[i.id];if(c&&CFG.cats[c[0]])C.ivs[i.id]={...i,cat:c[0],par:c[1]}});
+    const mdOf={};fresh.forEach(i=>mdOf[i.id]=i.md||"");need.forEach(id=>{if(C.cats[id])C.cats[id][3]=mdOf[id]});
+    fresh.forEach(i=>{const c=C.cats[i.id];if(c&&CFG.cats[c[0]])C.ivs[i.id]={...i,cat:c[0],par:c[1]};else delete C.ivs[i.id]});
     Object.keys(C.ivs).forEach(id=>{const x=C.ivs[id],d=x.dd||x.pd;if(d>=start&&d<=end&&!seen.has(id))delete C.ivs[id]});
     const keepCat=new Set([...seen,...Object.keys(C.ivs)]);Object.keys(C.cats).forEach(id=>{if(!keepCat.has(id))delete C.cats[id]});
     /* cases « Suite intervention » cochées depuis la dernière lecture */
@@ -307,15 +314,16 @@ async function syncOrg(){
     Object.keys(C.vals).forEach(id=>{if(!C.ivs[id]&&!seen.has(id)&&Object.keys(C.vals).length>3000)delete C.vals[id]});
     /* interventions à planifier : sans date ou sans tech ; elles sortent seules dès qu'elles sont planifiées */
     try{setSync("Interventions à planifier…");const r=await relais("sav=aplan&days=150");C.aplMode=r.mode+" · "+r.lus+" lues";
-      const needA=r.iv.filter(i=>!i.cat&&!C.cats[i.id]).map(i=>i.id);
+      const needA=r.iv.filter(i=>!i.cat&&(!C.cats[i.id]||(C.cats[i.id][3]||"")!==(i.md||""))).map(i=>i.id);
       for(let i=0;i<needA.length;i+=300){const rc=await relais("sav=cat&ids="+needA.slice(i,i+300).join(","));Object.assign(C.cats,rc.cats)}
+      r.iv.forEach(i=>{if(needA.includes(i.id)&&C.cats[i.id])C.cats[i.id][3]=i.md||""});
       const na={};r.iv.forEach(i=>{const cat=i.cat||(C.cats[i.id]||[])[0];if(CFG.cats[cat])na[i.id]={...i,cat}});C.apl=na;C.aplErr=""}
     catch(e){if(e.message==="redirect")throw e;C.aplErr=e.message}
     /* noms des clients manquants */
     const nc=[...new Set(Object.values(C.ivs).concat(Object.values(C.apl||{})).map(i=>i.c))].filter(c=>c&&!C.cli[c]);
     for(let i=0;i<nc.length;i+=300){const r=await relais("sav=cli&ids="+nc.slice(i,i+300).join(","));Object.assign(C.cli,r.clients);nc.slice(i,i+300).forEach(c=>{if(!C.cli[c])C.cli[c]={t:"Client n° "+c,v:""}})}
     await saveCache();
-    setSync("Organilog lu à "+nowS().slice(11));
+    lastSync=Date.now();setSync("Organilog lu à "+nowS().slice(11));
     if(!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".qual")))render();
   }catch(e){if(e.message!=="redirect"){setSync("Organilog : "+e.message,true);console.error(e)}}
   finally{busy=false;$("#refresh").disabled=false}
@@ -350,6 +358,8 @@ function build(){
       else if(x.f){open={key:x.id,c,ivs:[x]};D.push(open)}
       else continue;
       fin(open)}}
+  const retOf={};D.forEach(d=>{if(d.retour)retOf[d.retour.id]=d.file==="pasp"?"pas":d.file});
+  merged.filter(x=>!x.f).forEach(x=>{const key="e"+x.id;D.push({key,c:x.c,pl:x,ivs:[x],file:"planif",cat:CFG.cats[x.cat]||"SAV",techs:x.techs,a:A[key]||{},last:null,v:0,retour:null,ret:retOf[x.id]||""})});
   Object.values(C.apl||{}).forEach(x=>{const key="p"+x.id;D.push({key,c:x.c,apl:x,ivs:[{...x,f:0,techs:x.u?[x.u]:[],ids:[x.id],nums:[x.n],com:""}],file:"apl",cat:CFG.cats[x.cat],techs:x.u?[x.u]:[],a:A[key]||{},last:null,v:0,retour:null})});
   return D}
 function fin(d){const a=A[d.key]||{};const done=d.ivs.filter(x=>x.f),last=d.ivs[d.ivs.length-1],ld=done[done.length-1];
@@ -358,30 +368,44 @@ function fin(d){const a=A[d.key]||{};const done=d.ivs.filter(x=>x.f),last=d.ivs[
   d.clos=!!(a.fac||a.clos)||(d.v===5&&!!a.g);
   d.ouvert=!d.clos&&[2,3,4].includes(d.v)&&!(d.v===3&&a.dv===3);
   d.file=d.clos?"fini":{1:"fac",2:"piece",3:"devis",4:"pas",5:"gar",0:"rien"}[d.v];
+  if(d.file==="pas"&&d.retour)d.file="pasp";   /* remis au planning : sort de « À repasser », se voit dans « En cours » */
   d.techs=[...new Set(d.ivs.flatMap(x=>x.techs))];d.a=a}
 
 /* ---------- files et étapes ---------- */
 const FILES=[
- {k:"apl",c:"var(--ink)",ico:"📥",n:"À planifier",sub:"Nouvelles, sans date",seuil:0,steps:["Plus anciennes d'abord","Urgentes d'abord"]},
- {k:"fac",c:"var(--orange)",ico:"🧾",n:"À facturer",sub:"Terminé, à facturer",seuil:7,steps:["À facturer"]},
- {k:"piece",c:"var(--bord)",ico:"🔧",n:"Pièces",sub:"Pièce à commander",seuil:3,steps:["À commander","Commandée","Reçue","Retour planifié"]},
- {k:"devis",c:"var(--bleu)",ico:"📄",n:"Devis",sub:"Devis à faire",seuil:5,steps:["À faire","Envoyé","Accepté","Retour planifié"]},
- {k:"pas",c:"var(--ocre)",ico:"📅",n:"À repasser",sub:"Prochain passage",seuil:10,steps:["À planifier","Retour planifié"]},
+ {k:"apl",c:"var(--ink)",ico:"📥",n:"À planifier",sub:"Nouvelles, sans date",seuil:0,urg:1,steps:["Plus anciennes d'abord","Urgentes d'abord"]},
+ {k:"planif",c:"#2C7A5B",ico:"🗓️",n:"En cours",sub:"Planifiées, pas encore faites",seuil:0,steps:["Date passée","Cette semaine","Semaine prochaine","Plus tard"]},
+ {k:"piece",c:"var(--bord)",ico:"🔧",n:"Pièces",sub:"Pièce à commander",seuil:3,urg:1,steps:["À commander","Commandée","Reçue","Retour planifié"]},
+ {k:"devis",c:"var(--bleu)",ico:"📄",n:"Devis",sub:"Devis à faire",seuil:2,urg:1,steps:["À faire","Envoyé","Accepté","Retour planifié"]},
+ {k:"pas",c:"var(--ocre)",ico:"📅",n:"À repasser",sub:"À remettre au planning",seuil:1,urg:1,steps:["À remettre au planning"]},
  {k:"rien",c:"var(--gris)",ico:"❓",n:"Rien coché",sub:"Effectuée, aucune case",seuil:2,steps:["À vérifier"]},
  {k:"gar",c:"#C5372C",ico:"🛡️",n:"Non facturables",sub:"À traiter : pourquoi, combien",seuil:7,steps:["À traiter"]},
+ {k:"fac",c:"var(--orange)",ico:"🧾",n:"À facturer",sub:"Terminé, à facturer",seuil:7,steps:["À facturer"]},
  {k:"fini",c:"var(--ok)",ico:"✅",n:"Terminés",sub:"Facturés ou clos",seuil:1e9,steps:["Facturés","Non facturables","Clos"]}];
 function stepOf(d){const a=d.a;
   if(d.file==="fini")return a.fac?0:a.g?1:2;
   if(d.file==="piece")return d.retour?3:Math.min(a.pc||0,2);
   if(d.file==="devis")return d.retour?3:Math.min(a.dv||0,2);
-  if(d.file==="pas")return d.retour?1:0;
+  if(d.file==="pas")return 0;
+  if(d.file==="planif"){const p=d.pl.pd||"",t=today();if(p<t)return 0;const w=wkStart(t);return p<addD(w,7)?1:p<addD(w,14)?2:3}
   return 0}
 const ageOf=d=>d.last&&d.last.dd?Math.round((new Date(today()+"T12:00")-new Date(d.last.dd+"T12:00"))/864e5):null;
 const PRIO={"1":["🚨 Urgente","late"],"3":["Basse",""]};
 const aplAge=d=>{const t=d.apl&&d.apl.ad;return t?Math.max(0,Math.round((new Date(today()+"T12:00")-new Date(t.slice(0,10)+"T12:00"))/864e5)):0};
 const urg=d=>!!(d.a.urg||(d.apl&&d.apl.p==="1"));
-const isLate=(f,d)=>f.k==="apl"?(urg(d)||aplAge(d)>(d.cat==="SAV"?2:14)):f.k!=="fini"&&stepOf(d)===0&&!d.retour&&ageOf(d)!=null&&ageOf(d)>f.seuil;
-let cur="fac",step=0,sel=new Set(),catF="",DOS=[];
+const wkStart=t=>{const d=new Date(t+"T12:00");return addD(t,-((d.getDay()+6)%7))};
+/* heures : prévues (champ Organilog s'il existe, sinon durée par défaut) et faites */
+const hm=v=>{const m=/^(\d{1,2}):(\d{2})/.exec(v||"");return m?+m[1]+(+m[2])/60:null};
+function estOf(x){const pe=x.pe||{},ks=Object.keys(pe);
+  const st=ks.find(k=>/(start|debut|deb)/i.test(k)&&hm(pe[k])!=null),en=ks.find(k=>/(end|fin)/i.test(k)&&hm(pe[k])!=null);
+  if(st&&en){const v=hm(pe[en])-hm(pe[st]);if(v>0)return {h:v,ok:1}}
+  for(const k of ks){if(/start|debut|end|fin/i.test(k))continue;const v=pe[k];const a=hm(v);if(a)return {h:a,ok:1};const n=parseFloat(String(v).replace(",","."));
+    if(n>0)return {h:/minute/i.test(k)||n>12?n/60:n,ok:1}}
+  return {h:CFG.estDef[CFG.cats[x.cat]]||CFG.estDef.SAV,ok:0}}
+const estD=d=>d.ivs.reduce((s,x)=>s+estOf(x).h,0);
+const hTxt=n=>{const m=Math.round(n*60);return Math.floor(m/60)+" h"+(m%60?String(m%60).padStart(2,"0"):"")};
+const isLate=(f,d)=>f.k==="planif"?stepOf(d)===0:f.k==="apl"?(urg(d)||aplAge(d)>(d.cat==="SAV"?2:14)):f.k!=="fini"&&stepOf(d)===0&&!d.retour&&ageOf(d)!=null&&ageOf(d)>f.seuil;
+let cur="apl",step=0,sel=new Set(),catF="",DOS=[],IGN=[],voirIgn=false;
 try{const s=JSON.parse(localStorage.getItem("sav-vue")||"{}");if(s.cur)cur=s.cur;if(s.catF!=null)catF=s.catF}catch(e){}
 const saveVue=()=>{try{localStorage.setItem("sav-vue",JSON.stringify({cur,catF}))}catch(e){}};
 
@@ -470,16 +494,25 @@ function filtered(f){const q=$("#q").value.trim().toLowerCase(),t=$("#tech").val
   return DOS.filter(d=>d.file===f.k&&(!catF||d.cat===catF)&&(!t||d.techs.includes(t))
     &&(!q||[C.cli[d.c]&&C.cli[d.c].t,C.cli[d.c]&&C.cli[d.c].v,...d.ivs.map(x=>x.n+" "+x.com+" "+x.pc+" "+x.nom),...d.techs.map(techN)].join(" ").toLowerCase().includes(q))
     &&(!p||(p==="-"?!d.a.pris:p==="@"?d.a.pris===ME:d.a.pris===p))&&(!l||isLate(f,d)))}
+const ignBtn=d=>d.a.ign?`<span class="tag" title="Ignorée">🙈 ${esc(d.a.ign.w.split(" ")[0])} · ${fd(d.a.ign.t)}</span><button type="button" class="act ghost" data-unign="${d.key}">↩️ Ne plus ignorer</button>`:`<button type="button" class="act ghost ign" data-ign="${d.key}" title="Ne plus voir cette intervention ici (rien ne change dans Organilog)">🙈 Ignorer</button>`;
 function aplRow(f,d){const x=d.apl,cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},ag=aplAge(d),lt=isLate(f,d),pr=PRIO[x.p],w=d.a.pris;
-  return `<div class="row${lt?" lt":""}" style="--c:${urg(d)?"var(--late)":f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
+  return `<div class="row${lt?" lt":""}${d.a.ign?" ignr":""}" style="--c:${urg(d)?"var(--late)":f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
   <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
   <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span>${urg(d)?`<span class="tag" style="border-color:var(--late);color:var(--late);font-weight:700">🚨 Urgente</span>`:pr&&pr[0]!=="Basse"?"":pr?`<span class="tag">${pr[0]}</span>`:""}
-   <span>enregistrée le ${fd(x.ad)}</span><span class="ag${lt?" l":""}">${ag===0?"aujourd'hui":"il y a "+ag+" j"}</span>${x.u?`<span class="tag">👷 ${esc(techN(x.u))} · sans date</span>`:x.pd?`<span class="tag">📅 ${fd(x.pd)} · sans tech</span>`:""}${x.k?`<span class="tag">contrat</span>`:""}</div>
+   <span>enregistrée le ${fd(x.ad)}</span><span class="tag">⏱ ${estOf(x).ok?"":"≈ "}${hTxt(estOf(x).h)}</span><span class="ag${lt?" l":""}">${ag===0?"aujourd'hui":"il y a "+ag+" j"}</span>${x.u?`<span class="tag">👷 ${esc(techN(x.u))} · sans date</span>`:x.pd?`<span class="tag">📅 ${fd(x.pd)} · sans tech</span>`:""}${x.k?`<span class="tag">contrat</span>`:""}</div>
   ${x.nom||x.pc?`<div class="com">${esc([x.nom,x.pc].filter(Boolean).join(" · ").slice(0,500))}</div>`:""}
   <details class="hist"><summary>🕘 Historique (${(d.a.h||[]).length+1})</summary><ol><li>${esc(fd(x.ad))} ${esc(String(x.ad).slice(11,16))} · <b>Organilog</b> intervention n° ${esc(x.n)} enregistrée</li>${(d.a.h||[]).map(e=>`<li>${esc(fd(e.t))} ${esc(String(e.t).slice(11,16))} · <b>${esc(e.w)}</b> ${esc(e.q)}</li>`).join("")}</ol></details></div>
-  <div class="right"><span class="num">n° ${esc(x.n)}</span>${w?`<span class="taken${w===ME?" me":""}">👤 ${esc(w===ME?"Moi":w.split(" ")[0])}</span>${w===ME?`<button type="button" class="take" data-lacher="${d.key}">Lâcher</button>`:""}`:`<button type="button" class="take" data-take="${d.key}">✋ Je planifie</button>`}
-   ${x.p==="1"?"":`<button type="button" class="act ghost" data-urg="${d.key}">${d.a.urg?"Plus urgente":"🚨 Urgente"}</button>`}</div></div>`}
-function rowHTML(f,d){if(f.k==="apl")return aplRow(f,d);const cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},a=ageOf(d),lt=isLate(f,d),st=stepOf(d),L=d.last||d.ivs[0];
+  <div class="right"><span class="num">n° ${esc(x.n)}</span>${d.a.ign?"":w?`<span class="taken${w===ME?" me":""}">👤 ${esc(w===ME?"Moi":w.split(" ")[0])}</span>${w===ME?`<button type="button" class="take" data-lacher="${d.key}">Lâcher</button>`:""}`:`<button type="button" class="take" data-take="${d.key}">✋ Je planifie</button>`}
+   ${x.p==="1"||d.a.ign?"":`<button type="button" class="act ghost" data-urg="${d.key}">${d.a.urg?"Plus urgente":"🚨 Urgente"}</button>`}${ignBtn(d)}</div></div>`}
+function planRow(f,d){const x=d.pl,cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},lt=isLate(f,d),e=estOf(x),pe=x.pe||{},hs=Object.keys(pe).find(k=>/(start|debut)/i.test(k)&&hm(pe[k])!=null);
+  const RET={piece:"🔧 retour pièce",devis:"📄 retour devis",pas:"📅 repassage",fac:"",rien:"",gar:"",fini:""};
+  return `<div class="row${lt?" lt":""}${d.a.ign?" ignr":""}" style="--c:${f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
+  <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
+  <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span><span class="tag">👷 ${esc(d.techs.map(techN).join(", ")||"—")}</span>
+   <span${lt?' class="ag l"':""}>📅 ${fd(x.pd)}${hs?" à "+esc(pe[hs].slice(0,5)):""}${lt?" · date passée, pas encore clôturée":""}</span><span class="tag">⏱ ${e.ok?"":"≈ "}${hTxt(e.h)}</span>${d.ret&&RET[d.ret]?`<span class="tag ret">${RET[d.ret]}</span>`:""}${x.k?`<span class="tag">contrat</span>`:""}</div>
+  ${x.nom||x.pc?`<div class="com">${esc([x.nom,x.pc].filter(Boolean).join(" · ").slice(0,500))}</div>`:""}</div>
+  <div class="right"><span class="num">n° ${esc(x.nums.join(", "))}</span>${ignBtn(d)}</div></div>`}
+function rowHTML(f,d){if(f.k==="apl")return aplRow(f,d);if(f.k==="planif")return planRow(f,d);const cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},a=ageOf(d),lt=isLate(f,d),st=stepOf(d),L=d.last||d.ivs[0];
   const sel_=f.k==="piece"&&!d.retour?`<select data-pc="${d.key}" aria-label="Étape pièce">${["À commander","Commandée","Reçue"].map((s,i)=>`<option value="${i}"${i===st?" selected":""}>${s}</option>`).join("")}</select>`
     :f.k==="devis"&&!d.retour?`<select data-dv="${d.key}" aria-label="Étape devis">${["À faire","Envoyé","Accepté","Refusé (clore)"].map((s,i)=>`<option value="${i}"${i===st?" selected":""}>${s}</option>`).join("")}</select>`:"";
   const btn=f.k==="fac"?`<button type="button" class="act" data-fac="${d.key}">🧾 Facturé</button>`
@@ -491,36 +524,45 @@ function rowHTML(f,d){if(f.k==="apl")return aplRow(f,d);const cl=C.cli[d.c]||{t:
   const chain=d.ivs.length>1?`<ul class="chain">${d.ivs.map(x=>`<li><b>n° ${esc(x.n)}</b> · ${x.f?"faite le "+fd(x.dd):"prévue le "+fd(x.pd)} · ${esc(x.techs.map(techN).join(", "))}${x.vtx?" · <b>"+esc(x.vtx)+"</b>":""}${x.com?"<br>"+esc(x.com.slice(0,240)):""}</li>`).join("")}</ul>`
     :(L.com||L.pc?`<div class="com">${esc((L.com||"Prévu : "+L.pc).slice(0,500))}</div>`:"");
   const H=histOf(d);
-  return `<div class="row${lt?" lt":""}" style="--c:${f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
+  return `<div class="row${lt?" lt":""}${d.a.ign?" ignr":""}" style="--c:${f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
   <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
   <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span><span class="tag">👷 ${esc(d.techs.map(techN).join(", ")||"—")}</span>
-   <span>${L.f?"faite le "+fd(L.dd):"prévue le "+fd(L.pd)}</span>${a!=null&&f.k!=="fini"?`<span class="ag${lt?" l":""}">il y a ${a} j</span>`:""}${L.h&&L.h!=="00:00"?`<span>${esc(L.h)} sur place</span>`:""}
+   <span>${L.f?"faite le "+fd(L.dd):"prévue le "+fd(L.pd)}</span>${a!=null&&f.k!=="fini"?`<span class="ag${lt?" l":""}">${lt&&f.urg?"🚨 Urgent · ":""}il y a ${a} j</span>`:""}${L.h&&L.h!=="00:00"?`<span>${esc(L.h)} sur place</span>`:""}
    ${d.retour?`<span class="tag ret">📅 Retour prévu le ${fd(d.retour.pd)}${d.retour.techs.length?" · "+esc(d.retour.techs.map(techN).join(", ")):""}</span>`:""}${d.ivs.length>1?`<span class="tag">${d.ivs.length} passages</span>`:""}${L.k?`<span class="tag">contrat</span>`:""}</div>
   ${chain}${qual}
   <details class="hist"><summary>🕘 Historique (${H.length})</summary><ol>${H.map(e=>`<li>${esc(fd(e.t))} ${esc(String(e.t).slice(11,16))} · <b>${esc(e.w)}</b> ${esc(e.q)}${e.o?" <em>(Organilog)</em>":""}</li>`).join("")}</ol></details></div>
-  <div class="right"><span class="num">n° ${esc(d.ivs.map(x=>x.n).join(", "))}</span>${pris}${sel_}${btn}</div></div>`}
+  <div class="right"><span class="num">n° ${esc(d.ivs.map(x=>x.n).join(", "))}</span>${d.a.ign?"":pris+sel_+btn}${ignBtn(d)}</div></div>`}
+function cardHours(f,all){
+  if(f.k==="apl"){const h=all.reduce((s,d)=>s+estD(d),0);return all.length?"⏱ ≈ "+hTxt(h)+" à caser":""}
+  if(f.k==="planif"){const w=all.filter(d=>stepOf(d)===1).reduce((s,d)=>s+estD(d),0),t=all.reduce((s,d)=>s+estD(d),0);return all.length?"⏱ "+hTxt(w)+" cette sem. · "+hTxt(t)+" en tout":""}
+  if(f.k==="fini"){const t=today(),w=wkStart(t),m=t.slice(0,7);let hw=0,hmo=0;
+    Object.values(C.ivs).forEach(x=>{if(!x.f||!x.dd||(catF&&CFG.cats[x.cat]!==catF))return;const v=hOf(x);if(x.dd>=w&&x.dd<=t)hw+=v;if(x.dd.slice(0,7)===m)hmo+=v});
+    return "⏱ "+hTxt(hw)+" cette sem. · "+hTxt(hmo)+" ce mois"}
+  return ""}
 let render=function(){
-  DOS=build();
+  DOS=build();IGN=DOS.filter(d=>d.a.ign);if(!voirIgn)DOS=DOS.filter(d=>!d.a.ign);
   $("#files").innerHTML=FILES.map(f=>{const all=DOS.filter(d=>d.file===f.k&&(!catF||d.cat===catF)),lt=all.filter(d=>isLate(f,d)).length;
-    return `<button type="button" class="file" style="--c:${f.c}" data-f="${f.k}" aria-pressed="${f.k===cur}">${lt?`<span class="late">${lt} en retard</span>`:""}<span class="lab">${f.ico} ${f.n}</span><b>${all.length}</b><small>${f.sub}</small></button>`}).join("");
+    const hl=cardHours(f,all);
+    return `<button type="button" class="file" style="--c:${f.c}" data-f="${f.k}" aria-pressed="${f.k===cur}">${lt?`<span class="late">${f.urg?"🚨 "+lt+" urgente"+(lt>1?"s":""):f.k==="planif"?lt+" date passée":lt+" en retard"}</span>`:""}<span class="lab">${f.ico} ${f.n}</span><b>${all.length}</b><small>${f.sub}</small>${hl?`<span class="hrs">${hl}</span>`:""}</button>`}).join("");
   const f=FILES.find(z=>z.k===cur),L=filtered(f);if(step>=f.steps.length)step=0;
+  if(step<0){const i=f.steps.findIndex((_,j)=>L.some(d=>stepOf(d)===j));step=f.k==="apl"||i<0?0:i}
   $("#steps").style.setProperty("--c",f.c);
   $("#steps").innerHTML=f.steps.length>1?f.steps.map((s,i)=>`<button type="button" data-s="${i}" aria-pressed="${i===step}">${s}<span class="n">${L.filter(d=>stepOf(d)===i).length}</span></button>`).join(""):"";
   if(f.k==="apl")$("#steps").innerHTML=f.steps.map((s,i)=>`<button type="button" data-s="${i}" aria-pressed="${i===step}">${s}</button>`).join("");
-  const rows=f.k==="apl"?L.slice().sort((a,b)=>(step===1?urg(b)-urg(a):0)||String(a.apl.ad).localeCompare(String(b.apl.ad))):L.filter(d=>f.steps.length<2||stepOf(d)===step).sort((a,b)=>f.k==="fini"?dOf(b.last||b.ivs[0]).localeCompare(dOf(a.last||a.ivs[0])):dOf(a.last||a.ivs[0]).localeCompare(dOf(b.last||b.ivs[0])));
+  const rows=f.k==="planif"?L.filter(d=>stepOf(d)===step).sort((a,b)=>String(a.pl.pd).localeCompare(String(b.pl.pd))):f.k==="apl"?L.slice().sort((a,b)=>(step===1?urg(b)-urg(a):0)||String(a.apl.ad).localeCompare(String(b.apl.ad))):L.filter(d=>f.steps.length<2||stepOf(d)===step).sort((a,b)=>f.k==="fini"?dOf(b.last||b.ivs[0]).localeCompare(dOf(a.last||a.ivs[0])):dOf(a.last||a.ivs[0]).localeCompare(dOf(b.last||b.ivs[0])));
   $("#list").innerHTML=rows.slice(0,f.k==="fini"?150:1000).map(d=>rowHTML(f,d)).join("")||`<div class="empty">${f.k==="apl"?(C.aplErr?"Lecture impossible : "+esc(C.aplErr):"Tout est planifié. 👌"):DOS.length?"Rien ici. 👌":"Aucune intervention SAV ou maintenance depuis le "+fd(DEP())+" pour l'instant."}</div>`;
   $("#recap").innerHTML=f.k==="gar"||(f.k==="fini"&&step===1)?recapHTML():"";
-  const opts=f.k==="apl"?[["urg","🚨 Urgente"]]:f.k==="gar"?[]:f.k==="fac"?[["fac","🧾 Facturé"]]:f.k==="piece"?[["pc1","Commandée"],["pc2","Reçue"],["pc0","À commander"]]:f.k==="devis"?[["dv1","Envoyé"],["dv2","Accepté"],["dv3","Refusé (clore)"],["dv0","À faire"]]:f.k==="fini"?[["rouvrir","Rouvrir"]]:[["clos","Clore"]];
-  $("#bstep").innerHTML=[["take","✋ Je prends"]].concat(opts).map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
+  const opts=f.k==="planif"?[]:f.k==="apl"?[["urg","🚨 Urgente"]]:f.k==="gar"?[]:f.k==="fac"?[["fac","🧾 Facturé"]]:f.k==="piece"?[["pc1","Commandée"],["pc2","Reçue"],["pc0","À commander"]]:f.k==="devis"?[["dv1","Envoyé"],["dv2","Accepté"],["dv3","Refusé (clore)"],["dv0","À faire"]]:f.k==="fini"?[["rouvrir","Rouvrir"]]:[["clos","Clore"]];
+  $("#bstep").innerHTML=[["take","✋ Je prends"]].concat(opts,[["ign","🙈 Ignorer"]],voirIgn?[["unign","↩️ Ne plus ignorer"]]:[]).map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
   $("#bulk").hidden=!sel.size;$("#nsel").textContent=sel.size;
-  $("#foot").textContent={apl:"Interventions SAV et maintenance enregistrées dans Organilog sans date ou sans tech. Dès qu'elles ont une date et un tech dans Organilog, elles sortent seules de la liste. En retard : SAV de plus de 2 jours, maintenance de plus de 14 jours, ou urgente."+(C.aplMode?" ("+C.aplMode+")":""),fac:"Clique « Facturé » une fois la facture faite dans Organilog : la ligne passe dans Terminés. Retard : plus de 7 jours.",
-    piece:"Quand un retour est planifié dans Organilog chez ce client, la ligne passe seule à « Retour planifié ». Quand le tech coche « Terminé, à facturer » au retour, elle part dans À facturer.",
-    devis:"Devis accepté → planifie le retour dans Organilog : la ligne suit seule. Devis refusé → la ligne est close.",
-    pas:"Dès qu'une intervention est planifiée chez ce client dans Organilog, la ligne passe à « Retour planifié ».",
+  $("#foot").textContent={planif:"Interventions SAV et maintenance planifiées dans Organilog, pas encore faites. Elles suivent Organilog : déplacée, réaffectée ou supprimée là-bas, la ligne change ici à la lecture suivante (toutes les 3 minutes, ou ↻ Actualiser). « Date passée » : prévue avant aujourd'hui mais pas encore clôturée par le tech. ⏱ ≈ = durée par défaut (SAV "+CFG.estDef.SAV+" h, maintenance "+CFG.estDef.Maintenance+" h) quand Organilog ne donne pas de durée prévue."+(()=>{const k=[...new Set(Object.values(C.ivs).flatMap(x=>Object.keys(x.pe||{})))];return k.length?" Durée lue dans Organilog : "+k.join(", ")+".":" Aucune durée prévue trouvée dans Organilog pour l'instant."})(),apl:"Interventions SAV et maintenance enregistrées dans Organilog sans date ou sans tech. Dès qu'elles ont une date et un tech dans Organilog, elles sortent seules de la liste. En retard : SAV de plus de 2 jours, maintenance de plus de 14 jours, ou urgente."+(C.aplMode?" ("+C.aplMode+")":""),fac:"Clique « Facturé » une fois la facture faite dans Organilog : la ligne passe dans Terminés. Retard : plus de 7 jours.",
+    piece:"🚨 Urgent quand la pièce n'est pas commandée après 3 jours. Quand un retour est planifié dans Organilog chez ce client, la ligne passe seule à « Retour planifié ». Quand le tech coche « Terminé, à facturer » au retour, elle part dans À facturer.",
+    devis:"🚨 Urgent quand le devis n'est pas fait au bout de 3 jours. Devis accepté → planifie le retour dans Organilog : la ligne suit seule. Devis refusé → la ligne est close.",
+    pas:"🚨 Urgent dès 2 jours. Dès qu'une intervention est planifiée chez ce client dans Organilog, la ligne sort d'ici et se retrouve dans « En cours ».",
     rien:"Interventions effectuées sans « Suite intervention » : à voir avec le tech. La case étant obligatoire, cette file doit rester vide.",
     gar:"Le tech a coché « Terminé, non facturable ». Dis pourquoi (motif + cause), ajoute les pièces posées : le coût et le manque à gagner se calculent seuls. Validé, la ligne part dans Terminés › Non facturables.",
-    fini:"Les 150 dernières. « Rouvrir » remet la ligne dans sa file."}[f.k];
-  $("#essai").innerHTML=`Comptage à partir du ${fd(CFG.depart)} 2026. <label class="ck" style="display:inline-flex"><input type="checkbox" id="ess" ${essai?"checked":""}> Essai : voir aussi depuis le 1er novembre</label>`;
+    fini:"Heures en haut : heures SAV et maintenance passées sur place (Organilog), semaine et mois en cours. Les 150 dernières. « Rouvrir » remet la ligne dans sa file."}[f.k];
+  $("#essai").innerHTML=`Comptage à partir du ${fd(CFG.depart)} 2026. <label class="ck" style="display:inline-flex"><input type="checkbox" id="ess" ${essai?"checked":""}> Essai : voir aussi depuis le 1er novembre</label> · <label class="ck" style="display:inline-flex"><input type="checkbox" id="vign" ${voirIgn?"checked":""}> Voir les ignorées (${IGN.length})</label>`;
   renderJ()};
 function renderJ(){const j=$("#journal");if(j.hidden)return;
   const all=DOS.flatMap(d=>histOf(d).map(e=>({...e,d}))).sort((a,b)=>String(b.t).localeCompare(String(a.t))).slice(0,150);
@@ -532,13 +574,15 @@ function act(key,what){const d=DOS.find(x=>x.key===key);if(!d)return;const a=A[k
   if(what==="take"){a.pris=ME;log(key,"a pris en charge")}
   else if(what==="lacher"){delete a.pris;log(key,"a lâché")}
   else if(what==="urg"){a.urg=!a.urg;log(key,a.urg?"a marqué urgente":"a retiré l'urgence")}
+  else if(what==="ign"){a.ign={w:ME,t:nowS()};delete a.pris;log(key,"a ignoré l'intervention (Organilog inchangé)")}
+  else if(what==="unign"){delete a.ign;log(key,"ne l'ignore plus")}
   else if(what==="fac"){a.fac={w:ME,t:nowS()};log(key,"a marqué facturé")}
   else if(what==="clos"){a.clos={w:ME,t:nowS()};log(key,"a clos la ligne")}
   else if(what==="rouvrir"){delete a.fac;delete a.clos;if(a.dv===3)a.dv=2;log(key,"a rouvert la ligne")}
   else if(/^pc\d$/.test(what)){a.pc=+what[2];log(key,"pièce : "+["à commander","commandée","reçue"][a.pc]);if(!a.pris)a.pris=ME}
   else if(/^dv\d$/.test(what)){a.dv=+what[2];if(a.dv===3)a.clos={w:ME,t:nowS()};log(key,"devis : "+["à faire","envoyé","accepté","refusé"][a.dv]);if(!a.pris)a.pris=ME}
   saveA(key);return cl}
-$("#files").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;cur=b.dataset.f;step=0;sel.clear();saveVue();render()});
+$("#files").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;cur=b.dataset.f;step=-1;sel.clear();saveVue();render()});
 $("#steps").addEventListener("click",e=>{const b=e.target.closest("[data-s]");if(!b)return;step=+b.dataset.s;sel.clear();render()});
 $("#cat").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;catF=b.dataset.c;[...$("#cat").children].forEach(x=>x.setAttribute("aria-pressed",x===b));sel.clear();saveVue();render()});
 ["q","tech","pris","late"].forEach(id=>$("#"+id).addEventListener(id==="q"?"input":"change",()=>{sel.clear();render()}));
@@ -546,14 +590,20 @@ $("#list").addEventListener("change",e=>{const c=e.target.closest("[data-sel]");
   const p=e.target.closest("[data-pc]"),v=e.target.closest("[data-dv]");
   if(p){act(p.dataset.pc,"pc"+p.value);toast("Pièce : "+["à commander","commandée","reçue"][+p.value]);render()}
   if(v){act(v.dataset.dv,"dv"+v.value);toast(+v.value===3?"Devis refusé : ligne close":"Devis : "+["à faire","envoyé","accepté"][+v.value]);render()}});
+$("#list").addEventListener("click",e=>{const g=e.target.closest("[data-ign],[data-unign]");if(!g)return;e.stopImmediatePropagation();
+  if(g.dataset.unign){act(g.dataset.unign,"unign");toast("De nouveau visible");render();return}
+  if(!g.dataset.armed){g.dataset.armed=1;g.classList.add("armed");g.textContent="Confirmer : ignorer ?";setTimeout(()=>{if(g.isConnected){delete g.dataset.armed;g.classList.remove("armed");g.textContent="🙈 Ignorer"}},4000);return}
+  const cl=act(g.dataset.ign,"ign");toast("Ignorée · "+cl+" ne s'affiche plus (Organilog inchangé)");render()});
 $("#list").addEventListener("click",e=>{const b=e.target.closest("[data-take],[data-lacher],[data-fac],[data-clos],[data-rouvrir],[data-urg]");if(!b)return;
   const k=Object.keys(b.dataset)[0],key=b.dataset[k],cl=act(key,k);
   toast({urg:"Urgence mise à jour",take:"C'est à toi : les autres voient ton nom",lacher:"Lâchée : de nouveau libre",fac:"Facturé · "+cl+" passe dans Terminés",clos:"Close",rouvrir:"Rouverte"}[k]);render()});
-$("#bgo").addEventListener("click",()=>{const v=$("#bstep").value,n=sel.size;sel.forEach(k=>act(k,v));sel.clear();toast(n+" ligne(s) mise(s) à jour");render()});
+$("#bgo").addEventListener("click",()=>{const v=$("#bstep").value,n=sel.size,B=$("#bgo");
+  if(v==="ign"&&!B.dataset.armed){B.dataset.armed=1;const t0=B.textContent;B.textContent="Confirmer : ignorer "+n+" ?";setTimeout(()=>{delete B.dataset.armed;B.textContent=t0},4000);return}
+  if(B.dataset.armed){delete B.dataset.armed;B.textContent="Appliquer"}sel.forEach(k=>act(k,v));sel.clear();toast(n+" ligne(s) mise(s) à jour");render()});
 $("#bclear").addEventListener("click",()=>{sel.clear();render()});
 $("#refresh").addEventListener("click",()=>syncOrg());
 $("#jr").addEventListener("click",()=>{const j=$("#journal");j.hidden=!j.hidden;$("#jr").setAttribute("aria-expanded",!j.hidden);renderJ()});
-document.addEventListener("change",e=>{if(e.target.id==="ess"){essai=e.target.checked;try{localStorage.setItem("sav-essai",essai?"1":"0")}catch(_){}render();if(essai)syncOrg()}});
+document.addEventListener("change",e=>{if(e.target.id==="vign"){voirIgn=e.target.checked;sel.clear();render();return}if(e.target.id==="ess"){essai=e.target.checked;try{localStorage.setItem("sav-essai",essai?"1":"0")}catch(_){}render();if(essai)syncOrg()}});
 function techOpts(){const used=[...new Set(Object.values(C.ivs).map(x=>x.u))];const cur_=$("#tech").value;
   $("#tech").innerHTML=`<option value="">Tous les techniciens</option>`+used.map(u=>[u,techN(u)]).sort((a,b)=>a[1].localeCompare(b[1])).map(([u,n])=>`<option value="${esc(u)}"${u===cur_?" selected":""}>${esc(n)}</option>`).join("")}
 const _r=render;render=function(){techOpts();_r()};
@@ -575,7 +625,8 @@ async function start(){
       listId=(await gx("POST",`/sites/${siteId}/lists`,{displayName:CFG.liste,list:{template:"genericList"},columns:[{name:"Valeur",text:{allowMultipleLines:true,textType:"plain"}}]},SCA)).id}
     applyPull(await pull());await loadCost();gate.hidden=true;render();
     await syncOrg();
-    setInterval(()=>{if(document.visibilityState==="visible")syncOrg()},5*60e3);
+    setInterval(()=>{if(document.visibilityState==="visible")syncOrg()},3*60e3);
+    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-lastSync>60e3)syncOrg()});
   }catch(e){if(e.message!=="redirect")showGate("Erreur",esc(e.message),"Recharger",()=>location.reload())}
 }
 /* test : où Organilog range les pièces posées (ouvrir sav.html#pieces) */
