@@ -305,6 +305,32 @@ legend::before{content:"";width:14px;height:3px;background:var(--orange)}
 .todo h3{font-size:17px}.todo h3 small{display:none}
 .todo .tip{font-size:12.5px;color:var(--muted);margin:-4px 0 8px}
 @media (max-width:700px){.seg3 button{padding:7px 9px;font-size:13px}.wk{width:64px}}
+
+/* ---------- vue d'ensemble : chantiers × mois ---------- */
+.ov-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
+.ov-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.ov-seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--ink);padding:7px 11px;cursor:pointer}
+.ov-seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);font-weight:600}
+.ov-lab{font-family:var(--f-display);font-size:19px;font-weight:700;min-width:170px;text-align:center}
+.ov-chips{display:flex;gap:6px;flex-wrap:wrap}
+.ov-chips button{font:inherit;font-size:13px;font-weight:700;border:1.5px solid var(--c);color:var(--c);background:transparent;border-radius:999px;padding:5px 11px;cursor:pointer}
+.ov-chips button[aria-pressed=true]{background:var(--c);color:#fff}
+.ov-w{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.ov-g{display:grid;grid-template-columns:minmax(220px,260px) 1fr;min-width:calc(240px + var(--n) * 70px)}
+.ov-g>.hd{position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);font-weight:600;min-height:34px;display:flex;align-items:center;padding:0 10px}
+.ov-g>.hd.ov-ms{display:grid;grid-template-columns:repeat(var(--n),1fr);padding:0}
+.ov-ms>span{display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line)}
+.ov-ms>span.now{color:var(--ink);box-shadow:inset 0 -3px 0 var(--orange)}
+.ov-nm{border-bottom:1px solid var(--line);padding:7px 10px 7px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px;cursor:pointer;position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:inset 5px 0 0 var(--cc)}
+.ov-nm b{font-size:13.5px;line-height:1.25}.ov-nm small{font-size:12px;color:var(--muted)}
+.ov-tl{position:relative;border-bottom:1px solid var(--line);min-height:46px;background-image:var(--grid);background-size:calc(100% / var(--n)) 100%}
+.ov-b{position:absolute;top:9px;bottom:9px;border-radius:6px;background:var(--cc);color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;padding:0 6px;overflow:hidden;white-space:nowrap;cursor:pointer;min-width:6px;border:0;font-family:inherit}
+.ov-b.planifie{background:color-mix(in srgb,var(--cc) 45%,var(--surface));color:var(--ink)}
+.ov-b.termine,.ov-b.solde{background:color-mix(in srgb,var(--cc) 22%,var(--surface));color:var(--muted)}
+.ov-b.cut-l{border-top-left-radius:0;border-bottom-left-radius:0}.ov-b.cut-r{border-top-right-radius:0;border-bottom-right-radius:0}
+.ov-today{position:absolute;top:0;bottom:0;width:2px;background:var(--orange);opacity:.7;pointer-events:none}
+.ov-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:8px 0}
+.ov-leg i{display:inline-block;width:22px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
 </style>
 
 <style>
@@ -346,6 +372,7 @@ html.embed header.top{margin-bottom:8px;min-height:0}
   <div class="tabsrow">
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" type="button" data-tab="planning" aria-selected="true">Planning</button>
+      <button class="tab" role="tab" type="button" data-tab="annee" aria-selected="false">Vue d'ensemble</button>
       <button class="tab" role="tab" type="button" data-tab="liste" aria-selected="false">Suivi &amp; rentabilité</button>
       <button class="tab" role="tab" type="button" data-tab="params" aria-selected="false">Paramètres</button>
     </nav>
@@ -1508,13 +1535,45 @@ function weeksHTML(){
     const sel=m>=monday(selA)&&m<=selB,isNow=+m===+now;
     html+=`<button type="button" class="wk${sel?" sel":""}${isNow?" now":""}${fer.length?" fer":""}" data-wk="${ymd(m)}" title="Semaine ${weekNo(m)} · charge ${pc} %${fer.length?" · férié : "+fer.map(d=>fd(d)).join(", "):""}"><b>S${weekNo(m)}</b><small>${fd(m)}</small><i><u class="${pc>100?"over":pc>85?"mid":""}" style="width:${Math.min(100,pc)}%"></u></i></button>`}
   return html}
+
+/* ---------- vue d'ensemble : un chantier par ligne, ses périodes sur 3, 6 ou 12 mois ---------- */
+let OV={per:6,off:0,cat:"",term:false};try{Object.assign(OV,JSON.parse(ls("ov")||"{}"));OV.off=0}catch(e){}
+const MOISC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+function ovRange(){const t=new Date();const s0=new Date(t.getFullYear(),t.getMonth()-(OV.per===12?1:0)+OV.off,1),e0=new Date(s0.getFullYear(),s0.getMonth()+(OV.per===12?13:OV.per),1);return [s0,e0]}
+function anneeHTML(){const [S0,E0]=ovRange(),n=Math.round((E0.getFullYear()-S0.getFullYear())*12+E0.getMonth()-S0.getMonth()),span=E0-S0;
+  const pos=d=>Math.max(0,Math.min(100,(d-S0)/span*100));
+  const ms=Array.from({length:n},(_,i)=>new Date(S0.getFullYear(),S0.getMonth()+i,1)),tm=new Date();
+  const catCol=x=>{const i=catIdx(x.categorie);return i<0?"var(--cat5)":`var(--cat${i+1})`};
+  const rows=filtered().filter(x=>x.debut&&x.statut!=="aplanifier"&&(OV.term||(x.statut!=="termine"&&x.statut!=="solde"))&&(!OV.cat||(OV.cat==="-"?catIdx(x.categorie)<0:String(catIdx(x.categorie))===OV.cat)))
+    .map(x=>({x,P:partsOf(x).map(q=>({d:parse(q.debut),f:addD(parse(finOf(q.debut,q.pm,q.slots)),1)}))}))
+    .filter(r=>r.P.some(q=>q.f>S0&&q.d<E0)).sort((a,b)=>a.P[0].d-b.P[0].d);
+  const nTodo=filtered().filter(x=>x.statut==="aplanifier"||!x.debut).length;
+  const lab=d=>MOISC[d.getMonth()]+" "+d.getFullYear(),last=new Date(E0.getFullYear(),E0.getMonth()-1,1);
+  const grid="linear-gradient(to right,var(--line) 1px,transparent 1px)";
+  return `<div class="ov-bar"><span class="ov-seg" role="group" aria-label="Période">${[[3,"3 mois"],[6,"6 mois"],[12,"12 mois"]].map(([k,t])=>`<button type="button" data-ovper="${k}" aria-pressed="${k===OV.per}">${t}</button>`).join("")}</span>
+    <button class="btn small" type="button" data-ovstep="-1" aria-label="Période précédente">‹</button><span class="ov-lab">${lab(S0)} → ${lab(last)}</span><button class="btn small" type="button" data-ovstep="1" aria-label="Période suivante">›</button>${OV.off?`<button class="btn small" type="button" data-ovstep="0">Aujourd'hui</button>`:""}
+    <label class="ck" style="margin-left:auto"><input type="checkbox" data-ovterm${OV.term?" checked":""}> Voir les terminés</label></div>
+  <div class="ov-bar"><div class="ov-chips">${[["","Tous métiers","var(--ink)"]].concat(CATS.map((c,i)=>[String(i),c,`var(--cat${i+1})`]),items.some(x=>x.debut&&catIdx(x.categorie)<0)?[["-","Sans catégorie","var(--cat5)"]]:[]).map(([k,t,c])=>`<button type="button" data-ovcat="${k}" style="--c:${c}" aria-pressed="${k===OV.cat}">${esc(t)}</button>`).join("")}</div></div>
+  <div class="ov-leg"><span><i style="background:color-mix(in srgb,var(--cat1) 45%,var(--surface))"></i>Planifié</span><span><i style="background:var(--cat1)"></i>En cours</span><span><i style="background:color-mix(in srgb,var(--cat1) 22%,var(--surface))"></i>Terminé</span><span><i style="background:var(--orange);width:2px"></i>Aujourd'hui</span></div>
+  <div class="ov-w"><div class="ov-g" style="--n:${n}"><div class="hd">Chantier · ${rows.length}</div><div class="hd ov-ms" style="padding:0">${ms.map(m=>`<span class="${m.getFullYear()===tm.getFullYear()&&m.getMonth()===tm.getMonth()?"now":""}">${MOISC[m.getMonth()]}${m.getMonth()===0||m===ms[0]?" "+String(m.getFullYear()).slice(2):""}</span>`).join("")}</div>
+  ${rows.map(({x,P})=>{const cc=catCol(x);return `<div class="ov-nm" data-open="${esc(x.id)}" style="--cc:${cc}"><b>${esc(x.client||"Chantier")}</b><small>${esc(catName(x.categorie)||"Sans catégorie")}${x.charge?" · "+esc(x.charge):""}${x.montant?" · "+eur(x.montant):""}</small></div>
+    <div class="ov-tl" style="--grid:${grid}">${P.filter(q=>q.f>S0&&q.d<E0).map((q,k)=>{const a=pos(q.d),b=pos(q.f);return `<button type="button" class="ov-b ${x.statut}${q.d<S0?" cut-l":""}${q.f>E0?" cut-r":""}" data-open="${esc(x.id)}" style="--cc:${cc};left:${a}%;width:max(6px,${b-a}%)" title="${esc((x.client||"")+" · "+(ST[x.statut]||"")+" · du "+q.d.toLocaleDateString("fr-FR")+" au "+addD(q.f,-1).toLocaleDateString("fr-FR"))}">${b-a>9?esc(x.client||""):""}</button>`}).join("")}${tm>=S0&&tm<E0?`<span class="ov-today" style="left:${pos(tm)}%"></span>`:""}</div>`}).join("")}
+  </div></div>
+  ${rows.length?"":`<p class="hint" style="margin-top:10px">Aucun chantier planifié sur cette période.</p>`}
+  <p class="hint" style="margin-top:8px">Une ligne par chantier, ses périodes de travail sur la période choisie. Couleur = métier. Clic : la fiche du chantier.${nTodo?` <b>${nTodo} chantier${nTodo>1?"s":""} à planifier</b> (sans date) n'apparaissent pas ici : onglet Planning.`:""}</p>`}
+$("#view").addEventListener("click",e=>{const b=e.target.closest("[data-ovper],[data-ovstep],[data-ovcat]");if(!b)return;
+  if(b.dataset.ovper)OV.per=+b.dataset.ovper;
+  else if(b.dataset.ovstep!=null){const k=+b.dataset.ovstep;OV.off=k?Math.max(-24,Math.min(24,OV.off+k*(OV.per===12?6:OV.per))):0}
+  else OV.cat=b.dataset.ovcat;
+  ls("ov",JSON.stringify({per:OV.per,cat:OV.cat,term:OV.term}));render()});
+$("#view").addEventListener("change",e=>{if(!e.target.matches("[data-ovterm]"))return;OV.term=e.target.checked;ls("ov",JSON.stringify({per:OV.per,cat:OV.cat,term:OV.term}));render()});
 function render(){
   renderStats();
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
   $("#nav").hidden=tab!=="planning";
   const v=$("#view");
   const qf=document.activeElement&&document.activeElement.id==="ch-q",qs=qf?document.activeElement.selectionStart:0;
-  if(tab==="planning"){v.innerHTML=planningHTML();{const w=$("#weeks");if(w){w.innerHTML=weeksHTML();const se=w.querySelector(".wk.sel");if(se)w.scrollLeft=Math.max(0,se.offsetLeft-w.offsetLeft-3*79)}}if(qf){const q=$("#ch-q");if(q){q.focus();try{q.setSelectionRange(qs,qs)}catch(e){}}}}else if(tab==="params"){v.innerHTML=paramsHTML();bindListe()}else v.innerHTML=listeHTML()
+  if(tab==="planning"){v.innerHTML=planningHTML();{const w=$("#weeks");if(w){w.innerHTML=weeksHTML();const se=w.querySelector(".wk.sel");if(se)w.scrollLeft=Math.max(0,se.offsetLeft-w.offsetLeft-3*79)}}if(qf){const q=$("#ch-q");if(q){q.focus();try{q.setSelectionRange(qs,qs)}catch(e){}}}}else if(tab==="annee"){v.innerHTML=anneeHTML()}else if(tab==="params"){v.innerHTML=paramsHTML();bindListe()}else v.innerHTML=listeHTML()
 }
 function step(dir){
   const showWE=$("#fl-wk").checked;

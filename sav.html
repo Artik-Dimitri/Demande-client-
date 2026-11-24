@@ -40,6 +40,8 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
 .file .lab{font-size:13px;font-weight:700;color:var(--c)}
 .file b{font-family:var(--f-display);font-size:38px;line-height:1;font-variant-numeric:tabular-nums}
 .file small{font-size:12px;color:var(--muted)}
+.nvalert{display:flex;width:100%;align-items:center;gap:10px;text-align:left;font:inherit;font-size:14px;font-weight:600;background:var(--surface);color:var(--ink);border:1.5px solid var(--late);border-left-width:6px;border-radius:10px;padding:10px 14px;margin-bottom:10px;cursor:pointer}
+.nvalert b{color:var(--late)}
 .file .hrs{order:8;font-size:12px;font-weight:700;color:var(--ink);margin-top:3px;font-variant-numeric:tabular-nums}
 .file .late{order:9;align-self:flex-start;margin-top:4px;background:var(--latebg);color:var(--late);font-size:12px;font-weight:700;border-radius:999px;padding:1px 8px}
 .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
@@ -132,6 +134,7 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
   <div class="src"><span class="sync" id="sync">Lecture d'Organilog…</span><button class="btn" type="button" id="refresh">↻ Actualiser</button><button class="btn" type="button" id="jr" aria-expanded="false">📜 Qui a fait quoi</button></div>
 </header>
 <div id="journal" class="journal" hidden></div>
+<button type="button" class="nvalert" id="nvalert" hidden></button>
 <div class="files" id="files"></div>
 <div class="bar">
   <input type="search" id="q" placeholder="Client, ville, n°, panne…" aria-label="Rechercher">
@@ -374,7 +377,7 @@ function fin(d){const a=A[d.key]||{};const done=d.ivs.filter(x=>x.f),last=d.ivs[
 /* ---------- files et étapes ---------- */
 const FILES=[
  {k:"apl",c:"var(--ink)",ico:"📥",n:"À planifier",sub:"Nouvelles, sans date",seuil:0,urg:1,steps:["Plus anciennes d'abord","Urgentes d'abord"]},
- {k:"planif",c:"#2C7A5B",ico:"🗓️",n:"En cours",sub:"Planifiées, pas encore faites",seuil:0,steps:["Date passée","Cette semaine","Semaine prochaine","Plus tard"]},
+ {k:"planif",c:"#2C7A5B",ico:"🗓️",n:"En cours",sub:"Planifiées, pas encore faites",seuil:0,steps:["⚠️ Pas validées","Cette semaine","Semaine prochaine","Plus tard"]},
  {k:"piece",c:"var(--bord)",ico:"🔧",n:"Pièces",sub:"Pièce à commander",seuil:3,urg:1,steps:["À commander","Commandée","Reçue","Retour planifié"]},
  {k:"devis",c:"var(--bleu)",ico:"📄",n:"Devis",sub:"Devis à faire",seuil:2,urg:1,steps:["À faire","Envoyé","Accepté","Retour planifié"]},
  {k:"pas",c:"var(--ocre)",ico:"📅",n:"À repasser",sub:"À remettre au planning",seuil:1,urg:1,steps:["À remettre au planning"]},
@@ -509,7 +512,7 @@ function planRow(f,d){const x=d.pl,cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},lt=
   return `<div class="row${lt?" lt":""}${d.a.ign?" ignr":""}" style="--c:${f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
   <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
   <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span><span class="tag">👷 ${esc(d.techs.map(techN).join(", ")||"—")}</span>
-   <span${lt?' class="ag l"':""}>📅 ${fd(x.pd)}${hs?" à "+esc(pe[hs].slice(0,5)):""}${lt?" · date passée, pas encore clôturée":""}</span><span class="tag">⏱ ${e.ok?"":"≈ "}${hTxt(e.h)}</span>${d.ret&&RET[d.ret]?`<span class="tag ret">${RET[d.ret]}</span>`:""}${x.k?`<span class="tag">contrat</span>`:""}</div>
+   <span${lt?' class="ag l"':""}>📅 ${fd(x.pd)}${hs?" à "+esc(pe[hs].slice(0,5)):""}${lt?` · ⚠️ pas validée (il y a ${Math.round((new Date(today())-new Date(x.pd))/864e5)} j)`:""}</span><span class="tag">⏱ ${e.ok?"":"≈ "}${hTxt(e.h)}</span>${d.ret&&RET[d.ret]?`<span class="tag ret">${RET[d.ret]}</span>`:""}${x.k?`<span class="tag">contrat</span>`:""}</div>
   ${x.nom||x.pc?`<div class="com">${esc([x.nom,x.pc].filter(Boolean).join(" · ").slice(0,500))}</div>`:""}</div>
   <div class="right"><span class="num">n° ${esc(x.nums.join(", "))}</span>${ignBtn(d)}</div></div>`}
 function rowHTML(f,d){if(f.k==="apl")return aplRow(f,d);if(f.k==="planif")return planRow(f,d);const cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},a=ageOf(d),lt=isLate(f,d),st=stepOf(d),L=d.last||d.ivs[0];
@@ -539,11 +542,14 @@ function cardHours(f,all){
     Object.values(C.ivs).forEach(x=>{if(!x.f||!x.dd||(catF&&CFG.cats[x.cat]!==catF))return;const v=hOf(x);if(x.dd>=w&&x.dd<=t)hw+=v;if(x.dd.slice(0,7)===m)hmo+=v});
     return "⏱ "+hTxt(hw)+" cette sem. · "+hTxt(hmo)+" ce mois"}
   return ""}
+function nvAlert(){const L=DOS.filter(d=>d.file==="planif"&&!d.a.ign&&(!catF||d.cat===catF)&&stepOf(d)===0),el=$("#nvalert");if(!el)return;
+  el.hidden=!L.length;if(L.length)el.innerHTML=`⚠️ <span><b>${L.length} intervention${L.length>1?"s":""} planifiée${L.length>1?"s":""} pas validée${L.length>1?"s":""}</b> dans Organilog : date passée, pas clôturée. Faite et oubliée, ou pas faite ?</span><span style="margin-left:auto">Voir ›</span>`}
 let render=function(){
   DOS=build();IGN=DOS.filter(d=>d.a.ign);if(!voirIgn)DOS=DOS.filter(d=>!d.a.ign);
+  nvAlert();
   $("#files").innerHTML=FILES.map(f=>{const all=DOS.filter(d=>d.file===f.k&&(!catF||d.cat===catF)),lt=all.filter(d=>isLate(f,d)).length;
     const hl=cardHours(f,all);
-    return `<button type="button" class="file" style="--c:${f.c}" data-f="${f.k}" aria-pressed="${f.k===cur}">${lt?`<span class="late">${f.urg?"🚨 "+lt+" urgente"+(lt>1?"s":""):f.k==="planif"?lt+" date passée":lt+" en retard"}</span>`:""}<span class="lab">${f.ico} ${f.n}</span><b>${all.length}</b><small>${f.sub}</small>${hl?`<span class="hrs">${hl}</span>`:""}</button>`}).join("");
+    return `<button type="button" class="file" style="--c:${f.c}" data-f="${f.k}" aria-pressed="${f.k===cur}">${lt?`<span class="late">${f.urg?"🚨 "+lt+" urgente"+(lt>1?"s":""):f.k==="planif"?"⚠️ "+lt+" pas validée"+(lt>1?"s":""):lt+" en retard"}</span>`:""}<span class="lab">${f.ico} ${f.n}</span><b>${all.length}</b><small>${f.sub}</small>${hl?`<span class="hrs">${hl}</span>`:""}</button>`}).join("");
   const f=FILES.find(z=>z.k===cur),L=filtered(f);if(step>=f.steps.length)step=0;
   if(step<0){const i=f.steps.findIndex((_,j)=>L.some(d=>stepOf(d)===j));step=f.k==="apl"||i<0?0:i}
   $("#steps").style.setProperty("--c",f.c);
@@ -555,7 +561,7 @@ let render=function(){
   const opts=f.k==="planif"?[]:f.k==="apl"?[["urg","🚨 Urgente"]]:f.k==="gar"?[]:f.k==="fac"?[["fac","🧾 Facturé"]]:f.k==="piece"?[["pc1","Commandée"],["pc2","Reçue"],["pc0","À commander"]]:f.k==="devis"?[["dv1","Envoyé"],["dv2","Accepté"],["dv3","Refusé (clore)"],["dv0","À faire"]]:f.k==="fini"?[["rouvrir","Rouvrir"]]:[["clos","Clore"]];
   $("#bstep").innerHTML=[["take","✋ Je prends"]].concat(opts,[["ign","🙈 Ignorer"]],voirIgn?[["unign","↩️ Ne plus ignorer"]]:[]).map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
   $("#bulk").hidden=!sel.size;$("#nsel").textContent=sel.size;
-  $("#foot").textContent={planif:"Interventions SAV et maintenance planifiées dans Organilog, pas encore faites. Elles suivent Organilog : déplacée, réaffectée ou supprimée là-bas, la ligne change ici à la lecture suivante (toutes les 3 minutes, ou ↻ Actualiser). « Date passée » : prévue avant aujourd'hui mais pas encore clôturée par le tech. ⏱ ≈ = durée par défaut (SAV "+CFG.estDef.SAV+" h, maintenance "+CFG.estDef.Maintenance+" h) quand Organilog ne donne pas de durée prévue."+(()=>{const k=[...new Set(Object.values(C.ivs).flatMap(x=>Object.keys(x.pe||{})))];return k.length?" Durée lue dans Organilog : "+k.join(", ")+".":" Aucune durée prévue trouvée dans Organilog pour l'instant."})(),apl:"Interventions SAV et maintenance enregistrées dans Organilog sans date ou sans tech. Dès qu'elles ont une date et un tech dans Organilog, elles sortent seules de la liste. En retard : SAV de plus de 2 jours, maintenance de plus de 14 jours, ou urgente."+(C.aplMode?" ("+C.aplMode+")":""),fac:"Clique « Facturé » une fois la facture faite dans Organilog : la ligne passe dans Terminés. Retard : plus de 7 jours.",
+  $("#foot").textContent={planif:"Interventions SAV et maintenance planifiées dans Organilog, pas encore faites. Elles suivent Organilog : déplacée, réaffectée ou supprimée là-bas, la ligne change ici à la lecture suivante (toutes les 3 minutes, ou ↻ Actualiser). « ⚠️ Pas validées » : la date est passée et l'intervention n'est pas clôturée dans Organilog (faite et oubliée, ou pas faite) : à vérifier avec le tech. ⏱ ≈ = durée par défaut (SAV "+CFG.estDef.SAV+" h, maintenance "+CFG.estDef.Maintenance+" h) quand Organilog ne donne pas de durée prévue."+(()=>{const k=[...new Set(Object.values(C.ivs).flatMap(x=>Object.keys(x.pe||{})))];return k.length?" Durée lue dans Organilog : "+k.join(", ")+".":" Aucune durée prévue trouvée dans Organilog pour l'instant."})(),apl:"Interventions SAV et maintenance enregistrées dans Organilog sans date ou sans tech. Dès qu'elles ont une date et un tech dans Organilog, elles sortent seules de la liste. En retard : SAV de plus de 2 jours, maintenance de plus de 14 jours, ou urgente."+(C.aplMode?" ("+C.aplMode+")":""),fac:"Clique « Facturé » une fois la facture faite dans Organilog : la ligne passe dans Terminés. Retard : plus de 7 jours.",
     piece:"🚨 Urgent quand la pièce n'est pas commandée après 3 jours. Quand un retour est planifié dans Organilog chez ce client, la ligne passe seule à « Retour planifié ». Quand le tech coche « Terminé, à facturer » au retour, elle part dans À facturer.",
     devis:"🚨 Urgent quand le devis n'est pas fait au bout de 3 jours. Devis accepté → planifie le retour dans Organilog : la ligne suit seule. Devis refusé → la ligne est close.",
     pas:"🚨 Urgent dès 2 jours. Dès qu'une intervention est planifiée chez ce client dans Organilog, la ligne sort d'ici et se retrouve dans « En cours ».",
@@ -582,6 +588,7 @@ function act(key,what){const d=DOS.find(x=>x.key===key);if(!d)return;const a=A[k
   else if(/^pc\d$/.test(what)){a.pc=+what[2];log(key,"pièce : "+["à commander","commandée","reçue"][a.pc]);if(!a.pris)a.pris=ME}
   else if(/^dv\d$/.test(what)){a.dv=+what[2];if(a.dv===3)a.clos={w:ME,t:nowS()};log(key,"devis : "+["à faire","envoyé","accepté","refusé"][a.dv]);if(!a.pris)a.pris=ME}
   saveA(key);return cl}
+$("#nvalert").addEventListener("click",()=>{cur="planif";step=0;sel.clear();render();const l=$("#list");if(l)l.scrollIntoView({behavior:"smooth",block:"start"})});
 $("#files").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;cur=b.dataset.f;step=-1;sel.clear();saveVue();render()});
 $("#steps").addEventListener("click",e=>{const b=e.target.closest("[data-s]");if(!b)return;step=+b.dataset.s;sel.clear();render()});
 $("#cat").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;catF=b.dataset.c;[...$("#cat").children].forEach(x=>x.setAttribute("aria-pressed",x===b));sel.clear();saveVue();render()});

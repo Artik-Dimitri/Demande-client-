@@ -47,7 +47,9 @@ h1{font:700 40px/1 var(--fd);margin:2px 0 0}h2{font:700 24px/1.1 var(--fd);margi
 .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:4px}
 /* grille 12 mois */
 .gw{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
-.g{display:grid;grid-template-columns:minmax(230px,1.6fr) repeat(13,minmax(54px,1fr));min-width:980px}
+.g{display:grid;grid-template-columns:minmax(230px,1.6fr) repeat(var(--n,13),minmax(54px,1fr));min-width:calc(230px + var(--n,13) * 58px)}
+.perbar .perlab{font-family:var(--fd);font-size:18px;min-width:150px;text-align:center}
+.g .h.yr{box-shadow:inset 2px 0 0 var(--line)}
 .g>div{border-bottom:1px solid var(--line);padding:6px 6px;min-height:46px;display:flex;align-items:center}
 .g .h{font-size:12px;color:var(--muted);font-weight:600;justify-content:center;min-height:34px;position:sticky;top:0;background:var(--surface)}
 .g .h.now{color:var(--ink);box-shadow:inset 0 -3px 0 var(--orange)}
@@ -55,6 +57,7 @@ h1{font:700 40px/1 var(--fd);margin:2px 0 0}h2{font:700 24px/1.1 var(--fd);margi
 .g .nm b{font-size:13.5px;line-height:1.25}.g .nm small{font-size:12px;color:var(--muted)}
 .g .cell{justify-content:center;flex-direction:column;gap:3px}
 .slot{font:inherit;font-size:11.5px;font-weight:700;border:0;border-radius:6px;padding:4px 5px;width:100%;text-align:center;cursor:pointer;line-height:1.15}
+.s-nv{background:var(--latebg);color:var(--late);outline:1.5px dashed var(--late);outline-offset:-2px}
 .s-fait{background:var(--okbg);color:var(--ok)}.s-plan{background:var(--planbg);color:var(--plan)}.s-todo{background:var(--todobg);color:var(--todo)}.s-late{background:var(--latebg);color:var(--late)}.s-fut{background:var(--futbg);color:var(--fut)}.s-fin{background:transparent;color:var(--muted);border:1px dashed var(--line)}
 .tag{font-size:11px;font-weight:700;border-radius:999px;padding:0 7px;border:1px solid var(--c);color:var(--c);white-space:nowrap}
 /* listes */
@@ -203,7 +206,10 @@ function setSync(t,err){const s=$("#sync");s.textContent=t;s.className="sync"+(e
 
 /* ---------- données ---------- */
 let CT=[],C={cats:{},cli:{},users:{},ivs:{},at:""},R={ct:{},ctm:[],rec:[],ign:[],h:[]},ALLC=null;   /* R = réglages partagés */
-let tab="v-an",F="",Q="",MF="",busy=false;
+let tab="v-an",F="",Q="",MF="",busy=false,PER=12,OFF=0;
+try{const v=JSON.parse(localStorage.getItem("pm-per")||"{}");if([3,6,12].includes(v.p))PER=v.p}catch(e){}
+/* période affichée : 3, 6 ou 12 mois (12 = 13 colonnes, mois dernier compris), décalable avec ‹ › */
+const VS=()=>addM(addM(today().slice(0,8)+"01",-1),OFF),VN=()=>PER===12?13:PER,VE=()=>addM(VS(),VN());
 /* types de contrat : les 4 couleurs des métiers (futur logo) */
 const MET=[["froid","❄️ Froid","var(--orange)"],["clim","🌬️ Clim · CVC","var(--bleu)"],["cuisine","🍳 Cuisine pro","var(--bord)"],["boul","🥖 Boulangerie","var(--ocre)"]];
 /* plusieurs métiers : liseré partagé en bandes de couleur */
@@ -257,43 +263,49 @@ function lines(){const t=today(),L=[];
   R.rec.filter(r=>!r.off).forEach(r=>L.push({key:"r"+r.id,rec:r,c:r.c,t:r.t||"Maintenance",freq:+r.freq||1,mois:r.mois||[],duree:+r.duree||0,tech:r.tech||"",note:r.note||"",met:r.met||[]}));
   L.forEach(l=>{l.H=Object.values(C.ivs).filter(i=>i.c===l.c&&(l.ct&&!l.ct.manual?(i.k===l.ct.id||(!i.k&&i.m)):(i.m||(l.ct&&i.k)))).sort((a,b)=>dOf(a).localeCompare(dOf(b)));slots(l)});
   return L}
-function slots(l){const t=today(),iv=Math.round(12/l.freq),half=Math.round(iv*30/2),w0=addM(t.slice(0,8)+"01",-1),w1=addM(w0,13);
+function slots(l){const t=today(),iv=Math.round(12/l.freq),half=Math.round(iv*30/2),d0=addM(t.slice(0,8)+"01",-1),d1=addM(d0,13),w0=VS()<d0?VS():d0,w1=VE()>d1?VE():d1;
   const done=l.H.filter(i=>i.f),last=done[done.length-1];let S=[];
   if(l.mois.length){for(let y=+w0.slice(0,4)-1;y<=+w1.slice(0,4);y++)l.mois.forEach(m=>{const d=y+"-"+pad(m)+"-15";if(d>=addM(w0,-iv)&&d<w1)S.push(d)})}
   else{let a=last?dOf(last):(l.ct&&l.ct.du&&l.ct.du!=="0000-00-00"?addM(l.ct.du,Math.max(1,Math.round(iv/2))):t);let d=last?addM(a,iv):a;let g=0;while(d<addM(w0,-iv)&&g++<40)d=addM(d,iv);g=0;while(d<w1&&g++<40){S.push(d);d=addM(d,iv)}}
   S.sort();const used=new Set();
   l.S=S.map(d=>{const m=l.H.find(i=>!used.has(i.id)&&Math.abs(days(d,dOf(i)))<=half);let st;
     if(l.ct&&l.ct.au&&l.ct.au!=="0000-00-00"&&d>l.ct.au){st="fin";d=l.ct.au}
-    else if(m){used.add(m.id);st=m.f?"fait":"plan"}
+    else if(m){used.add(m.id);st=m.f?"fait":dOf(m)<t?"nv":"plan"}
     else if(d<t.slice(0,8)+"01"||(ym(d)===ym(t)&&d<t&&days(d,t)>15))st="late";
     else if(days(t,d)<=CFG.aPlanifier)st="todo";else st="fut";
     return {d,st,iv:st==="fin"?null:m}}).filter(s=>s.st!=="late"||s.d>=addM(w0,-iv));
   /* les passages faits ou prévus hors échéance restent visibles */
-  l.H.forEach(i=>{if(!used.has(i.id)&&dOf(i)>=w0&&dOf(i)<w1)l.S.push({d:dOf(i),st:i.f?"fait":"plan",iv:i})});
+  l.H.forEach(i=>{if(!used.has(i.id)&&dOf(i)>=w0&&dOf(i)<w1)l.S.push({d:dOf(i),st:i.f?"fait":dOf(i)<t?"nv":"plan",iv:i})});
   l.S=l.S.filter((s,k,a)=>s.st!=="fin"||a.findIndex(x=>x.st==="fin")===k);
   /* une seule échéance en retard comptée : la plus récente, si rien n'a été fait depuis */
   const lates=l.S.filter(s=>s.st==="late");lates.slice(0,-1).forEach(s=>s.st="old");
   l.next=l.S.find(s=>s.st==="late"||s.st==="todo")||null}
 
 /* ---------- vues ---------- */
-const STL={fait:"Fait",plan:"Planifié",todo:"À planifier",late:"En retard",fut:"Prévu",fin:"Fin de contrat"};
+const STL={fait:"Fait",plan:"Planifié",nv:"Pas validée",todo:"À planifier",late:"En retard",fut:"Prévu",fin:"Fin de contrat"};
 function filt(L){return L.filter(l=>(!F||(F==="ct"?!!l.ct:!l.ct))&&(!MF||(MF==="-"?!l.met.length:l.met.includes(MF)))&&(!Q||(cliN(l.c)+" "+cliV(l.c)+" "+l.t).toLowerCase().includes(Q.toLowerCase())))}
-function months(){const t=today(),w0=addM(t.slice(0,8)+"01",-1);return Array.from({length:13},(_,i)=>ym(addM(w0,i)))}
-function slotHTML(l,s){const d=s.iv?dOf(s.iv):s.d,lab=s.st==="fait"||s.st==="plan"?new Date(d+"T12:00").getDate()+" "+MOIS[+d.slice(5,7)-1]:STL[s.st];
+function months(){const w0=VS();return Array.from({length:VN()},(_,i)=>ym(addM(w0,i)))}
+function slotHTML(l,s){const d=s.iv?dOf(s.iv):s.d,lab=s.st==="fait"||s.st==="plan"||s.st==="nv"?(s.st==="nv"?"⚠️ ":"")+new Date(d+"T12:00").getDate()+" "+MOIS[+d.slice(5,7)-1]:STL[s.st];
   return `<button type="button" class="slot s-${s.st}" data-line="${l.key}" title="${esc(STL[s.st]+(s.iv?" · n° "+s.iv.n+" · "+fd(dOf(s.iv))+(techN(s.iv.u)?" · "+techN(s.iv.u):""):" · échéance vers le "+fd(s.d)))}">${esc(lab)}</button>`}
 function vAn(){const L=filt(lines()).sort((a,b)=>(!!b.ct-!!a.ct)||cliN(a.c).localeCompare(cliN(b.c))),M=months(),tm=ym(today());
   $("#v-an").innerHTML=`<div class="bar"><input type="search" id="q" placeholder="Client, ville, contrat…" value="${esc(Q)}" aria-label="Rechercher">
    <span class="seg" role="group" aria-label="Type">${[["","Tout"],["ct","Contrats"],["rec","Sans contrat"]].map(([k,n])=>`<button type="button" data-flt="${k}" aria-pressed="${k===F}">${n}</button>`).join("")}</span>
    <span class="mets" role="group" aria-label="Métier">${[["","Tous métiers","var(--ink)"]].concat(MET,lines().some(l=>!l.met.length)?[["-","Type ?","var(--muted)"]]:[]).map(([k,n,c])=>`<label style="--c:${c}"><input type="radio" name="mf" data-mf="${k}"${k===MF?" checked":""}>${n}</label>`).join("")}</span></div>
-  <div class="legend">${["fait","plan","todo","late","fut","fin"].map(s=>`<span><i class="s-${s}"></i>${STL[s]}</span>`).join("")}</div>
-  <div class="gw"><div class="g"><div class="h" style="justify-content:flex-start">Client · maintenance</div>${M.map(m=>`<div class="h${m===tm?" now":""}">${MOIS[+m.slice(5)-1]}${m.endsWith("-01")||m===M[0]?" "+m.slice(2,4):""}</div>`).join("")}
+  <div class="legend">${["fait","plan","nv","todo","late","fut","fin"].map(s=>`<span><i class="s-${s}"></i>${STL[s]}</span>`).join("")}</div>
+  <div class="bar perbar"><span class="seg" role="group" aria-label="Période">${[[3,"3 mois"],[6,"6 mois"],[12,"12 mois"]].map(([k,n])=>`<button type="button" data-per="${k}" aria-pressed="${k===PER}">${n}</button>`).join("")}</span>
+   <button class="btn sm" type="button" data-step="-1" aria-label="Période précédente"${OFF<=-12?" disabled":""}>‹</button><b class="perlab">${MOIS[+M[0].slice(5)-1]} ${M[0].slice(0,4)} → ${MOIS[+M[M.length-1].slice(5)-1]} ${M[M.length-1].slice(0,4)}</b><button class="btn sm" type="button" data-step="1" aria-label="Période suivante"${OFF>=12?" disabled":""}>›</button>${OFF?`<button class="btn sm" type="button" data-step="0">Aujourd'hui</button>`:""}</div>
+  <div class="gw"><div class="g" style="--n:${M.length}"><div class="h" style="justify-content:flex-start">Client · maintenance</div>${M.map(m=>`<div class="h${m===tm?" now":""}">${MOIS[+m.slice(5)-1]}${m.endsWith("-01")||m===M[0]?" "+m.slice(2,4):""}</div>`).join("")}
   ${L.map(l=>`<div class="nm" data-line="${l.key}" style="--mg:${metG(l.met).startsWith("linear")?metG(l.met):"linear-gradient("+metC(l.met)+","+metC(l.met)+")"}"><b>${esc(cliN(l.c))}</b><small>${metTags(l.met)} ${l.ct?`<b>Contrat</b> · `:`Sans contrat · `}${l.freq}×/an${l.duree?" · "+String(l.duree).replace(".",",")+" h":""}${cliV(l.c)?" · "+esc(cliV(l.c)):""}</small></div>
    ${M.map(m=>{const S=l.S.filter(s=>ym(s.iv?dOf(s.iv):s.d)===m&&s.st!=="old");return `<div class="cell">${S.map(s=>slotHTML(l,s)).join("")}</div>`}).join("")}`).join("")}</div></div>
   ${L.length?"":`<p class="note">Aucune maintenance à afficher. Ajoute tes contrats signés dans l'onglet « Contrats », et les clients entretenus sans contrat dans « Sans contrat ».</p>`}
   <p class="note">Une case = une échéance, calculée depuis le dernier passage (ou les mois choisis). Elle passe seule en <b>Planifié</b> puis <b>Fait</b> quand l'intervention existe dans Organilog. Clic sur un client : réglages et historique.</p>`;
   $("#q").oninput=e=>{Q=e.target.value;const p=e.target.selectionStart;vAn();const n=$("#q");n.focus();n.setSelectionRange(p,p)}}
 function vTodo(){const L=lines().filter(l=>l.next).sort((a,b)=>(!!b.ct-!!a.ct)||a.next.d.localeCompare(b.next.d));
-  $("#v-todo").innerHTML=`<div class="idea" style="--c:var(--todo)">📥 <b>À planifier dans Organilog</b> : échéances en retard ou dans les ${CFG.aPlanifier} jours sans intervention prévue. Les <b>contrats d'abord</b> : ils sont dus. Dès que l'intervention est créée dans Organilog (catégorie Maintenance, ou liée au contrat), la ligne sort seule.</div>
+  const nvH=NV.length?`<div class="idea" style="--c:var(--late)">⚠️ <b>Planifiées mais pas validées</b> : la date est passée et l'intervention n'est pas clôturée dans Organilog. Faite et oubliée par le tech, ou pas faite du tout : à vérifier.</div>
+  <div class="list" style="margin-bottom:18px">${NV.sort((a,b)=>dOf(a.iv).localeCompare(dOf(b.iv))).map(({l,iv})=>`<div class="row" style="--c:var(--late)"><div><div class="t">${esc(cliN(l.c))}${cliV(l.c)?` <span class="note">· ${esc(cliV(l.c))}</span>`:""}</div>
+   <div class="m">${metTags(l.met)}<span>prévue le ${fd(dOf(iv))} · il y a ${days(dOf(iv),today())} j</span>${iv.u?`<span>👷 ${esc(techN(iv.u)||iv.u)}</span>`:""}<span class="note">n° ${esc(iv.n||iv.id)}</span></div></div>
+   <div style="display:flex;gap:6px;align-items:center"><span class="pill s-nv">Pas validée</span></div></div>`).join("")}</div>`:"";
+  $("#v-todo").innerHTML=nvH+`<div class="idea" style="--c:var(--todo)">📥 <b>À planifier dans Organilog</b> : échéances en retard ou dans les ${CFG.aPlanifier} jours sans intervention prévue. Les <b>contrats d'abord</b> : ils sont dus. Dès que l'intervention est créée dans Organilog (catégorie Maintenance, ou liée au contrat), la ligne sort seule.</div>
   <div class="list">${L.map(l=>{const s=l.next,j=days(today(),s.d);return `<div class="row${l.met.length>1?" mg":""}" style="--c:${metC(l.met)};--mg:${metG(l.met)}"><div><div class="t">${esc(cliN(l.c))}${cliV(l.c)?` <span class="note">· ${esc(cliV(l.c))}</span>`:""}</div>
    <div class="m">${metTags(l.met)}${l.ct?`<span class="tag" style="--c:var(--ink)">Contrat n° ${esc(l.ct.n)}</span>`:`<span class="tag" style="--c:var(--muted)">Sans contrat</span>`}<span>${esc(l.t)}</span><span>échéance ${s.st==="late"?"dépassée depuis "+(-j)+" j":"vers le "+fd(s.d)}</span>${l.duree?`<span>${String(l.duree).replace(".",",")} h</span>`:""}${l.tech?`<span>👷 ${esc(techN(l.tech)||l.tech)}</span>`:""}${l.H.filter(i=>i.f).length?`<span>dernier passage : ${fd(dOf(l.H.filter(i=>i.f).pop()))}</span>`:"<span>jamais passé</span>"}</div></div>
    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="pill s-${s.st}">${s.st==="late"?"En retard":"À planifier"}</span><button class="btn sm" type="button" data-line="${l.key}">Réglages</button></div></div>`}).join("")||`<p class="note">Tout est planifié. 👌</p>`}</div>
@@ -376,10 +388,11 @@ async function addRec(c0){toast("Liste des clients…");const L=await clients();
     R.rec.push({id:Date.now().toString(36),c:c.id,t:$("#r-t").value.trim()||"Maintenance",freq:+$("#r-f").value,mois:[],duree:0,met:metRead("r-met")});log("a ajouté "+c.t+" (sans contrat)");put("cache/cli",C.cli).catch(()=>{});toast("Ajouté au planning")});
   if(c0&&C.cli[c0]){const i=$("#r-c");i.value=cliLab(C.cli[c0]);i.dataset.cid=c0;i.dataset.lab=i.value}}
 /* ---------- rendu ---------- */
-const TABS=[["v-an","📅 12 mois","var(--orange)"],["v-todo","📥 À planifier","var(--todo)"],["v-ct","📄 Contrats","var(--bord)"],["v-rec","🔁 Sans contrat","var(--bleu)"]];
-function render(){const L=lines(),t=today(),nx=L.filter(l=>l.next),late=nx.filter(l=>l.next.st==="late"),fin=CT.concat(R.ctm||[]).filter(c=>!c.clos&&c.au&&c.au!=="0000-00-00"&&days(t,c.au)<=60).length;
+const TABS=[["v-an","📅 Planning","var(--orange)"],["v-todo","📥 À planifier","var(--todo)"],["v-ct","📄 Contrats","var(--bord)"],["v-rec","🔁 Sans contrat","var(--bleu)"]];
+let NV=[];
+function render(){const L=lines(),t=today();NV=L.flatMap(l=>l.S.filter(x=>x.st==="nv").map(x=>({l,iv:x.iv})));const nx=L.filter(l=>l.next),late=nx.filter(l=>l.next.st==="late"),fin=CT.concat(R.ctm||[]).filter(c=>!c.clos&&c.au&&c.au!=="0000-00-00"&&days(t,c.au)<=60).length;
   const h3=L.reduce((s,l)=>s+l.S.filter(x=>{const m=ym(x.iv?dOf(x.iv):x.d);return m>=ym(t)&&m<=ym(addM(t,2))&&x.st!=="fin"&&x.st!=="old"}).length*(l.duree||0),0);
-  $("#stats").innerHTML=[["v-ct","var(--orange)",CT.filter(c=>!c.clos&&!(R.hide||{})[c.id]).length+(R.ctm||[]).filter(m=>!m.clos).length,"contrats"+(fin?" · "+fin+" à renouveler":"")],["v-todo","var(--todo)",nx.length,"📥 à planifier (dont "+nx.filter(l=>l.ct).length+" sous contrat)"],["v-todo","var(--late)",late.length,"en retard"],["v-todo","var(--bleu)",Math.round(h3)+" h","prévues sur 3 mois"]]
+  $("#stats").innerHTML=[["v-ct","var(--orange)",CT.filter(c=>!c.clos&&!(R.hide||{})[c.id]).length+(R.ctm||[]).filter(m=>!m.clos).length,"contrats"+(fin?" · "+fin+" à renouveler":"")],["v-todo","var(--todo)",nx.length,"📥 à planifier (dont "+nx.filter(l=>l.ct).length+" sous contrat)"],["v-todo","var(--late)",late.length+NV.length,"en retard"+(NV.length?" · dont "+NV.length+" pas validée"+(NV.length>1?"s":""):"")],["v-todo","var(--bleu)",Math.round(h3)+" h","prévues sur 3 mois"]]
     .map(([k,c,v,l])=>`<button type="button" class="stat" data-goto="${k}" style="--c:${c}"><b>${v}</b><span>${esc(l)}</span></button>`).join("");
   $("#tabs").innerHTML=TABS.map(([id,n,c])=>`<button type="button" role="tab" data-tab="${id}" aria-selected="${id===tab}" style="--c:${c}">${n}</button>`).join("");
   TABS.forEach(([id])=>$("#"+id).hidden=id!==tab);({"v-an":vAn,"v-todo":vTodo,"v-ct":vCt,"v-rec":vRec})[tab]();
@@ -387,6 +400,8 @@ function render(){const L=lines(),t=today(),nx=L.filter(l=>l.next),late=nx.filte
 document.addEventListener("click",e=>{const g=x=>e.target.closest(x);let b;
   if(b=g("[data-tab]")){tab=b.dataset.tab;render();return}if(b=g("[data-goto]")){tab=b.dataset.goto;render();return}
   if(b=g("[data-mf]")){MF=b.dataset.mf;render();return}
+  if(b=g("[data-per]")){PER=+b.dataset.per;try{localStorage.setItem("pm-per",JSON.stringify({p:PER}))}catch(e){}render();return}
+  if(b=g("[data-step]")){const k=+b.dataset.step;OFF=k?Math.max(-12,Math.min(12,OFF+k*(PER===12?6:PER))):0;render();return}
   if(b=g("[data-flt]")){F=b.dataset.flt;render();return}
   if(e.target.closest("#sheet"))return;
   if(b=g("[data-line]")){edit(b.dataset.line);return}
