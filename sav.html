@@ -573,7 +573,7 @@ let render=function(){
     gar:"Le tech a coché « Terminé, non facturable ». Dis pourquoi (motif + cause), ajoute les pièces posées : le coût et le manque à gagner se calculent seuls. Validé, la ligne part dans Terminés › Non facturables.",
     fini:"Heures en haut : heures SAV et maintenance passées sur place (Organilog), semaine et mois en cours. Les 150 dernières. « Rouvrir » remet la ligne dans sa file."}[f.k];
   if(f.k==="rien")$("#foot").insertAdjacentHTML("beforeend",' <button type="button" class="btn" id="reval">↻ Relire toutes les cases</button>');
-  $("#essai").innerHTML=`Comptage à partir du ${fd(CFG.depart)} 2026. <label class="ck" style="display:inline-flex"><input type="checkbox" id="ess" ${essai?"checked":""}> Essai : voir aussi depuis le 1er novembre</label> · <label class="ck" style="display:inline-flex"><input type="checkbox" id="vign" ${voirIgn?"checked":""}> Voir les ignorées (${IGN.length})</label>`;
+  $("#essai").innerHTML=`Comptage à partir du ${fd(CFG.depart)} 2026. <label class="ck" style="display:inline-flex"><input type="checkbox" id="ess" ${essai?"checked":""}> Essai : voir aussi depuis le 1er novembre</label> · <label class="ck" style="display:inline-flex"><input type="checkbox" id="vign" ${voirIgn?"checked":""}> Voir les ignorées (${IGN.length})</label> · <button type="button" class="btn" id="fdiag" style="padding:3px 10px;font-size:12.5px">🔍 Diagnostic factures</button>`;
   renderJ()};
 function renderJ(){const j=$("#journal");if(j.hidden)return;
   const all=DOS.flatMap(d=>histOf(d).map(e=>({...e,d}))).sort((a,b)=>String(b.t).localeCompare(String(a.t))).slice(0,150);
@@ -658,6 +658,7 @@ function fprobe(){if(location.hash!=="#factures"||document.getElementById("fpz")
     try{d.querySelector("#fout").value=JSON.stringify(await relais("sav=fprobe"));st.textContent="Terminé : copie et colle à Claude"}catch(e){st.textContent="Erreur : "+e.message}};
   d.querySelector("#fcp").onclick=async()=>{const o=d.querySelector("#fout");try{await navigator.clipboard.writeText(o.value);d.querySelector("#fst").textContent="Copié ✓"}catch(e){o.select()}}}
 fprobe();window.addEventListener("hashchange",fprobe);
+document.addEventListener("click",e=>{if(e.target.id!=="fdiag")return;try{history.replaceState(null,"","#factures")}catch(_){}if(location.hash!=="#factures")location.hash="factures";fprobe();const p=document.getElementById("fpz");if(p)p.scrollIntoView({block:"end"})});
 window.__SAV={get C(){return C},get A(){return A},build,render};
 start();
 })();
