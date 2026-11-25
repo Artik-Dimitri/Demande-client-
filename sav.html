@@ -650,6 +650,14 @@ if(location.hash==="#pieces"){const d=document.createElement("div");d.style.cssT
     if(!iv){st.textContent="N° introuvable dans le suivi (coche l'essai depuis le 1er novembre ?)";return}st.textContent="Lecture…";
     try{d.querySelector("#pout").value=JSON.stringify(await relais("sav=probe&id="+iv.id));st.textContent="Terminé : copie et colle à Claude"}catch(e){st.textContent="Erreur : "+e.message}};
   d.querySelector("#pcp").onclick=async()=>{const o=d.querySelector("#pout");try{await navigator.clipboard.writeText(o.value);d.querySelector("#pst").textContent="Copié ✓"}catch(e){o.select()}}}
+/* Diagnostic n°4 : où Organilog range les factures (ouvrir sav.html#factures) */
+function fprobe(){if(location.hash!=="#factures"||document.getElementById("fpz"))return;const d=document.createElement("div");d.id="fpz";d.style.cssText="position:fixed;inset:auto 16px 16px 16px;z-index:40;background:var(--surface);border:2px solid var(--orange);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)";
+  d.innerHTML=`<b>🔍 Diagnostic n°4 · factures Organilog</b> <span class="num">lecture seule, rien n'est modifié</span><div class="bar" style="margin:8px 0"><button class="btn pri" type="button" id="fgo">Lancer</button><button class="btn" type="button" id="fcp">Copier le résultat</button><span id="fst" class="num"></span></div><textarea id="fout" style="width:100%;height:140px;font:12px monospace"></textarea>`;
+  document.body.appendChild(d);
+  d.querySelector("#fgo").onclick=async()=>{const st=d.querySelector("#fst");st.textContent="Lecture… (jusqu'à 1 minute)";
+    try{d.querySelector("#fout").value=JSON.stringify(await relais("sav=fprobe"));st.textContent="Terminé : copie et colle à Claude"}catch(e){st.textContent="Erreur : "+e.message}};
+  d.querySelector("#fcp").onclick=async()=>{const o=d.querySelector("#fout");try{await navigator.clipboard.writeText(o.value);d.querySelector("#fst").textContent="Copié ✓"}catch(e){o.select()}}}
+fprobe();window.addEventListener("hashchange",fprobe);
 window.__SAV={get C(){return C},get A(){return A},build,render};
 start();
 })();
