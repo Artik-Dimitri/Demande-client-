@@ -311,7 +311,7 @@ async function syncOrg(){
     let since=C.valsAt?C.valsAt:DEP()+" 00:00:00";if(essai&&since>"2026-11-01")since=C.valsEssai?since:"2026-11-01 00:00:00";
     const startedAt=new Date(Date.now()-2*3600e3);let page=1,nv=0;
     do{setSync("Cases cochées par les techs…");const r=await relais("sav=val&fields="+CFG.champs.join(",")+"&since="+encodeURIComponent(since)+"&page="+page);
-      r.vals.forEach(v=>{const o=C.vals[v.i];if(!o||(v.t||"")>=(o[1]||"")){C.vals[v.i]=v.a?[v.v,v.t]:["",v.t];nv++}});page=r.next}while(page);
+      r.vals.forEach(v=>{const o=C.vals[v.i],tn=v.t||"",to=o?(o[1]||""):"";if(!o||tn>to||(tn===to&&v.a&&v.v)||(tn===to&&!(o[0]||""))){C.vals[v.i]=v.a?[v.v,v.t]:["",v.t];nv++}});page=r.next}while(page);
     const sa=startedAt;C.valsAt=sa.getFullYear()+"-"+String(sa.getMonth()+1).padStart(2,"0")+"-"+String(sa.getDate()).padStart(2,"0")+" "+sa.toTimeString().slice(0,8);
     if(essai)C.valsEssai=1;
     Object.keys(C.vals).forEach(id=>{if(!C.ivs[id]&&!seen.has(id)&&Object.keys(C.vals).length>3000)delete C.vals[id]});
@@ -530,9 +530,10 @@ function rowHTML(f,d){if(f.k==="apl")return aplRow(f,d);if(f.k==="planif")return
   const chain=d.ivs.length>1?`<ul class="chain">${d.ivs.map(x=>`<li><b>n° ${esc(x.n)}</b> · ${x.f?"faite le "+fd(x.dd):"prévue le "+fd(x.pd)} · ${esc(x.techs.map(techN).join(", "))}${x.vtx?" · <b>"+esc(x.vtx)+"</b>":""}${x.com?"<br>"+esc(x.com.slice(0,240)):""}</li>`).join("")}</ul>`
     :(L.com||L.pc?`<div class="com">${esc((L.com||"Prévu : "+L.pc).slice(0,500))}</div>`:"");
   const H=histOf(d);
+  const diag=f.k==="rien"?`<div class="com" style="border-color:var(--late)">🔎 Lu dans Organilog : ${d.ivs.filter(x=>x.f).flatMap(x=>x.ids).map(i=>{const v=C.vals[i];return `n° ${esc((C.ivs[i]||{}).n||i)} → ${v&&v[0]?`« ${esc(v[0])} » (modifiée le ${esc(String(v[1]||"").slice(0,16))})`:"aucune case cochée"}`}).join(" · ")}</div>`:"";
   return `<div class="row${lt?" lt":""}${d.a.ign?" ignr":""}" style="--c:${f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
   <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
-  <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span><span class="tag">👷 ${esc(d.techs.map(techN).join(", ")||"—")}</span>
+  ${diag}<div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span><span class="tag">👷 ${esc(d.techs.map(techN).join(", ")||"—")}</span>
    <span>${L.f?"faite le "+fd(L.dd):"prévue le "+fd(L.pd)}</span>${a!=null&&f.k!=="fini"?`<span class="ag${lt?" l":""}">${lt&&f.urg?"🚨 Urgent · ":""}il y a ${a} j</span>`:""}${L.h&&L.h!=="00:00"?`<span>${esc(L.h)} sur place</span>`:""}
    ${d.retour?`<span class="tag ret">📅 Retour prévu le ${fd(d.retour.pd)}${d.retour.techs.length?" · "+esc(d.retour.techs.map(techN).join(", ")):""}</span>`:""}${d.ivs.length>1?`<span class="tag">${d.ivs.length} passages</span>`:""}${L.k?`<span class="tag">contrat</span>`:""}</div>
   ${chain}${qual}
@@ -571,6 +572,7 @@ let render=function(){
     rien:"Interventions effectuées dont la « Suite intervention » est restée sur « 0 - À réaliser » (ou vide) : le tech a oublié de choisir la suite en clôturant. À voir avec lui. Cette file doit rester vide.",
     gar:"Le tech a coché « Terminé, non facturable ». Dis pourquoi (motif + cause), ajoute les pièces posées : le coût et le manque à gagner se calculent seuls. Validé, la ligne part dans Terminés › Non facturables.",
     fini:"Heures en haut : heures SAV et maintenance passées sur place (Organilog), semaine et mois en cours. Les 150 dernières. « Rouvrir » remet la ligne dans sa file."}[f.k];
+  if(f.k==="rien")$("#foot").insertAdjacentHTML("beforeend",' <button type="button" class="btn" id="reval">↻ Relire toutes les cases</button>');
   $("#essai").innerHTML=`Comptage à partir du ${fd(CFG.depart)} 2026. <label class="ck" style="display:inline-flex"><input type="checkbox" id="ess" ${essai?"checked":""}> Essai : voir aussi depuis le 1er novembre</label> · <label class="ck" style="display:inline-flex"><input type="checkbox" id="vign" ${voirIgn?"checked":""}> Voir les ignorées (${IGN.length})</label>`;
   renderJ()};
 function renderJ(){const j=$("#journal");if(j.hidden)return;
@@ -612,6 +614,7 @@ $("#bgo").addEventListener("click",()=>{const v=$("#bstep").value,n=sel.size,B=$
   if(B.dataset.armed){delete B.dataset.armed;B.textContent="Appliquer"}sel.forEach(k=>act(k,v));sel.clear();toast(n+" ligne(s) mise(s) à jour");render()});
 $("#bclear").addEventListener("click",()=>{sel.clear();render()});
 $("#refresh").addEventListener("click",()=>syncOrg());
+document.addEventListener("click",e=>{if(e.target.id!=="reval"||busy)return;C.vals={};C.valsAt="";C.valsEssai=0;toast("Relecture complète des cases « Suite intervention »…");syncOrg()});
 $("#jr").addEventListener("click",()=>{const j=$("#journal");j.hidden=!j.hidden;$("#jr").setAttribute("aria-expanded",!j.hidden);renderJ()});
 document.addEventListener("change",e=>{if(e.target.id==="vign"){voirIgn=e.target.checked;sel.clear();render();return}if(e.target.id==="ess"){essai=e.target.checked;try{localStorage.setItem("sav-essai",essai?"1":"0")}catch(_){}render();if(essai)syncOrg()}});
 function techOpts(){const used=[...new Set(Object.values(C.ivs).map(x=>x.u))];const cur_=$("#tech").value;
