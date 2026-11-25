@@ -335,7 +335,10 @@ async function syncOrg(){
 /* =====================================================================
    DOSSIERS : une intervention SAV ou maintenance, et ses retours chez le même client
    ===================================================================== */
-const valOf=id=>{const v=C.vals[id];const n=v&&/^\s*([1-5])/.exec(v[0]||"");return n?+n[1]:0};
+/* chiffre en tête (« 1 - … ») ; sinon on reconnaît les mots. « 0 - À réaliser » (choix par défaut à la création) = rien renseigné */
+const valOf=id=>{const v=C.vals[id],t=String(v&&v[0]||"");const n=/^\s*([0-5])\b/.exec(t);if(n)return +n[1];
+  const x=t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  return /non factur|garantie/.test(x)?5:/factur/.test(x)?1:/piece/.test(x)?2:/devis/.test(x)?3:/repass|planif|revenir/.test(x)?4:0};
 const valTx=id=>{const v=C.vals[id];return v?String(v[0]||"").replace(/^\s*\d\s*-\s*/,"").trim():""};
 const valAt=id=>{const v=C.vals[id];return v?v[1]:""};
 const techN=u=>C.users[u]||"Tech n° "+u;
@@ -381,7 +384,7 @@ const FILES=[
  {k:"piece",c:"var(--bord)",ico:"🔧",n:"Pièces",sub:"Pièce à commander",seuil:3,urg:1,steps:["À commander","Commandée","Reçue","Retour planifié"]},
  {k:"devis",c:"var(--bleu)",ico:"📄",n:"Devis",sub:"Devis à faire",seuil:2,urg:1,steps:["À faire","Envoyé","Accepté","Retour planifié"]},
  {k:"pas",c:"var(--ocre)",ico:"📅",n:"À repasser",sub:"À remettre au planning",seuil:1,urg:1,steps:["À remettre au planning"]},
- {k:"rien",c:"var(--gris)",ico:"❓",n:"Rien coché",sub:"Effectuée, aucune case",seuil:2,steps:["À vérifier"]},
+ {k:"rien",c:"var(--gris)",ico:"❓",n:"Suite à renseigner",sub:"Effectuée, suite pas choisie",seuil:2,steps:["À vérifier"]},
  {k:"gar",c:"#C5372C",ico:"🛡️",n:"Non facturables",sub:"À traiter : pourquoi, combien",seuil:7,steps:["À traiter"]},
  {k:"fac",c:"var(--orange)",ico:"🧾",n:"À facturer",sub:"Terminé, à facturer",seuil:7,steps:["À facturer"]},
  {k:"fini",c:"var(--ok)",ico:"✅",n:"Terminés",sub:"Facturés ou clos",seuil:1e9,steps:["Facturés","Non facturables","Clos"]}];
@@ -565,7 +568,7 @@ let render=function(){
     piece:"🚨 Urgent quand la pièce n'est pas commandée après 3 jours. Quand un retour est planifié dans Organilog chez ce client, la ligne passe seule à « Retour planifié ». Quand le tech coche « Terminé, à facturer » au retour, elle part dans À facturer.",
     devis:"🚨 Urgent quand le devis n'est pas fait au bout de 3 jours. Devis accepté → planifie le retour dans Organilog : la ligne suit seule. Devis refusé → la ligne est close.",
     pas:"🚨 Urgent dès 2 jours. Dès qu'une intervention est planifiée chez ce client dans Organilog, la ligne sort d'ici et se retrouve dans « En cours ».",
-    rien:"Interventions effectuées sans « Suite intervention » : à voir avec le tech. La case étant obligatoire, cette file doit rester vide.",
+    rien:"Interventions effectuées dont la « Suite intervention » est restée sur « 0 - À réaliser » (ou vide) : le tech a oublié de choisir la suite en clôturant. À voir avec lui. Cette file doit rester vide.",
     gar:"Le tech a coché « Terminé, non facturable ». Dis pourquoi (motif + cause), ajoute les pièces posées : le coût et le manque à gagner se calculent seuls. Validé, la ligne part dans Terminés › Non facturables.",
     fini:"Heures en haut : heures SAV et maintenance passées sur place (Organilog), semaine et mois en cours. Les 150 dernières. « Rouvrir » remet la ligne dans sa file."}[f.k];
   $("#essai").innerHTML=`Comptage à partir du ${fd(CFG.depart)} 2026. <label class="ck" style="display:inline-flex"><input type="checkbox" id="ess" ${essai?"checked":""}> Essai : voir aussi depuis le 1er novembre</label> · <label class="ck" style="display:inline-flex"><input type="checkbox" id="vign" ${voirIgn?"checked":""}> Voir les ignorées (${IGN.length})</label>`;
