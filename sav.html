@@ -68,6 +68,12 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
 .com{font-size:13px;color:var(--muted);margin-top:6px;border-left:3px solid var(--line);padding-left:8px;white-space:pre-line;overflow-wrap:anywhere}
 .right{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
 .right select{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:5px 8px}
+.nob{font:inherit;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:1px 7px;margin-right:6px;cursor:copy;vertical-align:1px}
+.nob:hover{border-color:var(--orange);color:var(--orange)}
+.vchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:-4px 0 10px}
+.vchips button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 10px;cursor:pointer}
+.vchips button b{color:var(--muted);margin-left:2px}.vchips button[aria-pressed=true]{background:var(--ink);color:var(--bg)}.vchips button[aria-pressed=true] b{color:inherit}
+.vchips .clr{border-style:dashed}
 .num{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .act{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--c);background:var(--c);color:#fff;border-radius:8px;padding:5px 10px;cursor:pointer}
 .act.ghost{background:var(--surface);color:var(--c)}
@@ -139,10 +145,12 @@ html.embed header.top .brand{display:none}html.embed header.top{justify-content:
 <div class="bar">
   <input type="search" id="q" placeholder="Client, ville, n°, panne…" aria-label="Rechercher">
   <span class="seg" id="cat" role="group" aria-label="Type"><button type="button" data-c="" aria-pressed="true">Tout</button><button type="button" data-c="SAV" aria-pressed="false">SAV</button><button type="button" data-c="Maintenance" aria-pressed="false">Maintenance</button></span>
+  <select id="ville" aria-label="Ville"><option value="">📍 Toutes les villes</option></select>
   <select id="tech" aria-label="Technicien"><option value="">Tous les techniciens</option></select>
   <select id="pris" aria-label="Pris par"><option value="">Pris par : tout le monde</option><option value="-">Personne ne l'a pris</option><option value="@">Moi</option></select>
   <label class="ck"><input type="checkbox" id="late"> En retard seulement</label>
 </div>
+<div class="vchips" id="vchips"></div>
 <div class="steps" id="steps"></div>
 <div id="recap"></div>
 <div class="list" id="list"></div>
@@ -496,28 +504,31 @@ async function loadCost(){try{let u=`/sites/${siteId}/lists?$select=id,displayNa
   if(!lid)return;const r=await gx("GET",`/sites/${siteId}/lists/${lid}/items?$expand=fields($select=Title,Valeur)&$top=50`);const it=(r.value||[]).find(i=>i.fields&&i.fields.Title==="coutH");if(it)COST=JSON.parse(it.fields.Valeur||"null")}catch(e){console.warn("coût horaire",e)}}
 
 /* ---------- affichage ---------- */
-function filtered(f){const q=$("#q").value.trim().toLowerCase(),t=$("#tech").value,p=$("#pris").value,l=$("#late").checked;
-  return DOS.filter(d=>d.file===f.k&&(!catF||d.cat===catF)&&(!t||d.techs.includes(t))
+const villeOf=d=>{const v=String((C.cli[d.c]||{}).v||"").trim();return v?v.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," "):"?"};
+const villeLab=v=>v==="?"?"Ville non renseignée":v.toLowerCase().replace(/(^|[\s\-'])\S/g,m=>m.toUpperCase());
+function filtered(f,noVille){const q=$("#q").value.trim().toLowerCase(),t=$("#tech").value,p=$("#pris").value,l=$("#late").checked,v=noVille?"":$("#ville").value;
+  return DOS.filter(d=>d.file===f.k&&(!v||villeOf(d)===v)&&(!catF||d.cat===catF)&&(!t||d.techs.includes(t))
     &&(!q||[C.cli[d.c]&&C.cli[d.c].t,C.cli[d.c]&&C.cli[d.c].v,...d.ivs.map(x=>x.n+" "+x.com+" "+x.pc+" "+x.nom),...d.techs.map(techN)].join(" ").toLowerCase().includes(q))
     &&(!p||(p==="-"?!d.a.pris:p==="@"?d.a.pris===ME:d.a.pris===p))&&(!l||isLate(f,d)))}
 const ignBtn=d=>d.a.ign?`<span class="tag" title="Ignorée">🙈 ${esc(d.a.ign.w.split(" ")[0])} · ${fd(d.a.ign.t)}</span><button type="button" class="act ghost" data-unign="${d.key}">↩️ Ne plus ignorer</button>`:`<button type="button" class="act ghost ign" data-ign="${d.key}" title="Ne plus voir cette intervention ici (rien ne change dans Organilog)">🙈 Ignorer</button>`;
+const nob=ns=>[...new Set(ns.filter(Boolean))].map(n=>`<button type="button" class="nob" data-copy="${esc(n)}" title="Copier le n° ${esc(n)} pour la facture">#${esc(n)}</button>`).join("");
 function aplRow(f,d){const x=d.apl,cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},ag=aplAge(d),lt=isLate(f,d),pr=PRIO[x.p],w=d.a.pris;
   return `<div class="row${lt?" lt":""}${d.a.ign?" ignr":""}" style="--c:${urg(d)?"var(--late)":f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
-  <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
+  <div style="min-width:0"><div class="rt">${nob([x.n])}${esc(cl.t)}${cl.v?` <span class="num">· 📍 ${esc(cl.v)}</span>`:""}</div>
   <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span>${urg(d)?`<span class="tag" style="border-color:var(--late);color:var(--late);font-weight:700">🚨 Urgente</span>`:pr&&pr[0]!=="Basse"?"":pr?`<span class="tag">${pr[0]}</span>`:""}
    <span>enregistrée le ${fd(x.ad)}</span><span class="tag">⏱ ${estOf(x).ok?"":"≈ "}${hTxt(estOf(x).h)}</span><span class="ag${lt?" l":""}">${ag===0?"aujourd'hui":"il y a "+ag+" j"}</span>${x.u?`<span class="tag">👷 ${esc(techN(x.u))} · sans date</span>`:x.pd?`<span class="tag">📅 ${fd(x.pd)} · sans tech</span>`:""}${x.k?`<span class="tag">contrat</span>`:""}</div>
   ${x.nom||x.pc?`<div class="com">${esc([x.nom,x.pc].filter(Boolean).join(" · ").slice(0,500))}</div>`:""}
   <details class="hist"><summary>🕘 Historique (${(d.a.h||[]).length+1})</summary><ol><li>${esc(fd(x.ad))} ${esc(String(x.ad).slice(11,16))} · <b>Organilog</b> intervention n° ${esc(x.n)} enregistrée</li>${(d.a.h||[]).map(e=>`<li>${esc(fd(e.t))} ${esc(String(e.t).slice(11,16))} · <b>${esc(e.w)}</b> ${esc(e.q)}</li>`).join("")}</ol></details></div>
-  <div class="right"><span class="num">n° ${esc(x.n)}</span>${d.a.ign?"":w?`<span class="taken${w===ME?" me":""}">👤 ${esc(w===ME?"Moi":w.split(" ")[0])}</span>${w===ME?`<button type="button" class="take" data-lacher="${d.key}">Lâcher</button>`:""}`:`<button type="button" class="take" data-take="${d.key}">✋ Je planifie</button>`}
+  <div class="right">${d.a.ign?"":w?`<span class="taken${w===ME?" me":""}">👤 ${esc(w===ME?"Moi":w.split(" ")[0])}</span>${w===ME?`<button type="button" class="take" data-lacher="${d.key}">Lâcher</button>`:""}`:`<button type="button" class="take" data-take="${d.key}">✋ Je planifie</button>`}
    ${x.p==="1"||d.a.ign?"":`<button type="button" class="act ghost" data-urg="${d.key}">${d.a.urg?"Plus urgente":"🚨 Urgente"}</button>`}${ignBtn(d)}</div></div>`}
 function planRow(f,d){const x=d.pl,cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},lt=isLate(f,d),e=estOf(x),pe=x.pe||{},hs=Object.keys(pe).find(k=>/(start|debut)/i.test(k)&&hm(pe[k])!=null);
   const RET={piece:"🔧 retour pièce",devis:"📄 retour devis",pas:"📅 repassage",fac:"",rien:"",gar:"",fini:""};
   return `<div class="row${lt?" lt":""}${d.a.ign?" ignr":""}" style="--c:${f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
-  <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
+  <div style="min-width:0"><div class="rt">${nob(x.nums||[x.n])}${esc(cl.t)}${cl.v?` <span class="num">· 📍 ${esc(cl.v)}</span>`:""}</div>
   <div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span><span class="tag">👷 ${esc(d.techs.map(techN).join(", ")||"—")}</span>
    <span${lt?' class="ag l"':""}>📅 ${fd(x.pd)}${hs?" à "+esc(pe[hs].slice(0,5)):""}${lt?` · ⚠️ pas validée (il y a ${Math.round((new Date(today())-new Date(x.pd))/864e5)} j)`:""}</span><span class="tag">⏱ ${e.ok?"":"≈ "}${hTxt(e.h)}</span>${d.ret&&RET[d.ret]?`<span class="tag ret">${RET[d.ret]}</span>`:""}${x.k?`<span class="tag">contrat</span>`:""}</div>
   ${x.nom||x.pc?`<div class="com">${esc([x.nom,x.pc].filter(Boolean).join(" · ").slice(0,500))}</div>`:""}</div>
-  <div class="right"><span class="num">n° ${esc(x.nums.join(", "))}</span>${ignBtn(d)}</div></div>`}
+  <div class="right">${ignBtn(d)}</div></div>`}
 function rowHTML(f,d){if(f.k==="apl")return aplRow(f,d);if(f.k==="planif")return planRow(f,d);const cl=C.cli[d.c]||{t:"Client n° "+d.c,v:""},a=ageOf(d),lt=isLate(f,d),st=stepOf(d),L=d.last||d.ivs[0];
   const sel_=f.k==="piece"&&!d.retour?`<select data-pc="${d.key}" aria-label="Étape pièce">${["À commander","Commandée","Reçue"].map((s,i)=>`<option value="${i}"${i===st?" selected":""}>${s}</option>`).join("")}</select>`
     :f.k==="devis"&&!d.retour?`<select data-dv="${d.key}" aria-label="Étape devis">${["À faire","Envoyé","Accepté","Refusé (clore)"].map((s,i)=>`<option value="${i}"${i===st?" selected":""}>${s}</option>`).join("")}</select>`:"";
@@ -532,13 +543,13 @@ function rowHTML(f,d){if(f.k==="apl")return aplRow(f,d);if(f.k==="planif")return
   const H=histOf(d);
   const diag=f.k==="rien"?`<div class="com" style="border-color:var(--late)">🔎 Lu dans Organilog : ${d.ivs.filter(x=>x.f).flatMap(x=>x.ids).map(i=>{const v=C.vals[i];return `n° ${esc((C.ivs[i]||{}).n||i)} → ${v&&v[0]?`« ${esc(v[0])} » (modifiée le ${esc(String(v[1]||"").slice(0,16))})`:"aucune case cochée"}`}).join(" · ")}</div>`:"";
   return `<div class="row${lt?" lt":""}${d.a.ign?" ignr":""}" style="--c:${f.c}"><input type="checkbox" data-sel="${d.key}" ${sel.has(d.key)?"checked":""} aria-label="Sélectionner ${esc(cl.t)}">
-  <div style="min-width:0"><div class="rt">${esc(cl.t)}${cl.v?` <span class="num">· ${esc(cl.v)}</span>`:""}</div>
+  <div style="min-width:0"><div class="rt">${nob(d.ivs.slice().reverse().map(x=>x.n))}${esc(cl.t)}${cl.v?` <span class="num">· 📍 ${esc(cl.v)}</span>`:""}</div>
   ${diag}<div class="meta"><span class="tag ${d.cat==="SAV"?"cat-s":"cat-m"}">${d.cat}</span><span class="tag">👷 ${esc(d.techs.map(techN).join(", ")||"—")}</span>
    <span>${L.f?"faite le "+fd(L.dd):"prévue le "+fd(L.pd)}</span>${a!=null&&f.k!=="fini"?`<span class="ag${lt?" l":""}">${lt&&f.urg?"🚨 Urgent · ":""}il y a ${a} j</span>`:""}${L.h&&L.h!=="00:00"?`<span>${esc(L.h)} sur place</span>`:""}
    ${d.retour?`<span class="tag ret">📅 Retour prévu le ${fd(d.retour.pd)}${d.retour.techs.length?" · "+esc(d.retour.techs.map(techN).join(", ")):""}</span>`:""}${d.ivs.length>1?`<span class="tag">${d.ivs.length} passages</span>`:""}${L.k?`<span class="tag">contrat</span>`:""}</div>
   ${chain}${qual}
   <details class="hist"><summary>🕘 Historique (${H.length})</summary><ol>${H.map(e=>`<li>${esc(fd(e.t))} ${esc(String(e.t).slice(11,16))} · <b>${esc(e.w)}</b> ${esc(e.q)}${e.o?" <em>(Organilog)</em>":""}</li>`).join("")}</ol></details></div>
-  <div class="right"><span class="num">n° ${esc(d.ivs.map(x=>x.n).join(", "))}</span>${d.a.ign?"":pris+sel_+btn}${ignBtn(d)}</div></div>`}
+  <div class="right">${d.a.ign?"":pris+sel_+btn}${ignBtn(d)}</div></div>`}
 function cardHours(f,all){
   if(f.k==="apl"){const h=all.reduce((s,d)=>s+estD(d),0);return all.length?"⏱ ≈ "+hTxt(h)+" à caser":""}
   if(f.k==="planif"){const w=all.filter(d=>stepOf(d)===1).reduce((s,d)=>s+estD(d),0),t=all.reduce((s,d)=>s+estD(d),0);return all.length?"⏱ "+hTxt(w)+" cette sem. · "+hTxt(t)+" en tout":""}
@@ -554,7 +565,7 @@ let render=function(){
   $("#files").innerHTML=FILES.map(f=>{const all=DOS.filter(d=>d.file===f.k&&(!catF||d.cat===catF)),lt=all.filter(d=>isLate(f,d)).length;
     const hl=cardHours(f,all);
     return `<button type="button" class="file" style="--c:${f.c}" data-f="${f.k}" aria-pressed="${f.k===cur}">${lt?`<span class="late">${f.urg?"🚨 "+lt+" urgente"+(lt>1?"s":""):f.k==="planif"?"⚠️ "+lt+" pas validée"+(lt>1?"s":""):lt+" en retard"}</span>`:""}<span class="lab">${f.ico} ${f.n}</span><b>${all.length}</b><small>${f.sub}</small>${hl?`<span class="hrs">${hl}</span>`:""}</button>`}).join("");
-  const f=FILES.find(z=>z.k===cur),L=filtered(f);if(step>=f.steps.length)step=0;
+  const f=FILES.find(z=>z.k===cur);villeOpts(f);const L=filtered(f);if(step>=f.steps.length)step=0;
   if(step<0){const i=f.steps.findIndex((_,j)=>L.some(d=>stepOf(d)===j));step=f.k==="apl"||i<0?0:i}
   $("#steps").style.setProperty("--c",f.c);
   $("#steps").innerHTML=f.steps.length>1?f.steps.map((s,i)=>`<button type="button" data-s="${i}" aria-pressed="${i===step}">${s}<span class="n">${L.filter(d=>stepOf(d)===i).length}</span></button>`).join(""):"";
@@ -596,6 +607,10 @@ function act(key,what){const d=DOS.find(x=>x.key===key);if(!d)return;const a=A[k
 $("#nvalert").addEventListener("click",()=>{cur="planif";step=0;sel.clear();render();const l=$("#list");if(l)l.scrollIntoView({behavior:"smooth",block:"start"})});
 $("#files").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;cur=b.dataset.f;step=-1;sel.clear();saveVue();render()});
 $("#steps").addEventListener("click",e=>{const b=e.target.closest("[data-s]");if(!b)return;step=+b.dataset.s;sel.clear();render()});
+$("#ville").addEventListener("change",()=>{sel.clear();render()});
+$("#vchips").addEventListener("click",e=>{const b=e.target.closest("[data-ville]");if(!b)return;$("#ville").value=b.dataset.ville;if(b.dataset.ville&&$("#ville").value!==b.dataset.ville){$("#ville").insertAdjacentHTML("beforeend",`<option value="${esc(b.dataset.ville)}">x</option>`);$("#ville").value=b.dataset.ville}sel.clear();render()});
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-copy]");if(!b)return;e.stopPropagation();const n=b.dataset.copy;
+  try{await navigator.clipboard.writeText(n);toast("n° "+n+" copié")}catch(_){const r=document.createRange();r.selectNodeContents(b);const s_=getSelection();s_.removeAllRanges();s_.addRange(r);toast("n° "+n+" sélectionné : Ctrl+C")}},true);
 $("#cat").addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;catF=b.dataset.c;[...$("#cat").children].forEach(x=>x.setAttribute("aria-pressed",x===b));sel.clear();saveVue();render()});
 ["q","tech","pris","late"].forEach(id=>$("#"+id).addEventListener(id==="q"?"input":"change",()=>{sel.clear();render()}));
 $("#list").addEventListener("change",e=>{const c=e.target.closest("[data-sel]");if(c){c.checked?sel.add(c.dataset.sel):sel.delete(c.dataset.sel);render();return}
@@ -617,6 +632,11 @@ $("#refresh").addEventListener("click",()=>syncOrg());
 document.addEventListener("click",e=>{if(e.target.id!=="reval"||busy)return;C.vals={};C.valsAt="";C.valsEssai=0;toast("Relecture complète des cases « Suite intervention »…");syncOrg()});
 $("#jr").addEventListener("click",()=>{const j=$("#journal");j.hidden=!j.hidden;$("#jr").setAttribute("aria-expanded",!j.hidden);renderJ()});
 document.addEventListener("change",e=>{if(e.target.id==="vign"){voirIgn=e.target.checked;sel.clear();render();return}if(e.target.id==="ess"){essai=e.target.checked;try{localStorage.setItem("sav-essai",essai?"1":"0")}catch(_){}render();if(essai)syncOrg()}});
+function villeOpts(f){const L=filtered(f,true),cnt={};L.forEach(d=>{const v=villeOf(d);cnt[v]=(cnt[v]||0)+1});
+  const cur_=$("#ville").value,ks=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a.localeCompare(b));if(cur_&&!cnt[cur_])ks.unshift(cur_);
+  $("#ville").innerHTML=`<option value="">📍 Toutes les villes (${L.length})</option>`+ks.map(v=>`<option value="${esc(v)}"${v===cur_?" selected":""}>${esc(villeLab(v))} (${cnt[v]||0})</option>`).join("");
+  const top=ks.filter(v=>cnt[v]).slice(0,10);
+  $("#vchips").innerHTML=L.length>3&&top.length>1?`<span class="num">📍 Par ville :</span>`+top.map(v=>`<button type="button" data-ville="${esc(v)}" aria-pressed="${v===cur_}">${esc(villeLab(v))} <b>${cnt[v]}</b></button>`).join("")+(cur_?`<button type="button" data-ville="" class="clr">✕ Toutes</button>`:""):""}
 function techOpts(){const used=[...new Set(Object.values(C.ivs).map(x=>x.u))];const cur_=$("#tech").value;
   $("#tech").innerHTML=`<option value="">Tous les techniciens</option>`+used.map(u=>[u,techN(u)]).sort((a,b)=>a[1].localeCompare(b[1])).map(([u,n])=>`<option value="${esc(u)}"${u===cur_?" selected":""}>${esc(n)}</option>`).join("")}
 const _r=render;render=function(){techOpts();_r()};
