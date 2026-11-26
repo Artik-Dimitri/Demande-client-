@@ -152,6 +152,30 @@ ol.how{margin:6px 0 0;padding-left:20px}ol.how li{margin:4px 0}
 .alert{display:flex;width:100%;gap:10px;align-items:center;text-align:left;font:inherit;font-size:14px;background:var(--surface);color:var(--ink);border:1.5px solid var(--late);border-left-width:6px;border-radius:10px;padding:10px 14px;margin-bottom:12px;cursor:pointer}.alert b{color:var(--late)}
 .tag{display:inline-block;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap}.tag.s{background:var(--soft);color:var(--ink);border:1px solid var(--line)}.tag.o{background:color-mix(in srgb,var(--orange) 14%,transparent);color:var(--orange)}.tag.m{background:color-mix(in srgb,var(--bleu) 14%,transparent);color:var(--bleu)}
 details{border-top:1px solid var(--line);padding:8px 0}details summary{cursor:pointer}
+.fun{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:14px}.fun>.card{margin-bottom:14px}
+@media (max-width:980px){.fun{grid-template-columns:1fr 1fr}.fun .podium{grid-column:1/-1}}@media (max-width:620px){.fun{grid-template-columns:1fr}}
+.pods{display:flex;align-items:flex-end;justify-content:center;gap:10px;min-height:190px}
+.pod{flex:1;max-width:190px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;min-width:0}
+.pod .ic{font-size:34px;line-height:1;animation:pop .6s cubic-bezier(.3,1.6,.5,1) both}.pod.p1 .ic{font-size:44px;animation-delay:.25s}.pod.p3 .ic{animation-delay:.12s}
+.pod b{font-size:13px;line-height:1.2;overflow-wrap:anywhere}.pod .big{font-family:var(--f-display);font-size:26px;font-weight:700}.pod.p1 .big{font-size:32px;color:var(--orange)}
+.pod .step{width:100%;border-radius:10px 10px 0 0;margin-top:6px;display:flex;align-items:flex-start;justify-content:center;font-size:26px;padding-top:6px;background:var(--soft);border:1px solid var(--line);border-bottom:0;transform-origin:bottom;animation:grow .7s ease-out both}
+.pod.p1 .step{height:92px;background:color-mix(in srgb,var(--ocre) 22%,var(--surface))}.pod.p2 .step{height:66px}.pod.p3 .step{height:46px}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}@keyframes pop{from{transform:scale(0) rotate(-20deg);opacity:0}to{transform:none;opacity:1}}
+.ringw{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}.ring{width:150px;max-width:100%}.ring .rt1{font-family:var(--f-display);font-size:20px;font-weight:700;fill:var(--ink)}.ring .rt2{font-size:11px;fill:var(--muted)}
+.seg-a{animation:dash 1s ease-out both}@keyframes dash{from{stroke-dasharray:0 400}}
+.rl{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13.5px}.rl b{margin-left:8px}
+.gauge{height:14px;border-radius:999px;background:var(--line);overflow:hidden;margin:6px 0 8px}.gauge i{display:block;height:100%;width:var(--w);border-radius:999px;background:var(--gc,var(--ok));animation:fill 1s ease-out both}
+@keyframes fill{from{width:0}}.score .sc{font-family:var(--f-display);font-size:30px}.score p{margin:2px 0}
+.lnk{font:inherit;background:none;border:0;color:var(--late);font-weight:700;cursor:pointer;padding:0;text-decoration:underline}
+.pepl{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.pp{display:flex;gap:10px;align-items:flex-start;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;animation:pop .5s ease-out both}.pp span{font-size:24px;line-height:1}.pp p{margin:0;font-size:13.5px}
+.tyb{display:grid;gap:8px}.tyr{display:grid;grid-template-columns:30px minmax(120px,1.1fr) 2fr minmax(90px,auto);gap:10px;align-items:center}
+@media (max-width:620px){.tyr{grid-template-columns:28px 1fr auto}.tyr .tb{grid-column:2/-1}}
+.tyr .ic{font-size:22px;text-align:center}.tyr .tn{font-size:13.5px;font-weight:600;min-width:0}.tyr .tv{font-size:13px;text-align:right;white-space:nowrap}
+.tb{background:var(--line);border-radius:6px;height:16px;overflow:hidden}.tf{display:flex;height:100%;width:var(--w);border-radius:6px;overflow:hidden;animation:fill .9s ease-out both}.tf i{display:block;height:100%}
+.ev{font-size:11.5px;font-weight:700;margin-left:4px}.ev.u{color:var(--ok)}.ev.d{color:var(--late)}
+details.fold>summary{list-style:none;cursor:pointer}details.fold>summary::-webkit-details-marker{display:none}details.fold>summary h2{margin:0;display:inline}details.fold[open]>summary h2{margin-bottom:8px;display:block}
+details.fold{padding:14px 16px}details.card{border-top:1px solid var(--line)}
 .empty{padding:30px;text-align:center;color:var(--muted)}
 </style>
 </head>
@@ -331,6 +355,11 @@ async function fromFile(f){try{const p=JSON.parse(await f.text());if(!valid(p)){
 
 /* ---------- affichage ---------- */
 function syncTxt(){const t=["artik","chassaing"].filter(s=>META[s]).map(s=>`${s==="artik"?"Artik":"Chassaing"} à jour du ${new Date(META[s].at).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} ${new Date(META[s].at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`);$("#sync").textContent=t.length?t.join(" · "):"Pas encore de données";}
+/* ---------- côté ludique ---------- */
+const TYI=t=>{const x=String(t||"").toLowerCase();return /boulang|p[âa]tiss/.test(x)?"🥖":/restau|traiteur/.test(x)?"🍽️":/particulier/.test(x)?"🏠":/bureau|usine \/|usine$/.test(x)&&!/aliment/.test(x)?"🏢":/usine aliment/.test(x)?"🧀":/magasin/.test(x)?"🛒":/agricult/.test(x)?"🚜":/collectiv/.test(x)?"🏛️":/retraite/.test(x)?"👵":/bouche/.test(x)?"🥩":/commerce/.test(x)?"🏪":/artisan/.test(x)?"🔨":/associat/.test(x)?"🤝":t==="—"?"❓":"🏷️"};
+function ring(parts,total){/* anneau des 3 catégories */const R=54,C=2*Math.PI*R;let off=0;
+  return `<svg viewBox="0 0 140 140" class="ring" role="img" aria-label="Répartition du CA par catégorie"><circle cx="70" cy="70" r="${R}" fill="none" stroke="var(--line)" stroke-width="18"/>${parts.filter(p=>p.v>0).map(p=>{const l=total>0?p.v/total*C:0;const el=`<circle cx="70" cy="70" r="${R}" fill="none" stroke="${p.c}" stroke-width="18" stroke-dasharray="${Math.max(0,l-2)} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)" class="seg-a"><title>${p.n} : ${eur(p.v)}</title></circle>`;off+=l;return el}).join("")}<text x="70" y="66" text-anchor="middle" class="rt1">${keur(total)}</text><text x="70" y="84" text-anchor="middle" class="rt2">CA HT</text></svg>`}
+function countUp(){document.querySelectorAll("[data-cu]").forEach(el=>{const to=+el.dataset.cu,f=el.dataset.f==="k"?keur:eur;if(!isFinite(to)||matchMedia("(prefers-reduced-motion: reduce)").matches){el.textContent=f(to);return}const t0=performance.now(),d=700;const step=t=>{const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);el.textContent=f(to*e);if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)})}
 function bars(M12){const W=760,H=220,pl=46,pb=24,bw=(W-pl)/12;
   const mx=Math.max(1,...M12.map(o=>CATS.reduce((a,[k])=>a+Math.max(0,o[k]),0)));const st=Math.pow(10,Math.floor(Math.log10(mx)));const step=[1,2,5,10].map(x=>x*st).find(x=>mx/x<=5);const top=Math.ceil(mx/step)*step;
   const y=v=>H-pb-(v/top)*(H-pb-10);let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="CA HT par mois et par catégorie" style="width:100%;height:auto">`;
@@ -356,7 +385,7 @@ function render(){const all=prep();const socs=["artik","chassaing"].filter(s=>DA
   const totP=c=>MP.reduce((a,o)=>a+(c?o[c]:CATS.reduce((x,[k])=>x+o[k],0)),0);
   const dl=(a,b)=>b?` · <b class="${a>=b?"up":"dn"}">${a>=b?"+":""}${Math.round((a-b)/Math.abs(b)*100)} %</b> vs ${F.year-1}`:"";
   const nS=MS.filter(o=>o.src==="s").length,nO=MS.filter(o=>o.src==="o").length,nM=MS.filter(o=>o.src==="m").length;
-  const kpi=(l,v,s,c)=>`<div class="kpi" style="--kc:${c}"><span class="l">${l}</span><span class="v">${keur(v)}</span><span class="s">${s}</span></div>`;
+  const kpi=(l,v,s,c)=>`<div class="kpi" style="--kc:${c}"><span class="l">${l}</span><span class="v" data-cu="${Math.round(v)}" data-f="k">${keur(v)}</span><span class="s">${s}</span></div>`;
   const pl=F.m?MOIS[+F.m-1]+" "+F.year:String(F.year);
   /* typologies : base Organilog (la saisie n'a pas la typologie) */
   const inSel=r=>sel.includes(r.k);const CAs=CA0.filter(inSel),totO=CAs.reduce((a,r)=>a+r.v,0);
@@ -369,6 +398,28 @@ function render(){const all=prep();const socs=["artik","chassaing"].filter(s=>DA
   const fix1=R0.filter(r=>!r.b&&r.t!=="A"&&r.nocat),fix2=R0.filter(r=>!r.b&&(r.t==="F"||r.t==="S")&&!r.ty),fix3=R0.filter(r=>!r.b&&r.t==="V"&&!r.o),fix4=R0.filter(r=>r.b&&(r.t==="F"||r.t==="S"));
   const nfix=fix1.length+fix2.length+fix3.length;
   const fl=(L,why,id)=>L.length?`<details${id===F.open?" open":""} data-d="${id}"><summary><b>${why}</b> · ${L.length}</summary><div class="tw"><table><thead><tr><th>N°</th><th>Date</th><th>Client</th><th>Type</th><th>Catégorie</th><th>Typologie</th><th class="n">HT</th>${socs.length>1?"<th>Société</th>":""}</tr></thead><tbody>${L.sort((a,b)=>b.d.localeCompare(a.d)).slice(0,150).map(r=>`<tr><td>${esc(r.n||"brouillon")}</td><td>${fd(r.d)}</td><td>${esc(r.cl)}</td><td>${{F:"Facture",S:"Situation",V:"Avoir",A:"Acompte"}[r.t]}</td><td>${r.nocat?"<b style='color:var(--late)'>—</b>":esc(r.c)}</td><td>${r.ty?esc(r.ty):"<b style='color:var(--late)'>—</b>"}</td><td class="n">${eur(Math.abs(r.ht))}</td>${socs.length>1?`<td>${SOCN[r.soc]}</td>`:""}</tr>`).join("")}</tbody></table></div>${L.length>150?`<p class="note">… et ${L.length-150} autres.</p>`:""}</details>`:"";
+  /* podium, anneau, pépites à prospecter, jauge de remplissage */
+  const funHTML=()=>{const Tq=T.filter(o=>o.t!=="—"&&o.tot>0);const pod=Tq.slice(0,3);const med=["🥇","🥈","🥉"];
+    const ly=YS[YS.length-1],py=YS[YS.length-2];const share=(o,y)=>YT[y]?(o[y]||0)/YT[y]*100:0;
+    const evq=EV.filter(o=>o.t!=="—");const up=py?evq.map(o=>({t:o.t,d:share(o,ly)-share(o,py)})).sort((a,b)=>b.d-a.d):[];
+    const pep=[];
+    if(up[0]&&up[0].d>=1)pep.push(["🚀",`<b>${esc(up[0].t)}</b> décolle : <b>+${Math.round(up[0].d)} pts</b> de part du CA en ${ly} par rapport à ${py}.`]);
+    const dn=up.length?up[up.length-1]:null;if(dn&&dn.d<=-1)pep.push(["📉",`<b>${esc(dn.t)}</b> recule : <b>${Math.round(dn.d)} pts</b>. Une relance ou une campagne de visites ?`]);
+    const pm=Tq.filter(o=>o.n>=5).sort((a,b)=>b.tot/b.n-a.tot/a.n)[0];if(pm)pep.push(["💎",`Le plus gros panier : <b>${esc(pm.t)}</b>, ${eur(pm.tot/pm.n)} par facture en moyenne.`]);
+    const mc=Tq.filter(o=>o.sav>2000&&o.tot>0).map(o=>({t:o.t,sav:o.sav,ma:o.maint,r:o.maint/(o.sav||1)})).sort((a,b)=>a.r-b.r||b.sav-a.sav)[0];
+    if(mc&&mc.r<0.25)pep.push(["🛠️",`<b>${esc(mc.t)}</b> : ${keur(mc.sav)} de SAV pour seulement ${keur(mc.ma)} de maintenance. Des contrats d'entretien à proposer ?`]);
+    const fid=Tq.filter(o=>o.n>=10).sort((a,b)=>b.n-a.n)[0];if(fid)pep.push(["🔁",`Les plus fidèles : <b>${esc(fid.t)}</b>, ${fid.n} factures sur la période. À chouchouter.`]);
+    const okN=R0.filter(r=>!r.b&&r.t!=="A").length,bad=new Set(fix1.concat(fix2,fix3)).size,sc=okN?Math.max(0,Math.round((1-bad/okN)*100)):100;
+    const mood=sc>=99?["🏆","Organilog est nickel, bravo !"]:sc>=95?["👍","Presque parfait, quelques oublis à rattraper."]:sc>=85?["🧹","Un petit coup de balai dans Organilog et c'est bon."]:["🚧","Pas mal de trous : les stats sont moins fiables."];
+    const tt=CATS.reduce((a,[k])=>a+tot(k),0);
+    return `<div class="fun">
+     <section class="card podium"><h2>🏆 Le podium des clients <small>${pl} · typologies qui pèsent le plus</small></h2>
+      <div class="pods">${[1,0,2].map(i=>pod[i]?`<div class="pod p${i+1}"><span class="ic">${TYI(pod[i].t)}</span><b>${esc(pod[i].t)}</b><span class="big">${pct(pod[i].tot,totO)}</span><span class="note">${keur(pod[i].tot)} · ${pod[i].n} fact.</span><div class="step">${med[i]}</div></div>`:"").join("")}</div></section>
+     <section class="card ringc"><h2>🍩 SAV · Maintenance · Chantier</h2><div class="ringw">${ring(CATS.map(([k,n,c])=>({n,c,v:tot(k)})),tt)}<ul class="rl">${CATS.map(([k,n,c])=>`<li><i class="dot" style="--dc:${c}"></i>${n}<b>${pct(tot(k),tt)}</b></li>`).join("")}</ul></div></section>
+     <section class="card score"><h2>${mood[0]} Organilog bien rempli</h2><div class="gauge"><i style="--w:${sc}%;--gc:${sc>=95?"var(--ok)":sc>=85?"var(--ocre)":"var(--late)"}"></i></div><p><b class="sc">${sc} %</b> des factures complètes</p><p class="note">${mood[1]}${bad?` <button type="button" class="lnk" data-go="fix">${bad} à compléter ›</button>`:""}</p></section>
+    </div>
+    ${pep.length?`<section class="card pep"><h2>💡 Pépites pour ta prospection <small>trouvées dans tes factures</small></h2><div class="pepl">${pep.map(([i,t])=>`<div class="pp"><span>${i}</span><p>${t}</p></div>`).join("")}</div></section>`:""}
+    <section class="card"><h2>🎯 Qui fait ton CA <small>${pl} · part de chaque typologie</small></h2><div class="tyb">${Tq.map((o,i)=>{const e=py?(evq.find(x=>x.t===o.t)||null):null;const d=e?share(e,ly)-share(e,py):0;return `<div class="tyr"><span class="ic">${TYI(o.t)}</span><span class="tn">${esc(o.t)}${Math.abs(d)>=2?` <span class="ev ${d>0?"u":"d"}">${d>0?"▲":"▼"} ${Math.abs(Math.round(d))} pts</span>`:""}</span><span class="tb"><span class="tf" style="--w:${totO?Math.max(1,o.tot/(Tq[0].tot||1)*100):0}%">${CATS.map(([k,,c])=>o[k]>0?`<i style="flex:${o[k]};background:${c}" title="${k} ${eur(o[k])}"></i>`:"").join("")}</span></span><span class="tv"><b>${pct(o.tot,totO)}</b> ${keur(o.tot)}</span></div>`}).join("")}</div><p class="note">La barre montre le poids de chaque typologie, découpé en Chantier · SAV · Maintenance. ▲▼ : évolution de sa part entre ${py||"–"} et ${ly}.</p></section>`};
   const srcTag=o=>o.src==="s"?`<span class="tag s">ta saisie</span>`:o.src==="o"?`<span class="tag o">Organilog</span>`:`<span class="tag m">saisie + Organilog</span>`;
   $("#main").innerHTML=`${nfix?`<button type="button" class="alert" data-go="fix">⚠️ <b>${nfix} facture${nfix>1?"s":""} ou avoir${nfix>1?"s":""} à compléter dans Organilog</b> (catégorie, typologie ou facture annulée manquante) <span style="margin-left:auto">Voir ›</span></button>`:""}
   <div class="bar">
@@ -377,25 +428,26 @@ function render(){const all=prep();const socs=["artik","chassaing"].filter(s=>DA
     <select id="fm" aria-label="Mois"><option value="">Toute l'année</option>${MOIS.map((m,i)=>`<option value="${String(i+1).padStart(2,"0")}"${F.m===String(i+1).padStart(2,"0")?" selected":""}>${m}</option>`).join("")}</select>
     <span class="note">CA HT · ${pl} · ${[nS?nS+" mois de ta saisie":"",nM?nM+" mois mixtes":"",nO?nO+" mois calculés depuis Organilog":""].filter(Boolean).join(" · ")}</span></div>
   <div class="kpis">${kpi("CA total HT",tot(),"3 catégories"+dl(tot(),totP()),"var(--ink)")}${CATS.map(([k,n,c])=>kpi(n,tot(k),`${pct(tot(k),tot())} du CA${dl(tot(k),totP(k))}`,c)).join("")}</div>
+  ${funHTML()}
   ${!F.m?`<section class="card"><h2>📊 CA par mois <small>${F.year} · plein = ta saisie, clair = calculé depuis Organilog</small></h2>${bars(Array.from({length:12},(_,i)=>{const k=yr+"-"+String(i+1).padStart(2,"0");return k<=now?month(k):{chantier:0,sav:0,maint:0}}))}<div class="leg">${CATS.map(([,n,c])=>`<span><i class="dot" style="--dc:${c}"></i>${n}</span>`).join("")}</div></section>`:""}
-  <section class="card"><h2>🧾 Mois par mois <small>la saisie de « Chiffres mensuels » reste la référence ; sans saisie, c'est Organilog</small></h2><div class="tw"><table>
+  <details class="card fold"><summary><h2>🧾 Mois par mois <small>détail · clique pour ouvrir</small></h2></summary> <small>la saisie de « Chiffres mensuels » reste la référence ; sans saisie, c'est Organilog</small></h2><div class="tw"><table>
    <thead><tr><th>Mois</th><th>Source</th>${CATS.map(([,n,c])=>`<th class="n"><i class="dot" style="--dc:${c}"></i>${n}</th>`).join("")}<th class="n">Total</th><th class="n">Organilog</th><th class="n">Écart</th></tr></thead>
    <tbody>${MM.map((o,i)=>{const t=CATS.reduce((a,[k])=>a+o[k],0),og=CATS.reduce((a,[k])=>a+o.org[k],0),e=t-og;return `<tr><td>${MOIS[+months[i].slice(5)-1]}</td><td>${srcTag(o)}</td>${CATS.map(([k])=>`<td class="n">${eur(o[k])}</td>`).join("")}<td class="n"><b>${eur(t)}</b></td><td class="n">${eur(og)}</td><td class="n">${o.sa&&Math.abs(e)>500?`<span style="color:var(--late);font-weight:700">${e>0?"+":""}${eur(e)}</span>`:o.sa?"≈":"–"}</td></tr>`}).join("")}</tbody></table></div>
-   <p class="note">Écart = ta saisie − le calcul Organilog (avoirs déduits sur la facture qu'ils annulent). Un gros écart vient souvent d'une facture annulée et refaite : à vérifier si besoin.</p></section>
-  <section class="card"><h2>👥 Par typologie client <small>${pl} · base Organilog</small></h2><div class="tw"><table>
+   <p class="note">Écart = ta saisie − le calcul Organilog (avoirs déduits sur la facture qu'ils annulent). Un gros écart vient souvent d'une facture annulée et refaite : à vérifier si besoin.</p></details>
+  <details class="card fold"><summary><h2>👥 Le tableau par typologie <small>${pl} · détail chiffré · clique pour ouvrir</small></h2></summary><div class="tw"><table>
    <thead><tr><th>Typologie</th>${CATS.map(([,n,c])=>`<th class="n"><i class="dot" style="--dc:${c}"></i>${n}</th>`).join("")}<th class="n">Total</th><th class="n">Part</th><th class="n">Factures</th><th class="n">Panier moyen</th></tr></thead>
-   <tbody>${T.map(o=>`<tr><td>${o.t==="—"?"<b style='color:var(--late)'>⚠️ Sans typologie</b>":esc(o.t)}</td>${CATS.map(([k])=>`<td class="n">${o[k]?eur(o[k]):"–"}<span class="pc">${o[k]&&o.tot?Math.round(o[k]/o.tot*100)+"%":""}</span></td>`).join("")}<td class="n"><b>${eur(o.tot)}</b></td><td class="n"><b>${pct(o.tot,totO)}</b></td><td class="n">${o.n}</td><td class="n">${o.n?eur(o.tot/o.n):"–"}</td></tr>`).join("")}</tbody>
+   <tbody>${T.map(o=>`<tr><td>${o.t==="—"?"<b style='color:var(--late)'>⚠️ Sans typologie</b>":TYI(o.t)+" "+esc(o.t)}</td>${CATS.map(([k])=>`<td class="n">${o[k]?eur(o[k]):"–"}<span class="pc">${o[k]&&o.tot?Math.round(o[k]/o.tot*100)+"%":""}</span></td>`).join("")}<td class="n"><b>${eur(o.tot)}</b></td><td class="n"><b>${pct(o.tot,totO)}</b></td><td class="n">${o.n}</td><td class="n">${o.n?eur(o.tot/o.n):"–"}</td></tr>`).join("")}</tbody>
    <tfoot><tr><td>Toutes typologies</td>${CATS.map(([k])=>`<td class="n">${eur(CAs.filter(r=>r.cat===k).reduce((a,r)=>a+r.v,0))}</td>`).join("")}<td class="n">${eur(totO)}</td><td class="n">100 %</td><td class="n">${CAs.filter(r=>r.t!=="V").length}</td><td class="n">${CAs.filter(r=>r.t!=="V").length?eur(totO/CAs.filter(r=>r.t!=="V").length):"–"}</td></tr></tfoot></table></div>
-   <p class="note">La typologie vient des factures Organilog (ta saisie ne l'a pas) : le total peut différer un peu de ta saisie. Dans chaque catégorie, le petit % donne la répartition SAV / Maintenance / Chantier de la typologie.</p></section>
-  <section class="card"><h2>📈 Évolution des typologies <small>part du CA Organilog, année par année${F.soc?" · "+SOCN[F.soc]:""}</small></h2><div class="tw"><table>
+   <p class="note">La typologie vient des factures Organilog (ta saisie ne l'a pas) : le total peut différer un peu de ta saisie. Dans chaque catégorie, le petit % donne la répartition SAV / Maintenance / Chantier de la typologie.</p></details>
+  <details class="card fold"><summary><h2>📈 Évolution des typologies <small>part du CA, année par année${F.soc?" · "+SOCN[F.soc]:""} · clique pour ouvrir</small></h2></summary><div class="tw"><table>
    <thead><tr><th>Typologie</th>${YS.map(y=>`<th class="n">${y}${y===now.slice(0,4)?" <span class='pc'>(en cours)</span>":""}</th>`).join("")}</tr></thead>
    <tbody>${EV.map(o=>`<tr><td>${o.t==="—"?"⚠️ Sans typologie":esc(o.t)}</td>${YS.map((y,i)=>{const p=YT[y]?o[y]/YT[y]*100:0,pp=i&&YT[YS[i-1]]?o[YS[i-1]]/YT[YS[i-1]]*100:null;return `<td class="n">${o[y]?`<b>${Math.round(p)} %</b> <span class="pc">${keur(o[y])}</span>${pp!=null&&Math.abs(p-pp)>=2?` <span style="color:${p>pp?"var(--ok)":"var(--late)"}">${p>pp?"▲":"▼"}</span>`:""}`:"–"}</td>`}).join("")}</tr>`).join("")}</tbody>
    <tfoot><tr><td>Total</td>${YS.map(y=>`<td class="n">${keur(YT[y])}</td>`).join("")}</tr></tfoot></table></div>
-   <p class="note">▲▼ : la part de la typologie a gagné ou perdu au moins 2 points sur l'année précédente.</p></section>
+   <p class="note">▲▼ : la part de la typologie a gagné ou perdu au moins 2 points sur l'année précédente.</p></details>
   <section class="card${nfix?" warn":""}" id="fix"><h2>${nfix?"⚠️ À compléter dans Organilog":"✅ Rien à compléter"} <small>sur tout ce qui a été envoyé</small></h2>
    <p class="note" style="margin:0 0 6px">${nfix?"Complète dans Organilog puis renvoie les factures avec le favori : la liste se vide. En attendant : sans catégorie = compté en Chantier, avoir sans facture = déduit le mois de l'avoir.":"Toutes les factures ont une catégorie et une typologie, et chaque avoir dit quelle facture il annule."}</p>
    ${fl(fix1,"Sans catégorie","f1")}${fl(fix2,"Sans typologie client","f2")}${fl(fix3,"Avoirs qui ne disent pas quelle facture ils annulent","f3")}${fl(fix4,"Brouillons pas encore validés (non comptés)","f4")}</section>`;
-  syncTxt();try{localStorage.setItem("fact-f",JSON.stringify({soc:F.soc,year:F.year,m:F.m}))}catch(e){}}
+  countUp();syncTxt();try{localStorage.setItem("fact-f",JSON.stringify({soc:F.soc,year:F.year,m:F.m}))}catch(e){}}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-soc]");if(b){F.soc=b.dataset.soc;render();return}const g=e.target.closest("[data-go]");if(g){const t=document.getElementById(g.dataset.go);if(t){t.querySelectorAll("details").forEach(d=>d.open=true);t.scrollIntoView({behavior:"smooth"})}}});
 document.addEventListener("change",e=>{if(e.target.id==="fy"){F.year=+e.target.value;render()}if(e.target.id==="fm"){F.m=e.target.value;render()}});
 $("#bimp").addEventListener("click",()=>{const s=$("#imp");s.hidden=!s.hidden;$("#bimp").setAttribute("aria-expanded",String(!s.hidden))});
