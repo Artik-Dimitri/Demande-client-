@@ -196,6 +196,12 @@ details.fold{padding:14px 16px}details.card{border-top:1px solid var(--line)}
 .fun2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media (max-width:700px){.fun2{grid-template-columns:1fr}}
 .mini{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}.mini span{color:var(--muted);white-space:nowrap}
 #cq{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 10px;min-width:200px}
+.info{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--bleu);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14px}
+.pxcard .pxw{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:18px;align-items:center}@media (max-width:760px){.pxcard .pxw{grid-template-columns:1fr}}
+.pxks{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pxk{border:1px solid var(--line);border-top:5px solid var(--cc);border-radius:12px;padding:10px 12px;background:var(--soft);min-width:0}
+.pxk .ic{font-size:26px;display:block}.pxk .l{font-size:12.5px;color:var(--muted);font-weight:700}.pxk>b{display:block;font-family:var(--f-display);font-size:34px;line-height:1.1}
+.pxls{display:grid;gap:8px}.pxl{display:grid;grid-template-columns:130px minmax(0,1fr) 70px;gap:10px;align-items:center;font-size:13.5px}.pxl .pxv{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.pxb{display:flex;gap:2px;height:22px;border-radius:6px;overflow:hidden;background:var(--line)}.pxb i{display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden}.pxb i b{color:#fff;font-size:11.5px;font-style:normal;white-space:nowrap}
 .empty{padding:30px;text-align:center;color:var(--muted)}
 </style>
 </head>
@@ -304,11 +310,11 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const SC=["User.Read","Sites.ReadWrite.All"],SCA=["Sites.Manage.All"];
 const M=window.__MSAL_FAKE||window.msal;
 let app,account,siteId,listId,ME="",EMAIL="";
-const ids={};let DATA={artik:[],chassaing:[]},META={};
+const ids={};let DATA={artik:[],chassaing:[]},META={},CLI={};
 let F={soc:"",year:new Date().getFullYear(),m:""};
 /* vues : tableau de bord, meilleurs clients, catégories & typologies (#tb, #clients, #cat) */
 const VIEWS=[["tb","🏠","Tableau de bord"],["clients","🏆","Meilleurs clients"],["cat","🍩","Catégories & typologies"]];
-let VIEW=(VIEWS.find(v=>"#"+v[0]===location.hash)||[location.hash==="#import"?"cat":"tb"])[0],CF={cat:"",ty:"",q:""};
+let VIEW=(VIEWS.find(v=>"#"+v[0]===location.hash)||[location.hash==="#import"?"cat":"tb"])[0],CF={cat:"",ty:"",q:"",pp:""};
 const INPILOT=/[?&]pilot=1/.test(location.search);
 window.addEventListener("hashchange",()=>{const v=VIEWS.find(v=>"#"+v[0]===location.hash);if(v&&v[0]!==VIEW){VIEW=v[0];render();scrollTo(0,0)}});
 try{Object.assign(F,JSON.parse(localStorage.getItem("fact-f")||"{}"));F.year=+F.year||new Date().getFullYear()}catch(e){}
@@ -330,11 +336,15 @@ let SAISIE={};   /* « Chiffres mensuels » : mois/AAAA-MM → {artik:{chantier,
 const hasS=(k,soc)=>{const c=(SAISIE[k]||{})[soc];return !!c&&CATS.some(([x])=>c[x]!==""&&c[x]!=null&&isFinite(+c[x])&&+c[x]!==0)};
 /* lignes de CA Organilog : factures + situations émises, avoirs déduits sur la facture qu'ils annulent (mois, catégorie, typologie) ; acomptes et brouillons à part */
 function prep(){const all=[];
-  for(const soc of ["artik","chassaing"]){const L=DATA[soc]||[];const byId={},tyCli={};
+  for(const soc of ["artik","chassaing"]){const L=DATA[soc]||[];const byId={},tyCli={},CL=CLI[soc];
+    /* catégorie de la fiche client (si le favori l'a envoyée) */
+    const fiche=cid=>{const x=CL&&CL.c&&CL.c[cid];return x?{ty:String((CL.t||[])[x[0]]||"").trim(),co:x[1]}:null};
     L.forEach(r=>{byId[r.i]=r;if(r.ty&&r.t!=="V"&&(!tyCli[r.cid]||r.d>tyCli[r.cid].d))tyCli[r.cid]={ty:r.ty,d:r.d}});
     L.forEach(r=>{const o=r.t==="V"&&r.l?byId[r.l]:null;let c=catOf(r.c),ty=String(r.ty||"").trim(),k=r.d.slice(0,7);
       if(r.t==="V"){if(o){k=o.d.slice(0,7);ty=String(o.ty||"").trim()||ty;if(!c)c=catOf(o.c)}if(!ty)ty=String((tyCli[r.cid]||{}).ty||"").trim()}
-      all.push({...r,soc,k,cat:c||"chantier",nocat:!c,ty,o,v:r.t==="V"?-Math.abs(r.ht):r.ht})})}
+      const fc=fiche(r.cid),tyF=ty;if(fc&&fc.ty)ty=fc.ty;
+      const pp=ty?(/^particulier/i.test(ty)?"part":"pro"):fc?(fc.co?"pro":"part"):"";
+      all.push({...r,soc,k,cat:c||"chantier",nocat:!c,ty,tyF,fiche:!!fc,diffT:!!(fc&&fc.ty&&tyF&&tyF!==fc.ty),pp,o,v:r.t==="V"?-Math.abs(r.ht):r.ht})})}
   return all}
 const inCA=r=>!r.b&&(r.t==="F"||r.t==="S"||r.t==="V");
 
@@ -348,7 +358,8 @@ async function put(k,v){const f={Valeur:JSON.stringify(v)};
 async function pull(){const out={};let u=`/sites/${siteId}/lists/${listId}/items?$expand=fields($select=Title,Valeur)&$top=500`;
   while(u){const r=await gx("GET",u);(r.value||[]).forEach(it=>{const t=it.fields&&it.fields.Title;if(!t)return;ids[t]=it.id;try{out[t]=JSON.parse(it.fields.Valeur||"null")}catch(e){}});u=r["@odata.nextLink"]}
   return out}
-function applyPull(o){DATA={artik:[],chassaing:[]};META={};
+function applyPull(o){DATA={artik:[],chassaing:[]};META={};CLI={};
+  for(const s of ["artik","chassaing"]){const c=o["cli/"+s];if(c&&c.c&&Array.isArray(c.t))CLI[s]=c}
   for(const k in o){const m=/^f\/(artik|chassaing)\/\d{4}-\d{2}$/.exec(k);if(m&&Array.isArray(o[k]))DATA[m[1]].push(...o[k]);const mm=/^meta\/(artik|chassaing)$/.exec(k);if(mm)META[mm[1]]=o[k]}}
 
 async function loadSaisie(){SAISIE={};try{let u=`/sites/${siteId}/lists?$select=id,displayName&$top=200`,lid=null;while(u&&!lid){const r=await gx("GET",u);const f=(r.value||[]).find(l=>l.displayName==="Chiffres mensuels");if(f)lid=f.id;u=r["@odata.nextLink"]}
@@ -357,11 +368,13 @@ async function loadSaisie(){SAISIE={};try{let u=`/sites/${siteId}/lists?$select=
 /* ---------- import ---------- */
 function valid(p){return p&&p.type==="artik-factures"&&(p.soc==="artik"||p.soc==="chassaing")&&Array.isArray(p.rows)&&/^\d{4}-\d{2}-\d{2}$/.test(p.from||"")}
 async function save(p){
-  const rows=p.rows.filter(r=>r&&r.i&&/^\d{4}-\d{2}-\d{2}$/.test(r.d||"")&&["F","A","S","V"].includes(r.t)).map(r=>({i:+r.i,n:String(r.n||"").slice(0,30),t:r.t,d:r.d,ht:+r.ht||0,c:String(r.c||"").slice(0,40),cid:+r.cid||0,cl:String(r.cl||"").slice(0,60),ty:String(r.ty||"").slice(0,40),b:r.b?1:0,l:+r.l||0}));
+  const rows=p.rows.filter(r=>r&&r.i&&/^\d{4}-\d{2}-\d{2}$/.test(r.d||"")&&["F","A","S","V"].includes(r.t)).map(r=>({i:+r.i,n:String(r.n||"").slice(0,30),t:r.t,d:r.d,ht:+r.ht||0,c:String(r.c||"").slice(0,40),cid:+r.cid||0,cl:String(r.cl||"").slice(0,60),ty:String(r.ty||"").slice(0,40),b:r.b?1:0,l:+r.l||0,...(r.me?{me:String(r.me).slice(0,30)}:{})}));
   const by={};rows.forEach(r=>(by[r.d.slice(0,7)]=by[r.d.slice(0,7)]||[]).push(r));
   /* tous les mois couverts par l'import sont remplacés (un mois vidé dans Organilog redevient vide ici) */
   const now=new Date(),end=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
   for(let m=p.from.slice(0,7);m<=end;m=nextM(m)){const v=by[m]||[];if(v.length||ids["f/"+p.soc+"/"+m])await put("f/"+p.soc+"/"+m,v)}
+  if(p.cli&&p.cli.c&&Array.isArray(p.cli.t)){const c={};for(const [k,v] of Object.entries(p.cli.c))if(/^\d+$/.test(k)&&Array.isArray(v))c[k]=[+v[0]||0,v[1]?1:0];
+    await put("cli/"+p.soc,{at:p.at||new Date().toISOString(),t:p.cli.t.map(x=>String(x).slice(0,40)),c})}
   await put("meta/"+p.soc,{at:p.at||new Date().toISOString(),by:ME,n:rows.length,from:p.from});
   applyPull(await pull());if(!F.soc)F.soc="";render();return rows.length}
 const nextM=m=>{let [y,mo]=m.split("-").map(Number);mo++;if(mo>12){mo=1;y++}return y+"-"+String(mo).padStart(2,"0")};
@@ -384,7 +397,7 @@ function syncTxt(){const t=["artik","chassaing"].filter(s=>META[s]).map(s=>`${s=
 const TYI=t=>{const x=String(t||"").toLowerCase();return /boulang|p[âa]tiss/.test(x)?"🥖":/restau|traiteur/.test(x)?"🍽️":/particulier/.test(x)?"🏠":/bureau|usine \/|usine$/.test(x)&&!/aliment/.test(x)?"🏢":/usine aliment/.test(x)?"🧀":/magasin/.test(x)?"🛒":/agricult/.test(x)?"🚜":/collectiv/.test(x)?"🏛️":/retraite/.test(x)?"👵":/bouche/.test(x)?"🥩":/commerce/.test(x)?"🏪":/artisan/.test(x)?"🔨":/associat/.test(x)?"🤝":t==="—"?"❓":"🏷️"};
 function ring(parts,total){/* anneau des 3 catégories */const R=54,C=2*Math.PI*R;let off=0;
   return `<svg viewBox="0 0 140 140" class="ring" role="img" aria-label="Répartition du CA par catégorie"><circle cx="70" cy="70" r="${R}" fill="none" stroke="var(--line)" stroke-width="18"/>${parts.filter(p=>p.v>0).map(p=>{const l=total>0?p.v/total*C:0;const el=`<circle cx="70" cy="70" r="${R}" fill="none" stroke="${p.c}" stroke-width="18" stroke-dasharray="${Math.max(0,l-2)} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)" class="seg-a"><title>${p.n} : ${eur(p.v)}</title></circle>`;off+=l;return el}).join("")}<text x="70" y="66" text-anchor="middle" class="rt1">${keur(total)}</text><text x="70" y="84" text-anchor="middle" class="rt2">CA HT</text></svg>`}
-function countUp(){document.querySelectorAll("[data-cu]").forEach(el=>{const to=+el.dataset.cu,f=el.dataset.f==="k"?keur:eur;if(!isFinite(to)||matchMedia("(prefers-reduced-motion: reduce)").matches){el.textContent=f(to);return}const t0=performance.now(),d=700;const step=t=>{const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);el.textContent=f(to*e);if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)})}
+function countUp(){document.querySelectorAll("[data-cu]").forEach(el=>{const to=+el.dataset.cu,f=el.dataset.f==="k"?keur:el.dataset.f==="p"?(x=>Math.round(x)+" %"):eur;if(!isFinite(to)||matchMedia("(prefers-reduced-motion: reduce)").matches){el.textContent=f(to);return}const t0=performance.now(),d=700;const step=t=>{const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);el.textContent=f(to*e);if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)})}
 function bars(M12){const W=760,H=220,pl=46,pb=24,bw=(W-pl)/12;
   const mx=Math.max(1,...M12.map(o=>CATS.reduce((a,[k])=>a+Math.max(0,o[k]),0)));const st=Math.pow(10,Math.floor(Math.log10(mx)));const step=[1,2,5,10].map(x=>x*st).find(x=>mx/x<=5);const top=Math.ceil(mx/step)*step;
   const y=v=>H-pb-(v/top)*(H-pb-10);let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="CA HT par mois et par catégorie" style="width:100%;height:auto">`;
@@ -420,8 +433,9 @@ function render(){const all=prep();const socs=["artik","chassaing"].filter(s=>DA
   const ytot=y=>CA0.filter(r=>r.k.startsWith(y)).reduce((a,r)=>a+r.v,0);const YT={};YS.forEach(y=>YT[y]=ytot(y));
   const EV=TY.map(t=>{const o={t};YS.forEach(y=>o[y]=CA0.filter(r=>r.k.startsWith(y)&&(r.ty||"—")===t).reduce((a,r)=>a+r.v,0));return o}).sort((a,b)=>(b[YS[YS.length-1]]||0)-(a[YS[YS.length-1]]||0));
   /* à corriger : sur tout l'historique envoyé */
-  const fix1=R0.filter(r=>!r.b&&r.t!=="A"&&r.nocat),fix2=R0.filter(r=>!r.b&&(r.t==="F"||r.t==="S")&&!r.ty),fix3=R0.filter(r=>!r.b&&r.t==="V"&&!r.o),fix4=R0.filter(r=>r.b&&(r.t==="F"||r.t==="S"));
-  const nfix=fix1.length+fix2.length+fix3.length;
+  const fix1=R0.filter(r=>!r.b&&r.t!=="A"&&r.nocat),fix2=R0.filter(r=>!r.b&&(r.t==="F"||r.t==="S")&&!r.ty),fix5=R0.filter(r=>!r.b&&(r.t==="F"||r.t==="S")&&r.diffT).map(r=>({...r,ty:r.tyF+" → "+r.ty})),noCli=socs.filter(s=>!CLI[s]),
+    fixC=(()=>{const M={};R0.filter(r=>!r.b&&r.fiche&&!r.ty&&r.t!=="A").forEach(r=>{const k=r.soc+":"+r.cid;const o=M[k]=M[k]||{...r,n:"fiche client",ht:0};o.ht+=r.v;if(r.d>o.d)o.d=r.d});return Object.values(M)})(),fix3=R0.filter(r=>!r.b&&r.t==="V"&&!r.o),fix4=R0.filter(r=>r.b&&(r.t==="F"||r.t==="S"));
+  const nfix=fix1.length+fix2.length+fix3.length+fixC.length;
   const fl=(L,why,id)=>L.length?`<details${id===F.open?" open":""} data-d="${id}"><summary><b>${why}</b> · ${L.length}</summary><div class="tw"><table><thead><tr><th>N°</th><th>Date</th><th>Client</th><th>Type</th><th>Catégorie</th><th>Typologie</th><th class="n">HT</th>${socs.length>1?"<th>Société</th>":""}</tr></thead><tbody>${L.sort((a,b)=>b.d.localeCompare(a.d)).slice(0,150).map(r=>`<tr><td>${esc(r.n||"brouillon")}</td><td>${fd(r.d)}</td><td>${esc(r.cl)}</td><td>${{F:"Facture",S:"Situation",V:"Avoir",A:"Acompte"}[r.t]}</td><td>${r.nocat?"<b style='color:var(--late)'>—</b>":esc(r.c)}</td><td>${r.ty?esc(r.ty):"<b style='color:var(--late)'>—</b>"}</td><td class="n">${eur(Math.abs(r.ht))}</td>${socs.length>1?`<td>${SOCN[r.soc]}</td>`:""}</tr>`).join("")}</tbody></table></div>${L.length>150?`<p class="note">… et ${L.length-150} autres.</p>`:""}</details>`:"";
   /* podium, anneau, pépites à prospecter, jauge de remplissage */
   const funHTML=()=>{const Tq=T.filter(o=>o.t!=="—"&&o.tot>0);const pod=Tq.slice(0,3);const med=["🥇","🥈","🥉"];
@@ -448,18 +462,29 @@ function render(){const all=prep();const socs=["artik","chassaing"].filter(s=>DA
   /* ---------- clients ---------- */
   const navV=()=>INPILOT?"":`<nav class="vnav" aria-label="Vues">${VIEWS.map(([k,i,n])=>`<button type="button" data-view="${k}" aria-pressed="${VIEW===k}"><span>${i}</span>${n}</button>`).join("")}</nav>`;
   const cliAgg=(L)=>{const M={};L.forEach(r=>{const k=r.soc+":"+(r.cid||r.cl);const o=M[k]=M[k]||{k,cl:r.cl,soc:r.soc,tot:0,n:0,chantier:0,sav:0,maint:0,ty:{},mo:new Set(),last:""};
-      o.tot+=r.v;o[r.cat]+=r.v;if(r.t!=="V"){o.n++;o.mo.add(r.k)}if(r.ty)o.ty[r.ty]=(o.ty[r.ty]||0)+1;if(r.d>o.last)o.last=r.d;if(r.cl&&r.t!=="V")o.cl=r.cl});
+      o.tot+=r.v;o[r.cat]+=r.v;if(r.pp)o.pp=r.pp;if(r.t!=="V"){o.n++;o.mo.add(r.k)}if(r.ty)o.ty[r.ty]=(o.ty[r.ty]||0)+1;if(r.d>o.last)o.last=r.d;if(r.cl&&r.t!=="V")o.cl=r.cl});
     return Object.values(M).map(o=>({...o,typo:Object.entries(o.ty).sort((a,b)=>b[1]-a[1]).map(x=>x[0])[0]||"",mois:o.mo.size}))};
   const prevKeys=sel.map(k=>(+k.slice(0,4)-1)+k.slice(4));
   const CAp=CA0.filter(r=>prevKeys.includes(r.k)),Pmap={};cliAgg(CAp).forEach(o=>Pmap[o.k]=o.tot);
   const GRP=/\b(artik|chassaing)\b/i;
   const ALLC=cliAgg(CAs).filter(o=>o.tot>0&&!GRP.test(o.cl)).sort((a,b)=>b.tot-a.tot);
+  /* pros / particuliers (d'après la typologie : « Particulier » = particulier, le reste = pro) */
+  const PP=[["pro","🏢","Pros","#4a4644"],["part","🏠","Particuliers","var(--ocre)"]];
+  const ppHTML=()=>{const sum=(L,f)=>L.filter(f).reduce((a,r)=>a+r.v,0);const tt=CAs.reduce((a,r)=>a+r.v,0);if(tt<=0)return "";
+    const nk=CAs.filter(r=>!r.pp).reduce((a,r)=>a+r.v,0),ttP=CAp.reduce((a,r)=>a+r.v,0);
+    const line=(lab,L,ic)=>{const t=L.reduce((a,r)=>a+r.v,0);if(t<=0)return "";const v=PP.map(([k])=>sum(L,r=>r.pp===k));
+      return `<div class="pxl"><span class="pxn">${ic} ${lab}</span><span class="pxb">${PP.map(([k,,n,c],i)=>v[i]>0?`<i style="flex:${v[i]};background:${c}" title="${n} : ${eur(v[i])}"><b>${Math.round(v[i]/t*100)} %</b></i>`:"").join("")}</span><span class="pxv">${keur(t)}</span></div>`};
+    const big=PP.map(([k,ic,n,c])=>{const v=sum(CAs,r=>r.pp===k),vp=sum(CAp,r=>r.pp===k),nc=new Set(CAs.filter(r=>r.pp===k&&r.t!=="V").map(r=>r.soc+r.cid)).size;
+      const d=ttP>0&&vp>0?Math.round(v/tt*100-vp/ttP*100):null;
+      return `<div class="pxk" style="--cc:${c}"><span class="ic">${ic}</span><span class="l">${n}</span><b data-cu="${Math.round(v/tt*100)}" data-f="p">${Math.round(v/tt*100)} %</b><span class="note">${keur(v)} · ${nc} client${nc>1?"s":""}${d?` · <span class="evo ${d>0?"u":"d"}">${d>0?"▲ +":"▼ "}${d} pts</span>`:""}</span></div>`}).join("");
+    return `<section class="card pxcard"><h2>🏢 Pros ou 🏠 particuliers ? <small>${pl} · part du CA facturé</small></h2><div class="pxw"><div class="pxks">${big}</div><div class="pxls">${line("Tout",CAs,"💶")}${CATS.map(([k,n])=>line(n,CAs.filter(r=>r.cat===k),k==="chantier"?"🏗️":k==="sav"?"🔧":"🗓️")).join("")}</div></div>
+      ${nk>0?`<p class="note">${keur(nk)} sans typologie ne sont comptés ni chez les pros ni chez les particuliers.</p>`:""}<p class="note">▲▼ : évolution de la part en points par rapport à la même période l'an dernier.</p></section>`};
   const medal=i=>["🥇","🥈","🥉"][i]||`<span class="rk">${i+1}</span>`;
   const evo=o=>{const p=Pmap[o.k];if(!p||p<=0)return `<span class="evo u">⭐ nouveau</span>`;const d=Math.round((o.tot-p)/p*100);return Math.abs(d)<5?`<span class="evo">=</span>`:`<span class="evo ${d>0?"u":"d"}">${d>0?"▲ +":"▼ "}${d} %</span>`};
   const cbar=o=>`<span class="tb"><span class="tf" style="--w:100%">${CATS.map(([k,,c])=>o[k]>0?`<i style="flex:${o[k]};background:${c}" title="${k} ${eur(o[k])}"></i>`:"").join("")}</span></span>`;
   const clientsHTML=()=>{const tys=[...new Set(ALLC.map(o=>o.typo).filter(Boolean))].sort();
     const q=CF.q.trim().toLowerCase();
-    const L=ALLC.filter(o=>(!CF.ty||o.typo===CF.ty)&&(!q||o.cl.toLowerCase().includes(q))).map(o=>CF.cat?{...o,val:o[CF.cat]}:{...o,val:o.tot}).filter(o=>o.val>0).sort((a,b)=>b.val-a.val);
+    const L=ALLC.filter(o=>(!CF.ty||o.typo===CF.ty)&&(!CF.pp||o.pp===CF.pp)&&(!q||o.cl.toLowerCase().includes(q))).map(o=>CF.cat?{...o,val:o[CF.cat]}:{...o,val:o.tot}).filter(o=>o.val>0).sort((a,b)=>b.val-a.val);
     const totL=L.reduce((a,o)=>a+o.val,0),top=L.slice(0,3),mx=L[0]?L[0].val:1;
     const top10=L.slice(0,10).reduce((a,o)=>a+o.val,0);
     const champ=CATS.map(([k,n,c])=>{const o=ALLC.filter(x=>x[k]>0).sort((a,b)=>b[k]-a[k])[0];return o?`<div class="champ" style="--cc:${c}"><span class="l">Champion ${n}</span><b>${esc(o.cl)}</b><span class="v">${keur(o[k])}</span><span class="note">${o.typo?TYI(o.typo)+" "+esc(o.typo):""}</span></div>`:""}).join("");
@@ -468,6 +493,7 @@ function render(){const all=prep();const socs=["artik","chassaing"].filter(s=>DA
     const news=ALLC.filter(o=>!Pmap[o.k]).slice(0,6);
     return `<div class="bar"><span class="seg" role="group" aria-label="Catégorie">${[["","Tout"],...CATS.map(([k,n])=>[k,n])].map(([k,n])=>`<button type="button" data-ccat="${k}" aria-pressed="${CF.cat===k}">${n}</button>`).join("")}</span>
       <select id="cty" aria-label="Typologie"><option value="">Toutes les typologies</option>${tys.map(t=>`<option value="${esc(t)}"${CF.ty===t?" selected":""}>${TYI(t)} ${esc(t)}</option>`).join("")}</select>
+      <span class="seg" role="group" aria-label="Pros ou particuliers">${[["","Tous"],["pro","🏢 Pros"],["part","🏠 Particuliers"]].map(([k,n])=>`<button type="button" data-cpp="${k}" aria-pressed="${CF.pp===k}">${n}</button>`).join("")}</span>
       <input id="cq" type="search" placeholder="🔍 Chercher un client" value="${esc(CF.q)}" aria-label="Chercher un client"></div>
      ${top.length?`<section class="card podium"><h2>🏆 Le podium ${CF.cat?CATS.find(c=>c[0]===CF.cat)[1]:"des clients"} <small>${pl}${CF.ty?" · "+esc(CF.ty):""}</small></h2>
       <div class="pods">${[1,0,2].map(i=>top[i]?`<div class="pod p${i+1}"><span class="ic">${TYI(top[i].typo)}</span><b>${esc(top[i].cl)}</b><span class="big">${keur(top[i].val)}</span><span class="note">${top[i].n} fact.</span>${evo(top[i])}<div class="step">${["🥇","🥈","🥉"][i]}</div></div>`:"").join("")}</div></section>`:`<section class="card empty">Aucun client sur cette sélection.</section>`}
@@ -484,17 +510,19 @@ function render(){const all=prep();const socs=["artik","chassaing"].filter(s=>DA
   const tbHTML=()=>{const best=ALLC[0],ty=T.filter(o=>o.t!=="—")[0],bm=MM.map((o,i)=>[i,CATS.reduce((a,[k])=>a+o[k],0)]).sort((a,b)=>b[1]-a[1])[0];
     const card2=(i,l,v,s,c)=>`<div class="hcard" style="--cc:${c}"><span class="hi">${i}</span><span class="l">${l}</span><b>${v}</b><span class="note">${s}</span></div>`;
     return `<div class="hcards">${best?card2("🏆","Le client "+(F.m?"du mois":"de l'année"),esc(best.cl),keur(best.tot)+" · "+best.n+" factures","var(--ocre)"):""}${ty?card2(TYI(ty.t),"La typologie qui rapporte",esc(ty.t),pct(ty.tot,totO)+" du CA","var(--orange)"):""}${bm&&bm[1]>0&&!F.m?card2("📅","Le meilleur mois",MOIS[bm[0]]+" "+F.year,keur(bm[1]),"var(--bleu)"):""}${card2("🧾","Clients facturés",String(ALLC.length),(()=>{const n=ALLC.filter(o=>!Pmap[o.k]).length;return n?n+" nouveau"+(n>1?"x":"")+" ⭐":"aucun nouveau"})(),"var(--bord)")}</div>
+     ${ppHTML()}
      ${funHTML()}
      <section class="card"><h2>🏆 Top 5 clients <small>${pl}</small> <button type="button" class="lnk" data-view="clients" style="color:var(--orange)">tout le classement ›</button></h2><div class="rank">${ALLC.slice(0,5).map((o,i)=>`<div class="rr"><span class="md">${medal(i)}</span><span class="cn"><b>${esc(o.cl)}</b><small>${o.typo?TYI(o.typo)+" "+esc(o.typo):""}</small></span><span class="cb"><span class="tb" style="width:${Math.max(4,o.tot/(ALLC[0]?ALLC[0].tot:1)*100)}%"><span class="tf" style="--w:100%">${CATS.map(([k,,c])=>o[k]>0?`<i style="flex:${o[k]};background:${c}"></i>`:"").join("")}</span></span></span><span class="cv"><b>${keur(o.tot)}</b> ${evo(o)}</span></div>`).join("")}</div></section>`};
   const srcTag=o=>o.src==="s"?`<span class="tag s">ta saisie</span>`:o.src==="o"?`<span class="tag o">Organilog</span>`:`<span class="tag m">saisie + Organilog</span>`;
-  $("#main").innerHTML=`${navV()}${VIEW!=="clients"&&nfix?`<button type="button" class="alert" data-go="fix">⚠️ <b>${nfix} facture${nfix>1?"s":""} ou avoir${nfix>1?"s":""} à compléter dans Organilog</b> (catégorie, typologie ou facture annulée manquante) <span style="margin-left:auto">Voir ›</span></button>`:""}
+  const cliMsg=noCli.length?`<div class="info">🔄 <span>Relance une fois le favori <b>« Envoyer les factures »</b>${noCli.length<socs.length?" ("+noCli.map(s=>SOCN[s]).join(", ")+")":""} : la page prendra la catégorie de la <b>fiche client</b> au lieu de celle tapée sur chaque facture.</span></div>`:"";
+  $("#main").innerHTML=`${navV()}${cliMsg}${VIEW!=="clients"&&nfix?`<button type="button" class="alert" data-go="fix">⚠️ <b>${nfix} facture${nfix>1?"s":""} ou avoir${nfix>1?"s":""} à compléter dans Organilog</b> (catégorie, typologie ou facture annulée manquante) <span style="margin-left:auto">Voir ›</span></button>`:""}
   <div class="bar">
     ${socs.length>1?`<span class="seg" role="group" aria-label="Société">${[["","Groupe"],["artik","Artik"],["chassaing","Chassaing"]].map(([k,n])=>`<button type="button" data-soc="${k}" aria-pressed="${k===F.soc}">${n}</button>`).join("")}</span>`:""}
     <select id="fy" aria-label="Année">${years.map(y=>`<option${y===F.year?" selected":""}>${y}</option>`).join("")}</select>
     <select id="fm" aria-label="Mois"><option value="">Toute l'année</option>${MOIS.map((m,i)=>`<option value="${String(i+1).padStart(2,"0")}"${F.m===String(i+1).padStart(2,"0")?" selected":""}>${m}</option>`).join("")}</select>
     <span class="note">CA HT · ${pl} · ${[nS?nS+" mois de ta saisie":"",nM?nM+" mois mixtes":"",nO?nO+" mois calculés depuis Organilog":""].filter(Boolean).join(" · ")}</span></div>
   ${VIEW!=="clients"?`<div class="kpis">${kpi("CA total HT",tot(),"3 catégories"+dl(tot(),totP()),"var(--ink)")}${CATS.map(([k,n,c])=>kpi(n,tot(k),`${pct(tot(k),tot())} du CA${dl(tot(k),totP(k))}`,c)).join("")}</div>`:""}
-  ${VIEW==="cat"?funHTML():VIEW==="tb"?tbHTML():clientsHTML()}
+  ${VIEW==="cat"?ppHTML()+funHTML():VIEW==="tb"?tbHTML():clientsHTML()}
   ${VIEW==="tb"&&!F.m?`<section class="card"><h2>📊 CA par mois <small>${F.year} · plein = ta saisie, clair = calculé depuis Organilog</small></h2>${bars(Array.from({length:12},(_,i)=>{const k=yr+"-"+String(i+1).padStart(2,"0");return k<=now?month(k):{chantier:0,sav:0,maint:0}}))}<div class="leg">${CATS.map(([,n,c])=>`<span><i class="dot" style="--dc:${c}"></i>${n}</span>`).join("")}</div></section>`:""}
   ${VIEW==="cat"?`<details class="card fold"><summary><h2>🧾 Mois par mois <small>détail · clique pour ouvrir</small></h2></summary> <small>la saisie de « Chiffres mensuels » reste la référence ; sans saisie, c'est Organilog</small></h2><div class="tw"><table>
    <thead><tr><th>Mois</th><th>Source</th>${CATS.map(([,n,c])=>`<th class="n"><i class="dot" style="--dc:${c}"></i>${n}</th>`).join("")}<th class="n">Total</th><th class="n">Organilog</th><th class="n">Écart</th></tr></thead>
@@ -511,12 +539,12 @@ function render(){const all=prep();const socs=["artik","chassaing"].filter(s=>DA
    <tfoot><tr><td>Total</td>${YS.map(y=>`<td class="n">${keur(YT[y])}</td>`).join("")}</tr></tfoot></table></div>
    <p class="note">▲▼ : la part de la typologie a gagné ou perdu au moins 2 points sur l'année précédente.</p></details>`:""}
   ${VIEW==="cat"?`<section class="card${nfix?" warn":""}" id="fix"><h2>${nfix?"⚠️ À compléter dans Organilog":"✅ Rien à compléter"} <small>sur tout ce qui a été envoyé</small></h2>
-   <p class="note" style="margin:0 0 6px">${nfix?"Complète dans Organilog puis renvoie les factures avec le favori : la liste se vide. En attendant : sans catégorie = compté en Chantier, avoir sans facture = déduit le mois de l'avoir.":"Toutes les factures ont une catégorie et une typologie, et chaque avoir dit quelle facture il annule."}</p>
-   ${fl(fix1,"Sans catégorie","f1")}${fl(fix2,"Sans typologie client","f2")}${fl(fix3,"Avoirs qui ne disent pas quelle facture ils annulent","f3")}${fl(fix4,"Brouillons pas encore validés (non comptés)","f4")}</section>`:""}`;
+   <p class="note" style="margin:0 0 6px">${nfix?"Complète dans Organilog puis renvoie les factures avec le favori : la liste se vide. En attendant : sans catégorie = compté en Chantier, avoir sans facture = déduit le mois de l'avoir.":"Toutes les factures ont une catégorie et une typologie, et chaque avoir dit quelle facture il annule."}${noCli.length?"":" La typologie vient de la <b>fiche client</b> Organilog ; celle tapée sur la facture ne sert que si la fiche est vide."}</p>
+   ${fl(fix1,"Sans catégorie","f1")}${fl(fix2,"Sans typologie client (ni sur la fiche client, ni sur la facture)","f2")}${fl(fixC,"Clients sans catégorie sur leur fiche (à remplir une seule fois)","fc")}${fl(fix5,"Pour info : catégorie tapée sur la facture ≠ fiche client (la page prend la fiche client)","f5")}${fl(fix3,"Avoirs qui ne disent pas quelle facture ils annulent","f3")}${fl(fix4,"Brouillons pas encore validés (non comptés)","f4")}</section>`:""}`;
   countUp();syncTxt();try{localStorage.setItem("fact-f",JSON.stringify({soc:F.soc,year:F.year,m:F.m}))}catch(e){}}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-soc]");if(b){F.soc=b.dataset.soc;render();return}const g=e.target.closest("[data-go]");if(g){if(!document.getElementById(g.dataset.go)&&VIEW!=="cat"){VIEW="cat";render()}const t=document.getElementById(g.dataset.go);if(t){t.querySelectorAll("details").forEach(d=>d.open=true);t.scrollIntoView({behavior:"smooth"})}}});
 document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v){VIEW=v.dataset.view;try{history.replaceState(null,"","#"+VIEW)}catch(_){}render();scrollTo(0,0);return}
-  const c=e.target.closest("[data-ccat]");if(c){CF.cat=c.dataset.ccat;render()}});
+  const c=e.target.closest("[data-ccat]");if(c){CF.cat=c.dataset.ccat;render()}const q=e.target.closest("[data-cpp]");if(q){CF.pp=q.dataset.cpp;render()}});
 document.addEventListener("input",e=>{if(e.target.id==="cq"){CF.q=e.target.value;clearTimeout(window.__cq);window.__cq=setTimeout(()=>{render();const i=$("#cq");if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},250)}});
 document.addEventListener("change",e=>{if(e.target.id==="cty"){CF.ty=e.target.value;render();return}if(e.target.id==="fy"){F.year=+e.target.value;render()}if(e.target.id==="fm"){F.m=e.target.value;render()}});
 $("#bimp").addEventListener("click",()=>{const s=$("#imp");s.hidden=!s.hidden;$("#bimp").setAttribute("aria-expanded",String(!s.hidden))});
