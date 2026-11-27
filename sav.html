@@ -286,9 +286,9 @@ async function pull(){const out={};let u=`/sites/${siteId}/lists/${listId}/items
   return out}
 const CK=["cats","cli","users","ivs","vals","apl","meta"];const CKD=CK.filter(k=>k!=="meta");
 function applyPull(o){A={};for(const k in o){if(k.startsWith("a/"))A[k.slice(2)]=o[k]}
-  for(const k of CK){const v=o["cache/"+k];if(!v)continue;if(k==="meta")C.valsAt=v.valsAt||"";else C[k]=v}}
+  for(const k of CK){const v=o["cache/"+k];if(!v)continue;if(k==="meta"){C.valsAt=v.valsAt||"";C.champIds=v.champIds||null;C.opts=v.opts||{}}else C[k]=v}}
 let lastSaved={};
-async function saveCache(){for(const k of CK){const v=k==="meta"?{valsAt:C.valsAt,le:nowS()}:C[k];const s=JSON.stringify(v);if(k!=="meta"&&lastSaved[k]===s)continue;if(k==="meta"&&!CKD.some(x=>lastSaved[x]!==JSON.stringify(C[x])))continue;
+async function saveCache(){for(const k of CK){const v=k==="meta"?{valsAt:C.valsAt,le:nowS(),champIds:C.champIds||null,opts:C.opts||{}}:C[k];const s=JSON.stringify(v);if(k!=="meta"&&lastSaved[k]===s)continue;if(k==="meta"&&!CKD.some(x=>lastSaved[x]!==JSON.stringify(C[x]))&&lastSaved.meta2===JSON.stringify([C.champIds,C.opts]))continue;if(k==="meta")lastSaved.meta2=JSON.stringify([C.champIds,C.opts]);
   try{await put("cache/"+k,v)}catch(e){if(e.message!=="redirect")console.warn(e)}}
   for(const k of CKD)lastSaved[k]=JSON.stringify(C[k])}
 const tmr={};
@@ -315,11 +315,14 @@ async function syncOrg(){
     fresh.forEach(i=>{const c=C.cats[i.id];if(c&&CFG.cats[c[0]])C.ivs[i.id]={...i,cat:c[0],par:c[1]};else delete C.ivs[i.id]});
     Object.keys(C.ivs).forEach(id=>{const x=C.ivs[id],d=x.dd||x.pd;if(d>=start&&d<=end&&!seen.has(id))delete C.ivs[id]});
     const keepCat=new Set([...seen,...Object.keys(C.ivs)]);Object.keys(C.cats).forEach(id=>{if(!keepCat.has(id))delete C.cats[id]});
-    /* cases « Suite intervention » cochées depuis la dernière lecture */
+    /* champs « Suite intervention » d'Organilog (relus toutes les 6 h) : si la liste change (champ recréé en menu déroulant…), tout est relu */
+    try{if(!C.champsAt||Date.now()-C.champsAt>6*3600e3){setSync("Champs Organilog…");const r=await relais("sav=champs");const L=(r.ch||[]).filter(c=>/suite/i.test(c.nom));
+      if(L.length){const ids=[...new Set(L.map(c=>c.id).concat(CFG.champs))].sort();C.opts={};L.forEach(c=>(c.opts||[]).forEach(o=>C.opts[o.id]=o.nom));
+        if(JSON.stringify(ids)!==JSON.stringify((C.champIds||[]).slice().sort())){C.champIds=ids;C.vals={};C.valsAt="";C.valsEssai=0}}C.champsAt=Date.now()}}catch(e){console.warn("champs",e)}
     let since=C.valsAt?C.valsAt:DEP()+" 00:00:00";if(essai&&since>"2026-11-01")since=C.valsEssai?since:"2026-11-01 00:00:00";
     const startedAt=new Date(Date.now()-2*3600e3);let page=1,nv=0;
-    do{setSync("Cases cochées par les techs…");const r=await relais("sav=val&fields="+CFG.champs.join(",")+"&since="+encodeURIComponent(since)+"&page="+page);
-      r.vals.forEach(v=>{const o=C.vals[v.i],tn=v.t||"",to=o?(o[1]||""):"";if(!o||tn>to||(tn===to&&v.a&&v.v)||(tn===to&&!(o[0]||""))){C.vals[v.i]=v.a?[v.v,v.t]:["",v.t];nv++}});page=r.next}while(page);
+    do{setSync("Cases cochées par les techs…");const r=await relais("sav=val&fields="+champIds().join(",")+"&since="+encodeURIComponent(since)+"&page="+page);
+      r.vals.forEach(v=>{const o=C.vals[v.i],tn=v.t||"",to=o?(o[1]||""):"";if(o&&o[0]&&(!v.a||!v.v)&&o[2]&&o[2]!==v.f)return;if(!o||tn>to||(tn===to&&v.a&&v.v)||(tn===to&&!(o[0]||""))){C.vals[v.i]=v.a?[v.v,v.t,v.f]:["",v.t,v.f];nv++}});page=r.next}while(page);
     const sa=startedAt;C.valsAt=sa.getFullYear()+"-"+String(sa.getMonth()+1).padStart(2,"0")+"-"+String(sa.getDate()).padStart(2,"0")+" "+sa.toTimeString().slice(0,8);
     if(essai)C.valsEssai=1;
     Object.keys(C.vals).forEach(id=>{if(!C.ivs[id]&&!seen.has(id)&&Object.keys(C.vals).length>3000)delete C.vals[id]});
@@ -344,10 +347,12 @@ async function syncOrg(){
    DOSSIERS : une intervention SAV ou maintenance, et ses retours chez le même client
    ===================================================================== */
 /* chiffre en tête (« 1 - … ») ; sinon on reconnaît les mots. « 0 - À réaliser » (choix par défaut à la création) = rien renseigné */
-const valOf=id=>{const v=C.vals[id],t=String(v&&v[0]||"");const n=/^\s*([0-5])\b/.exec(t);if(n)return +n[1];
+const champIds=()=>C.champIds&&C.champIds.length?C.champIds:CFG.champs;
+const optLab=x=>{x=String(x||"").trim();return (C.opts&&C.opts[x])||x};
+const valOf=id=>{const v=C.vals[id],t=optLab(v&&v[0]);const n=/^\s*([0-5])\b/.exec(t);if(n)return +n[1];
   const x=t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
   return /non factur|garantie/.test(x)?5:/factur/.test(x)?1:/piece/.test(x)?2:/devis/.test(x)?3:/repass|planif|revenir/.test(x)?4:0};
-const valTx=id=>{const v=C.vals[id];return v?String(v[0]||"").replace(/^\s*\d\s*-\s*/,"").trim():""};
+const valTx=id=>{const v=C.vals[id];return v?optLab(v[0]).replace(/^\s*\d\s*-\s*/,"").trim():""};
 const valAt=id=>{const v=C.vals[id];return v?v[1]:""};
 const techN=u=>C.users[u]||"Tech n° "+u;
 const dOf=x=>x.dd||x.pd||"";
@@ -629,7 +634,7 @@ $("#bgo").addEventListener("click",()=>{const v=$("#bstep").value,n=sel.size,B=$
   if(B.dataset.armed){delete B.dataset.armed;B.textContent="Appliquer"}sel.forEach(k=>act(k,v));sel.clear();toast(n+" ligne(s) mise(s) à jour");render()});
 $("#bclear").addEventListener("click",()=>{sel.clear();render()});
 $("#refresh").addEventListener("click",()=>syncOrg());
-document.addEventListener("click",e=>{if(e.target.id!=="reval"||busy)return;C.vals={};C.valsAt="";C.valsEssai=0;toast("Relecture complète des cases « Suite intervention »…");syncOrg()});
+document.addEventListener("click",e=>{if(e.target.id!=="reval"||busy)return;C.vals={};C.valsAt="";C.valsEssai=0;C.champsAt=0;toast("Relecture complète des cases « Suite intervention »…");syncOrg()});
 $("#jr").addEventListener("click",()=>{const j=$("#journal");j.hidden=!j.hidden;$("#jr").setAttribute("aria-expanded",!j.hidden);renderJ()});
 document.addEventListener("change",e=>{if(e.target.id==="vign"){voirIgn=e.target.checked;sel.clear();render();return}if(e.target.id==="ess"){essai=e.target.checked;try{localStorage.setItem("sav-essai",essai?"1":"0")}catch(_){}render();if(essai)syncOrg()}});
 function villeOpts(f){const L=filtered(f,true),cnt={};L.forEach(d=>{const v=villeOf(d);cnt[v]=(cnt[v]||0)+1});
