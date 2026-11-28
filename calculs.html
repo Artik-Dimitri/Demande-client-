@@ -10,7 +10,7 @@
 
 
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Great+Vibes&display=swap">
 <style>
 /* Outils de calcul : en-tête groupe, choix de l outil, dossier, tableaux de saisie et résultats */
 :root{
@@ -445,9 +445,18 @@ function loadPDFlib(){const s=(u)=>new Promise((ok,ko)=>{const e=document.create
     .then(()=>window.jspdf.jsPDF.API.autoTable?null:s("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"))}
 const imgSize=src=>new Promise(r=>{const i=new Image();i.onload=()=>r([i.naturalWidth,i.naturalHeight]);i.onerror=()=>r([4,1]);i.src=src});
 const fdate=s=>{try{return new Date((s||today())+"T12:00").toLocaleDateString("fr-FR")}catch(e){return s||""}};
+async function sigImage(name){if(!name)return null;try{try{await document.fonts.load('72px "Great Vibes"')}catch(e){}
+  const c=document.createElement("canvas"),x=c.getContext("2d"),fs=72;c.width=1200;c.height=120;x.font=`${fs}px "Great Vibes","Segoe Script","Brush Script MT",cursive`;
+  const tw=Math.min(1150,x.measureText(name).width);x.translate(20,78);x.rotate(-0.035);x.fillStyle="#1d3b8f";x.fillText(name,0,0,1150);
+  /* trait de soulignement léger, comme un paraphe */
+  x.strokeStyle="#1d3b8f";x.lineWidth=2.5;x.lineCap="round";x.beginPath();x.moveTo(tw*0.55,22);x.quadraticCurveTo(tw*0.8,34,tw+12,12);x.stroke();
+  const w=Math.ceil(tw+50),cut=document.createElement("canvas");cut.width=w;cut.height=120;cut.getContext("2d").drawImage(c,0,0);
+  return {src:cut.toDataURL("image/png"),r:120/w}}catch(e){return null}}
 async function pdfStart(soc,kind){await loadPDFlib();const S=SOCS[soc]||SOCS.groupe,O=S.c,G=[93,102,112],LG=[205,209,214],INK=[31,35,40];
   const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}),W=210,H=297,M=15,LG2=await Promise.all((S.logos||[S.logo]).map(async i=>{const src=LOGOS[i],[w,h]=await imgSize(src);const lh_=S.logos?11:14,lw_=Math.min(S.logos?44:58,lh_*w/h);return {src,w:lw_,h:lw_*h/w}}));
   const X={doc,S,O,G,LG,INK,W,H,M,y:0,kind,first:true};
+  /* signature électronique : nom de la personne connectée, écrit « à la main » */
+  X.signer=(typeof ME!=="undefined"&&ME&&ME.nom)||"";X.sigImg=await sigImage(X.signer);
   X.bar=(x,y,w,h)=>{if(S.quatre)C4.forEach((c,i)=>{doc.setFillColor(...c);doc.rect(x+i*w/4,y,w/4,h,"F")});else{doc.setFillColor(...O);doc.rect(x,y,w*0.62,h,"F");doc.setFillColor(...G);doc.rect(x+w*0.62,y,w*0.38,h,"F")}};
   X.head=(t,sub)=>{X.bar(0,0,W,3);let lx=M;LG2.forEach(l=>{doc.addImage(l.src,"PNG",lx,8+(14-l.h)/2,l.w,l.h);lx+=l.w+6});
     doc.setFont("helvetica","bold");doc.setFontSize(14);doc.setTextColor(...INK);doc.text(pt(t),W-M,13.5,{align:"right"});
@@ -467,7 +476,10 @@ async function pdfStart(soc,kind){await loadPDFlib();const S=SOCS[soc]||SOCS.gro
   X.sign=(lab)=>{X.need(44);doc.setDrawColor(...O);doc.setLineWidth(0.5);const w=(W-2*M-6)/2;doc.roundedRect(M,X.y,w,36,2,2,"S");doc.setDrawColor(...LG);doc.roundedRect(M+w+6,X.y,w,36,2,2,"S");doc.setLineWidth(0.2);
     doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(...INK);doc.text(doc.splitTextToSize(pt(lab||"Le client - « Bon pour accord sur les conditions d'utilisation ci-dessus »"),w-6),M+3,X.y+5);
     doc.setFont("helvetica","normal");doc.setTextColor(...G);doc.text(pt("Nom, qualité :"),M+3,X.y+16);doc.text(pt("Date :"),M+3,X.y+22);doc.text(pt("Signature et cachet :"),M+3,X.y+28);
-    doc.setFont("helvetica","bold");doc.setTextColor(...INK);doc.text(pt(S.quatre?"Pour Artik / Chassaing Technologies":S.nom),M+w+9,X.y+5);doc.setFont("helvetica","normal");doc.setTextColor(...G);doc.text(pt("Établi par :"),M+w+9,X.y+16);doc.text(pt("Date :"),M+w+9,X.y+22);doc.text(pt("Signature :"),M+w+9,X.y+28);X.y+=42};
+    doc.setFont("helvetica","bold");doc.setTextColor(...INK);doc.text(pt(S.quatre?"Pour Artik / Chassaing Technologies":S.nom),M+w+9,X.y+5);doc.setFont("helvetica","normal");doc.setTextColor(...G);doc.text(pt("Établi par :"),M+w+9,X.y+16);doc.text(pt("Date :"),M+w+9,X.y+22);doc.text(pt("Signature :"),M+w+9,X.y+28);
+    doc.setTextColor(...INK);doc.setFont("helvetica","bold");if(X.signer)doc.text(pt(X.signer),M+w+29,X.y+16);doc.text(pt(new Date().toLocaleDateString("fr-FR")),M+w+29,X.y+22);
+    if(X.sigImg){const sw=Math.min(w-34,55),sh=Math.min(11,sw*X.sigImg.r),sw2=sh/X.sigImg.r;doc.addImage(X.sigImg.src,"PNG",M+w+29,X.y+23,sw2,sh)}
+    doc.setFont("helvetica","normal");X.y+=42};
   X.end=(fn,foot)=>{const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){if(X.memoPages&&X.memoPages.has(i))continue;doc.setPage(i);doc.setDrawColor(...LG);doc.line(M,H-17,W-M,H-17);doc.setFontSize(7.3);doc.setFont("helvetica","italic");doc.setTextColor(...G);
       doc.text(doc.splitTextToSize(pt(foot||"Pré-dimensionnement selon les conditions d'utilisation indiquées ; matériel définitif selon les fiches du fabricant."),W-2*M-40),M,H-13);
       doc.setFont("helvetica","normal");doc.text(pt(S.quatre?"SAS Artik Millau, Creissels - 05 65 59 15 12   |   SAS Chassaing Technologies, Saint-Rome-de-Cernon - 05 65 62 38 33":`${S.nom} - ${S.adr} - ${S.tel} - ${S.mail}`),M,H-8.5);doc.text(`${i} / ${n}`,W-M,H-8.5,{align:"right"});
