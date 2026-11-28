@@ -160,7 +160,7 @@ select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .bilan div{display:flex;flex-direction:column;gap:2px;min-width:0}.bilan small{color:var(--muted);font-size:12px}.bilan b{font-size:15px}
 @media (max-width:620px){.bilan{grid-template-columns:1fr 1fr}}
 .marge{font-weight:700}.marge.bad{color:var(--alert)}.marge.mid{color:var(--warn)}.marge.good{color:var(--ok)}
-.tpop{width:min(520px,calc(100vw - 24px))}
+.tpop{width:min(520px,calc(100vw - 24px));overflow-y:auto;overscroll-behavior:contain}
 .dgrid-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
 .dgrid{border-collapse:collapse;font-size:12px;width:100%}
 .dgrid th,.dgrid td{padding:4px;text-align:center;border-bottom:1px solid var(--soft);white-space:nowrap}
@@ -1064,36 +1064,41 @@ function dayGrid(x,sel){
   <tfoot><tr><th>Sur place</th>${days.map(d=>`<td>${sel.filter(t=>!offDays(x,t).has(d.i)).length}</td>`).join("")}</tr></tfoot></table></div>
   <p style="margin:6px 0 10px">Jour par jour : décochez une case quand le technicien n'est pas sur le chantier ce jour-là.</p>`;
 }
-function closeTechPop(){if(tpop){tpop.remove();tpop=null}}
+function closeTechPop(){if(tpop){if(tpop.__off)tpop.__off();tpop.remove();tpop=null}}
 function openTechPop(id,anchor){
   closeTechPop();const x=getItem(id);if(!x)return;
   const el=document.createElement("div");el.className="tpop";el.setAttribute("role","dialog");document.body.appendChild(el);tpop=el;tpop.dataset.id=id;
-  const draw=()=>{const cur=getItem(id)||x,sel=cur.techs||[];
+  /* état local de la fenêtre : on ne relit plus la base à chaque clic (elle arrive en différé et écrasait les cases) */
+  const L={techs:(x.techs||[]).slice(),off:JSON.parse(JSON.stringify(x.off||{}))};
+  const place=()=>{const r=anchor.isConnected?anchor.getBoundingClientRect():(el.__r||anchor.getBoundingClientRect());el.__r=r;
+    el.style.maxHeight=(innerHeight-24)+"px";const w=el.offsetWidth,h=el.offsetHeight;
+    el.style.left=Math.max(12,Math.min(r.left-w/2,innerWidth-w-12))+"px";
+    el.style.top=Math.max(12,r.bottom+8+h>innerHeight?Math.min(r.top-h-8,innerHeight-h-12):r.bottom+8)+"px"};
+  const draw=()=>{const cur={...(getItem(id)||x),techs:L.techs,off:L.off},sel=L.techs,sc=el.querySelector(".dgrid-wrap"),sl=sc?sc.scrollLeft:0;
     el.innerHTML=`<h4>${esc(cur.client)}</h4><p>Cliquez sur un technicien pour l'ajouter ou le retirer. Le chantier apparaît sur la ligne de chacun, ses heures sont réparties entre eux.</p>
     <div class="techs">${techList().map(t=>`<button type="button" data-t="${esc(t.nom)}" aria-pressed="${sel.includes(t.nom)}"><span class="sw" style="--bc:var(--${t.societe==="chassaing"?"blue":"orange"});margin-right:6px"></span>${esc(t.nom)}</button>`).join("")}</div>
     ${dayGrid(cur,sel)}
-    <div class="row"><small class="hint" style="margin:0">${sel.length} technicien${sel.length>1?"s":""}</small><button class="btn small" type="button" data-pclose>Fermer</button></div>`};
+    <div class="row"><small class="hint" style="margin:0">${sel.length} technicien${sel.length>1?"s":""}</small><button class="btn small" type="button" data-pclose>Fermer</button></div>`;
+    const sc2=el.querySelector(".dgrid-wrap");if(sc2)sc2.scrollLeft=sl;place()};
+  /* enregistrements à la file, toujours avec le dernier état complet */
+  let busy=false,again=null;
+  const push=async(msg)=>{again=msg;if(busy)return;busy=true;
+    while(again!==null){const m=again;again=null;await save(id,{techs:L.techs.slice(),off:JSON.parse(JSON.stringify(L.off))},m)}
+    busy=false;render()};
   draw();
-  const r=anchor.getBoundingClientRect(),w=el.offsetWidth,h=el.offsetHeight;
-  el.style.left=Math.max(12,Math.min(r.left-w/2,innerWidth-w-12))+"px";
-  el.style.top=(r.bottom+8+h>innerHeight?Math.max(12,r.top-h-8):r.bottom+8)+"px";
-  el.addEventListener("click",async e=>{
+  el.addEventListener("click",e=>{
     if(e.target.closest("[data-pclose]")){closeTechPop();return}
-    const cur=getItem(id)||x;
     const dd=e.target.closest("[data-d]");
-    if(dd){const n=dd.dataset.tt,i=Number(dd.dataset.d),off={...(cur.off||{})},set=new Set(off[n]||[]);
+    if(dd){const n=dd.dataset.tt,i=Number(dd.dataset.d),set=new Set(L.off[n]||[]);
       const wasOn=!set.has(i);wasOn?set.add(i):set.delete(i);
-      if(set.size)off[n]=[...set].sort((a,b)=>a-b);else delete off[n];
-      cur.off=off;draw();
-      await save(id,{off},n+(wasOn?" absent ":" présent ")+"le "+dd.dataset.lab);render();return}
+      if(set.size)L.off[n]=[...set].sort((a,b)=>a-b);else delete L.off[n];
+      draw();push(n+(wasOn?" absent ":" présent ")+"le "+dd.dataset.lab);return}
     const b=e.target.closest("[data-t]");if(!b)return;
-    const t=(cur.techs||[]).slice(),n=b.dataset.t,on=t.includes(n);
-    const nt=on?t.filter(z=>z!==n):t.concat(n),patch={techs:nt};
-    if(on&&cur.off&&cur.off[n]){const off={...cur.off};delete off[n];patch.off=off;cur.off=off}
-    b.setAttribute("aria-pressed",!on);
-    await save(id,patch,on?n+" retiré de "+cur.client:n+" ajouté sur "+cur.client);
-    cur.techs=nt;render();if(tpop)draw();
+    const n=b.dataset.t,on=L.techs.includes(n);
+    L.techs=on?L.techs.filter(z=>z!==n):L.techs.concat(n);if(on)delete L.off[n];
+    draw();push(on?n+" retiré de "+x.client:n+" ajouté sur "+x.client);
   });
+  addEventListener("resize",place);el.__off=()=>removeEventListener("resize",place);
 }
 document.addEventListener("pointerdown",e=>{if(tpop&&!e.target.closest(".tpop")&&!e.target.closest("[data-add]"))closeTechPop()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeTechPop()});
