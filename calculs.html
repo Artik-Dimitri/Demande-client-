@@ -743,6 +743,29 @@ function FLU(o){const fl=nk(flKey(o.fl)),Pk=o.Pk||0,V=o.V||0,rl=o.rl||1080,rv=o.
   const ape={oblig:o.kind==="cf"&&o.tch<0&&V>10,txt:o.kind!=="cf"?"":o.tch<0?(V>10?"Obligatoire : chambre négative de plus de 10 m³ (EN 378-1, annexe D)":"Non exigée : chambre négative de 10 m³ ou moins (conseillée)"):"Non exigée en chambre positive"};
   return {fl,ch,lo,hi,parts,g,teq,ctrl,isA2L,a2l,ape,estL,hfo,Pk}}
 window.FLUMAT=FLU;
+/* ---------- cuivre en barres et isolant non fendu (catalogue p. 509 et 520-521) ---------- */
+const CU={"1/4":[6.35,0.8,"03203001"],"3/8":[9.52,0.8,"03203002"],"1/2":[12.7,0.8,"03203003"],"5/8":[15.87,0.8,"03203004"],"3/4":[19.06,1,"03203005"],"7/8":[22.23,1,"03203006"],"1":[25.4,1,"03203007"],"1 1/8":[28.57,1,"03203008"],"1 3/8":[34.92,1.22,"03203009"],"1 5/8":[41.47,1.25,"03203010"],"2 1/8":[53.97,1.25,"03203022"]};
+/* Armaflex ACE PLUS non fendu, longueurs de 2 m : [modèle, code, prix €/ml] */
+const ISO={13:{"1/4":["ACE PLUS 13x06","00241464",13.6],"3/8":["ACE PLUS 13x10","00241465",14.2],"1/2":["ACE PLUS 13x12","00241466",14.3],"5/8":["ACE PLUS 13x15","00241467",15.8],"3/4":["ACE PLUS 13x18","00241468",16.5],"7/8":["ACE PLUS 13x22","00241469",18.8],"1":["ACE PLUS 13x25","00241470",21.3],"1 1/8":["ACE PLUS 13x28","00241471",21.3],"1 3/8":["ACE PLUS 13x35","00241472",25.5],"1 5/8":["ACE PLUS 13x42","00241473",28.4],"2 1/8":["ACE PLUS 13x54","00241475",37.4]},
+  19:{"3/8":["ACE PLUS 19x10","00241511",26.9],"1/2":["ACE PLUS 19x12","00241512",28.4],"5/8":["ACE PLUS 19x15","00241513",30.2],"3/4":["ACE PLUS 19x18","00241514",30.2],"7/8":["ACE PLUS 19x22","00241515",34.2],"1 1/8":["ACE PLUS 19x28","00241517",42.4],"1 3/8":["ACE PLUS 19x35","00241518",46.9],"1 5/8":["ACE PLUS 19x42","00241490",62.6],"2 1/8":["ACE PLUS 19x54","00241492",72]},
+  25:{"1/2":["AF/Armaflex EVO AF-CO-25X012","03241555",65.2]},
+  32:{"5/8":["ACE PLUS 32x15","03280261",54.9],"3/4":["ACE PLUS 32x18","03241320",69.7],"7/8":["ACE PLUS 32x22","03241321",75.1],"1 1/8":["ACE PLUS 32x28","03241322",86.5],"1 3/8":["ACE PLUS 32x35","03241323",102.2],"1 5/8":["ACE PLUS 32x42","00241519",123.4],"2 1/8":["ACE PLUS 32x54","00241521",146.4]}};
+/* épaisseur d'isolant voulue : table des Réglages (tubes : ip positif / in négatif), sinon règle par défaut */
+function isoEp(d,neg,tubes){const t=(tubes||[]).find(x=>x.d===d);if(t&&+(neg?t.in:t.ip)>0)return +(neg?t.in:t.ip);
+  const i=DIA.indexOf(d);return neg?(i<=3?19:i<=7?25:32):(i<=5?13:19)}
+function isoPick(d,ep){for(const e of [13,19,25,32])if(e>=ep&&ISO[e][d])return {e,r:ISO[e][d]};for(const e of [32,25,19,13])if(ISO[e][d])return {e,r:ISO[e][d],court:true};return null}
+/* lines : [{lab, d, L, iso:épaisseur ou 0}] → lignes de matériel cuivre + isolant, regroupées par Ø */
+function cuivIso(lines,o,add,W,pre){pre=pre||"";const mg=isFinite(o.marge)?o.marge:0.1,cu={},is={};
+  lines.forEach(l=>{if(!(l.L>0))return;const d=inch(l.d)||(CU[l.d]?l.d:"");if(!d){W.push(`🟠 ${pre}${l.lab} : Ø ${l.d||"inconnu"} hors table, cuivre et isolant à chiffrer à la main.`);return}
+    (cu[d]||(cu[d]={L:0,labs:[]})).L+=l.L;cu[d].labs.push(`${l.lab} ${fr1(l.L)} m`);
+    if(l.iso>0){const p=isoPick(d,l.iso);if(!p){W.push(`🧣 ${pre}${l.lab} ${d}" : pas d'isolant non fendu au catalogue.`);return}
+      if(p.court)W.push(`🧣 ${pre}${l.lab} ${d}" : ${l.iso} mm demandé, ${p.e} mm maxi en non fendu pour ce Ø.`);
+      else if(p.e>l.iso)W.push(`🧣 ${pre}${l.lab} ${d}" : pas de ${l.iso} mm non fendu au catalogue pour ce Ø, ${p.e} mm retenu.`);
+      const k=d+"|"+p.e;(is[k]||(is[k]={d,p,L:0,labs:[]})).L+=l.L;is[k].labs.push(`${l.lab} ${fr1(l.L)} m`)}});
+  Object.keys(cu).sort((a,b)=>DIA.indexOf(a)-DIA.indexOf(b)).forEach(d=>{const c=cu[d],Lt=c.L*(1+mg),n=Math.ceil(Lt/4-1e-9),C=CU[d];
+    add(pre+"🟠 Tube cuivre",`Cuivre frigorifique écroui ${d}" en barres de 4 m`,`${c.labs.join(" + ")} + ${Math.round(mg*100)} % de chutes = ${fr1(Lt)} m · Ø ${String(C[0]).replace(".",",")} × ${String(C[1]).replace(".",",")} mm · EN 12735-1, déshydraté, bouchonné · prix selon cours du cuivre`,n,C[2],undefined,509)});
+  Object.values(is).sort((a,b)=>DIA.indexOf(a.d)-DIA.indexOf(b.d)).forEach(x=>{const Lt=x.L*(1+mg),n=Math.ceil(Lt/2-1e-9);
+    add(pre+"🧣 Isolant",`Armaflex ${x.p.r[0].replace(/^AF\/Armaflex EVO /,"EVO ")} non fendu, ${x.p.e} mm`,`Pour tube ${x.d}" · ${x.labs.join(" + ")} + ${Math.round(mg*100)} % = ${fr1(Lt)} m · longueurs de 2 m · cellules fermées, −50 / +110 °C`,n,x.p.r[1],Math.round(x.p.r[2]*2*100)/100,x.p.e===25?521:520)})}
 /* ---------- vitrines à groupe à distance : pas d'évaporateur (il est dans le meuble) ---------- */
 function SELVIT(o){const R=[],W=[],fl=flKey(o.fl);let FF=null;
   const add=(poste,mat,det,q,code,px,pg,alt)=>R.push({poste,mat,det,q,code,px,pg,alt});
@@ -764,10 +787,13 @@ function SELVIT(o){const R=[],W=[],fl=flKey(o.fl);let FF=null;
     if(G.g&&!carr){const F=dcl({Pk:c.Pk,d,rac:o.rac});add(pre+"Filtre déshydrateur",`Danfoss ${F.c[0]}`,`Ligne liquide ${F.r[1]}" · à ${F.rac} (règle approchée)`,1,F.c[1],F.c[2],379);
       const S=sgp({d,rac:o.rac});add(pre+"Voyant liquide",`Danfoss ${S.c[0]}`,`${S.r[0]}" · à ${S.rac}`,1,S.c[2],S.c[3],388);
       if(!/^(FHT|TFHT|TAGT|AGT|FH)/.test(G.g.m)){const k=CAT.kp.combiM;add(pre+"Pressostat HP/BP",`Danfoss ${k[0]}`,k[1],1,k[3],k[4],493)}}
+    if(o.dist>0&&G.g){cuivIso([{lab:"Liquide",d:inch(G.g.l),L:o.dist,iso:o.isoL?isoEp(inch(G.g.l),false,o.tubes):0},{lab:"Aspiration",d:inch(G.g.a),L:o.dist,iso:isoEp(inch(G.g.a),c.c==="neg",o.tubes)}],o,add,W,pre)}
     const F=FLU({kind:"vit",fl,Pk:c.Pk,n:c.n,V:0,rl:o.rl,rv:o.rv,liq:{L:o.dist||0,di:0},asp:{L:o.dist||0,di:0},tch:0});
     c.F=F;FF=FF||F});
   if(o.existing)W.push("🏭 Centrale / groupe existant : pas de groupe sélectionné, vérifier la réserve de puissance disponible.");
   if(A2LD[nk(fl)])W.push("🛰️ Fluide A2L dans un magasin : la charge maxi et la détection de fuite dépendent du volume de la surface de vente (EN 378, annexe C) ; à vérifier avec le plan.");
+  if(!(o.dist>0))W.push("🟠 Cuivre et isolant : renseigner la distance groupe – meubles pour les chiffrer.");
+  else if(!o.existing)W.push("🟠 Cuivre et isolant chiffrés sur les lignes principales (Ø des raccords du groupe, distance groupe – meubles) ; ajouter les piquages vers chaque meuble.");
   W.push("ℹ️ Évaporateurs non sélectionnés : ils sont intégrés aux meubles. Détendeur et électrovanne à confirmer selon l'équipement livré avec chaque meuble.");
   const tot=R.reduce((s,r)=>s+(r.px||0)*r.q,0);
   const circF=o.circ.map(c=>c.F).filter(Boolean);
@@ -801,6 +827,15 @@ window.SELMAT=function(o){if(o.kind==="vit")return SELVIT(o);/* o: {kind:"cf"|"p
   /* pressostat */
   if(G.g&&!carr){if(/^(FHT|TFHT|TAGT|AGT|FH)/.test(G.g.m))W.push("✅ Pressostat HP/BP déjà monté sur ce groupe ("+G.g.m.split(" ")[0]+").");
     else{const k=CAT.kp.combiM;add("📟 Pressostat HP/BP",`Danfoss ${k[0]}`,k[1]+" · réf. "+k[2],1,k[3],k[4],493)}}
+  /* liaisons cuivre + isolant */
+  {const neg=o.tch<0,gA=G.g?inch(G.g.a):"",gL=G.g?inch(G.g.l):"",dist=o.dist>0?o.dist:0;
+   const lq=o.liq&&o.liq.L>0?o.liq:dist?{L:dist}:null,as=o.asp&&o.asp.L>0?o.asp:dist?{L:dist}:null,rf=o.ref&&o.ref.L>0?o.ref:null;
+   if(!lq&&!as)W.push("🟠 Cuivre et isolant : renseigner les longueurs de tuyauterie pour les chiffrer.");
+   else{const lines=[];if(lq)lines.push({lab:"Liquide",d:lq.d||d,L:lq.L,iso:o.isoL?isoEp(lq.d||d,false,o.tubes):0});
+     if(as)lines.push({lab:"Aspiration",d:as.d||gA,L:as.L,iso:isoEp(as.d||gA,neg,o.tubes)});
+     if(rf)lines.push({lab:"Refoulement",d:rf.d,L:rf.L,iso:0});
+     cuivIso(lines,o,add,W);
+     if(!(as&&as.d)&&gA)W.push(`🟠 Ø d'aspiration pris sur le raccord du groupe (${gA}") : à vérifier avec le calcul de tuyauterie.`)}}
   /* régulation */
   const PG=pego({kind:o.kind==="thr"?"thr":"froid",v:G.g?G.g.v:"mono",I:G.g?G.g.i:0});
   PG.forEach(p=>add("🎛️ Régulation",`Pego ${p[0]}`,p[1],1,p[2],p[3],p===CAT.pego.thr||p===CAT.pego.hr?445:444));
@@ -818,8 +853,8 @@ window.SELMAT=function(o){if(o.kind==="vit")return SELVIT(o);/* o: {kind:"cf"|"p
 window.SELCARD=function(o){const S=SELMAT(o),sx=o.ctrl||"";
   return `<section class="card selmat"><h2>🛒 Sélection du matériel <small>catalogue Le Froid Pecomark oct. 2026</small></h2>
    <div class="grid4">${sx}</div>
-   ${S.R.length?`<div class="tw"><table><thead><tr><th>Poste</th><th>Matériel</th><th>Caractéristiques</th><th class="n">Qté</th><th>Code Pecomark</th><th class="n">Prix H.T.</th><th class="n">Total H.T.</th></tr></thead><tbody>${S.R.map(r=>`<tr><td>${r.poste}</td><td><b>${esc(r.mat)}</b>${r.alt?`<br><small class="hint">Autres : ${esc(r.alt)}</small>`:""}</td><td>${esc(r.det)}<br><small class="hint">p. ${r.pg}</small></td><td class="n">${r.q}</td><td><span class="mono">${esc(r.code||"")}</span></td><td class="n">${eur(r.px)}</td><td class="n">${eur((r.px||0)*r.q)}</td></tr>`).join("")}</tbody>
-   <tfoot><tr><td colspan="6">TOTAL MATÉRIEL (prix catalogue H.T., avant remise)</td><td class="n">${eur(S.tot)}</td></tr></tfoot></table></div>
+   ${S.R.length?`<div class="tw"><table><thead><tr><th>Poste</th><th>Matériel</th><th>Caractéristiques</th><th class="n">Qté</th><th>Code Pecomark</th><th class="n">Prix H.T.</th><th class="n">Total H.T.</th></tr></thead><tbody>${S.R.map(r=>`<tr><td>${r.poste}</td><td><b>${esc(r.mat)}</b>${r.alt?`<br><small class="hint">Autres : ${esc(r.alt)}</small>`:""}</td><td>${esc(r.det)}<br><small class="hint">p. ${r.pg}</small></td><td class="n">${r.q}</td><td><span class="mono">${esc(r.code||"")}</span></td><td class="n">${eur(r.px)}</td><td class="n">${r.px==null?"—":eur(r.px*r.q)}</td></tr>`).join("")}</tbody>
+   <tfoot><tr><td colspan="6">TOTAL MATÉRIEL (prix catalogue H.T., avant remise${S.R.some(r=>r.px==null)?", hors cuivre : prix selon cours":""})</td><td class="n">${eur(S.tot)}</td></tr></tfoot></table></div>
    <div class="selact"><button type="button" class="btn" data-selcopy="${esc(S.R.map(r=>[r.code||"",r.mat,r.q,String(r.px||"").replace(".",",")].join("\t")).join("\n"))}">📋 Copier la liste de commande</button><small class="hint">Code Pecomark, désignation, quantité, prix : à coller dans un mail ou un tableur. La note de calcul PDF reprend le matériel sans codes ni prix.</small></div>`:""}
    <ul class="alerts">${S.W.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>${S.F?fluHTML(S.F,o):""}${S.FV?S.FV.map(x=>fluHTML(x.F,{...o,Pk:x.F.Pk||0},x.c==="neg"?" · circuit négatif":" · circuit positif")).join(""):""}</section>`};
 function fluHTML(F,o,suf){const kv=(a,b)=>`<div class="kv"><span>${a}</span><b>${b}</b></div>`;
@@ -839,7 +874,7 @@ function SELPDF0(o){const S=SELMAT(o);const out=[];const FL=S.F?[{F:S.F,suf:""}]
       :`Le ${F.fl} est un fluide de classe A1 (non toxique, non inflammable), simple à mettre en œuvre. Il reste autorisé aujourd'hui, mais le règlement européen F-Gas III (UE 2024/573) interdit à partir du 1er janvier 2030 la vente d'équipements de réfrigération neufs utilisant un fluide de PRP égal ou supérieur à 150 (le ${F.fl} a un PRP de ${F.g}), et à partir de 2032 l'usage de fluide neuf de PRP égal ou supérieur à 750 pour l'entretien. Votre installation pourra continuer à fonctionner, mais les recharges deviendront plus difficiles et plus chères. Une alternative à faible PRP (R454C ou R455A, classe A2L) peut vous être proposée.`;
     out.push({t:"Pourquoi ce fluide ?",text:why});
     out.push({t:"Normes et textes appliqués",text:"- Règlement (UE) 2024/573 « F-Gas III » : interdictions par type d'équipement, contrôles d'étanchéité (article 5) selon la charge en tonnes équivalent CO₂, registre et étiquetage.\n- Norme NF EN 378 (parties 1 à 4) : sécurité des installations frigorifiques, charge maximale selon le fluide et le volume (annexe C), détection de fuite, protection des personnes dans les chambres froides (annexe D).\n- Fluide manipulé uniquement par du personnel titulaire de l'attestation de capacité ; fiche d'intervention (Cerfa 15497) à chaque charge ou récupération."})}
-  const clean=x=>String(x).replace(/ · réf\. (Danfoss )?\S+/g,"").replace(/ · marge \d+ %/,"");
+  const clean=x=>String(x).replace(/ · réf\. (Danfoss )?\S+/g,"").replace(/ · prix selon cours du cuivre/,"").replace(/ · marge \d+ %/,"");
   if(S.R.length)out.push({t:"Matériel prévu",head:["Poste","Matériel","Caractéristiques","Qté"],rows:S.R.map(r=>[r.poste.replace(/^\S+\s/,""),r.mat,clean(r.det),String(r.q)]),cols:{3:{halign:"right"}},fs:7.6});
   const w=S.W.filter(x=>!/^🏭 (Aucun|Pas de)/.test(x));if(w.length)out.push({t:"Matériel prévu : remarques",text:w.map(x=>"- "+x.replace(/^\S+\s/,"")).join("\n")});return out}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-selcopy]");if(!b)return;const t=b.getAttribute("data-selcopy");
@@ -851,8 +886,8 @@ window.SELOPTS={GAM,EVB};
 /* contrôles communs de la sélection (dans la carte) */
 window.selCtrl=function(d,defGam){const G=SELOPTS.GAM,E=SELOPTS.EVB;
   return sel("sGr",G.map(g=>[g[0],g[1]]),{lab:"🏭 Groupe",blank:"Auto : "+(G.find(g=>g[0]===defGam)||G[0])[1]})+sel("sEv",E.map(e=>[e[0],e[1]]),{lab:"❄️ Évaporateur",blank:"Auto : Friga-Bohn"})+
-    sel("sAlim",[["mono","Monophasé 230 V"],["tri","Triphasé 400 V"]],{lab:"🔌 Alimentation du groupe",blank:"Auto"})+sel("sRac",[["braser","À braser"],["visser","À visser (flare)"]],{lab:"🔧 Raccords Danfoss",blank:"Auto : à braser"})};
-window.selOpts=(d,o)=>Object.assign({gam:d.sGr||o.defGam,evb:d.sEv||"fb",alim:d.sAlim||"auto",rac:d.sRac||"braser"},o);
+    sel("sAlim",[["mono","Monophasé 230 V"],["tri","Triphasé 400 V"]],{lab:"🔌 Alimentation du groupe",blank:"Auto"})+sel("sRac",[["braser","À braser"],["visser","À visser (flare)"]],{lab:"🔧 Raccords Danfoss",blank:"Auto : à braser"})+sel("sIsoL",[["oui","Oui, isolée aussi"]],{lab:"🧣 Ligne liquide",blank:"Non isolée"})};
+window.selOpts=(d,o)=>Object.assign({gam:d.sGr||o.defGam,evb:d.sEv||"fb",alim:d.sAlim||"auto",rac:d.sRac||"braser",isoL:d.sIsoL==="oui",tubes:(PAR.cf||{}).tubes,marge:N(((PAR.cuivre||{}).marge)??0.1)},o);
 </script>
 <script>
 /* =====================================================================
@@ -913,7 +948,7 @@ function calc(d,P){const L=N(d.L),l=N(d.l),h=N(d.h),S=L*l,V=S*h,pr=P.produits.fi
     orifice:!orf.length?"Remplir la table des orifices (Réglages)":Pk>orf[orf.length-1].kw?"Au-delà de la table":orf[countLt(orf.map(o=>o.kw),Pk)].n,
     iso:tA?{d:tA.d,int:tA.ext,ep:tch>=0?tA.ip:tA.in}:null,isoL:up(N((T.asp||{}).L)*1.1)}}
 const cfSel=(d,C)=>selOpts(d,{kind:"cf",defGam:/nu/i.test(d.grType||"")?"nu":"sp",Pk:C.Pk,To:C.To,Tc:C.Tc,tch:N(d.tch),dt:C.dt,n:C.nEvap,fl:d.fluide,tair:has(d.tair)?num(d.tair):32,typ:C.typeEv,eq:/^Externe/.test(C.egal)?"ext":"int",ld:C.Lq.use?C.Lq.d:"",
-  V:C.V,rl:C.prop.rl,rv:C.prop.rv,liq:{L:N(((d.tuy||{}).liq||{}).L),di:C.Lq.r?C.Lq.r.t.int:0,d:C.Lq.use?C.Lq.d:""},asp:{L:N(((d.tuy||{}).asp||{}).L),di:C.As.r?C.As.r.t.int:0}});
+  V:C.V,rl:C.prop.rl,rv:C.prop.rv,liq:{L:N(((d.tuy||{}).liq||{}).L),di:C.Lq.r?C.Lq.r.t.int:0,d:C.Lq.use?C.Lq.d:""},asp:{L:N(((d.tuy||{}).asp||{}).L),di:C.As.r?C.As.r.t.int:0,d:C.As.use&&C.As.r?C.As.d:""},ref:{L:C.Rf.use?N(((d.tuy||{}).ref||{}).L):0,d:C.Rf.r?C.Rf.d:""}});
 function render(d,P){const C=calc(d,P),pr=C.pr,J=C.J;
   const line=(k,lab)=>{const r=C[k==="liq"?"Lq":k==="asp"?"As":"Rf"],p="tuy."+k;return `<tr><td><b>${lab}</b></td><td>${inp(p+".L",{n:1,w:"60px"})}</td><td>${inp(p+".c",{n:1,w:"50px"})}</td><td>${inp(p+".acc",{n:1,w:"50px"})}</td><td>${k==="asp"?sel(p+".mont",["Non","Oui"]):"—"}</td><td class="n">${r.leq?f(r.leq,1):"0"}</td><td class="n"><b>${esc(r.d)}</b></td><td class="n">${r.v!=null?f2(r.v):""}</td><td class="n">${r.p!=null?f2(r.p):""}</td><td>${chk(r.ctl)}</td></tr>`};
   const postes=[["🧱 Transmission par les parois",`Somme U × S × ΔT des 6 parois = ${f0(C.trans)} W × 24 h`,J.trans],["🚪 Renouvellement d'air",pr?`${f(C.nRen,1)} renouv./24 h × ${f(C.V,1)} m³ × Δh ${f(C.dh,1)} kJ/kg`:"",J.air],
@@ -1093,9 +1128,9 @@ function calc(d,P){const T_=ty(P,d.type),mode=T_.mode||"salle",v=(k)=>has(d[k])?
   const tair=v("tair"),transC=A*U*(tloc-tair),fans=(prod+emb)*N(P.fanCell),inf=(prod+emb+transC)*N(P.infCell);
   const totW=prod+emb+transC+fans+inf,froid=rnd(totW*(1+N(P.secu))/1000,2);
   return {mode,T_,pr,q,kgh,prod,emb,transC,fans,inf,totW,froid,chaud:0,t:tair,To:tair-N(T_.dt),S,V,ep,tin,tfin,dur}}
-const pcSel=(d,C)=>selOpts(d,{kind:C.mode==="salle"?"thr":"cell",defGam:"sp",Pk:C.froid,To:C.To,Tc:(has(d.sTair)?num(d.sTair):32)+N((PAR.cf||{}).dCond||8),tch:C.t,dt:C.t-C.To,n:1,fl:d.sFl||"R449A",tair:has(d.sTair)?num(d.sTair):32,typ:d.sTyp||"Plafonnier simple flux (cubique)",eq:C.froid>3?"ext":"int",ld:"",
+const pcSel=(d,C)=>selOpts(d,{kind:C.mode==="salle"?"thr":"cell",defGam:"sp",Pk:C.froid,To:C.To,Tc:(has(d.sTair)?num(d.sTair):32)+N((PAR.cf||{}).dCond||8),tch:C.t,dt:C.t-C.To,n:1,fl:d.sFl||"R449A",tair:has(d.sTair)?num(d.sTair):32,typ:d.sTyp||"Plafonnier simple flux (cubique)",eq:C.froid>3?"ext":"int",ld:"",dist:has(d.sDist)?num(d.sDist):0,
   V:C.V,...(()=>{const fl=((PAR.cf||{}).fluides||[]).find(x=>x.n===(d.sFl||"R449A"))||{};return {rl:N(fl.rl)||1080,rv:N(fl.rv10)||10}})()});
-const pcCard=(d,C)=>window.SELCARD?SELCARD({...pcSel(d,C),ctrl:selCtrl(d,"sp")+sel("sFl",["R449A","R452A","R134a","R513A","R454C","R455A"],{lab:"🧪 Fluide",blank:"Auto : R449A"})+inp("sTair",{n:1,lab:"T° de l'air autour du groupe (°C)",ph:"32"})+sel("sTyp",["Plafonnier simple flux (cubique)","Double flux (faible hauteur)","Mural / plafonnier extra-plat"],{lab:"Type d'évaporateur",blank:"Auto : plafonnier"})}):"";
+const pcCard=(d,C)=>window.SELCARD?SELCARD({...pcSel(d,C),ctrl:selCtrl(d,"sp")+sel("sFl",["R449A","R452A","R134a","R513A","R454C","R455A"],{lab:"🧪 Fluide",blank:"Auto : R449A"})+inp("sTair",{n:1,lab:"T° de l'air autour du groupe (°C)",ph:"32"})+inp("sDist",{n:1,lab:"📏 Distance groupe – évaporateur (m)",ph:"pour le cuivre"})+sel("sTyp",["Plafonnier simple flux (cubique)","Double flux (faible hauteur)","Mural / plafonnier extra-plat"],{lab:"Type d'évaporateur",blank:"Auto : plafonnier"})}):"";
 window.pcSelOf=(d)=>{const C=calc(d,PAR.process);return pcSel(d,C)};
 function render(d,P){const C=calc(d,P),T_=C.T_,ph=k=>T_[k]!=null?f(N(T_[k])):"";
   const head=card("① La salle",`<div class="grid4">${inp("client",{lab:"Client"})}${sel("type",P.types.map(x=>x.n),{lab:"Type de salle",blank:"—"})}${inp("L",{n:1,lab:"Longueur intérieure (m)"})}${inp("l",{n:1,lab:"Largeur intérieure (m)"})}${inp("h",{n:1,lab:"Hauteur intérieure (m)"})}${inp("ep",{n:1,lab:"Épaisseur des panneaux (mm)",ph:ph("ep")||"100"})}${inp("tloc",{n:1,lab:"T° du local autour (°C)",ph:"25"})}${inp("hrloc",{n:1,lab:"HR du local (%)",ph:"60"})}</div>
