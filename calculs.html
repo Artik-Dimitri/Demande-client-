@@ -10,7 +10,7 @@
 
 
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Great+Vibes&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Mrs+Saint+Delafield&display=swap">
 <style>
 /* Outils de calcul : en-tête groupe, choix de l outil, dossier, tableaux de saisie et résultats */
 :root{
@@ -128,6 +128,21 @@ select.modif{background:var(--hiS);border-color:var(--hi)}
 .capbox{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center;margin-top:10px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,#2E8B57 9%,transparent);border:1px solid color-mix(in srgb,#2E8B57 35%,transparent)}
 .capbox span{display:block;font-size:12.5px;opacity:.75}.capbox b{display:block;font-size:22px;line-height:1.2}.capbox small{display:block;font-size:11.5px;opacity:.7}
 .capr{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}@media (max-width:700px){.capbox{grid-template-columns:1fr}}
+.sigb{border:1px solid var(--line,#d9dde2);background:#fff;border-radius:8px;padding:6px 10px;font:600 13px inherit;cursor:pointer;margin-right:8px;color:inherit}
+.sigb:hover{border-color:#1d3b8f;color:#1d3b8f}
+.sigm{position:fixed;inset:0;background:rgba(20,24,30,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+.sigm .box{background:#fff;border-radius:12px;max-width:640px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:12px}
+.sigm h3{margin:0;font-size:18px}.sigm p{margin:0;font-size:13px;color:#5d6670}
+.sigm .pad{position:relative;border:1px dashed #9aa3ad;border-radius:8px;background:#fff;touch-action:none;height:200px}
+.sigm .pad canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}
+.sigm .pad .ln{position:absolute;left:24px;right:24px;bottom:48px;border-bottom:1px solid #e2e5e9;pointer-events:none}
+.sigm .pad .ph{position:absolute;left:0;right:0;top:40%;text-align:center;color:#b6bcc4;pointer-events:none;font-size:14px}
+.sigm .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sigm .row .sp{flex:1}
+.sigm label.nm{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#5d6670}
+.sigm label.nm input{padding:8px 10px;border:1px solid #d9dde2;border-radius:8px;font:15px inherit}
+.sigm button{padding:8px 12px;border-radius:8px;border:1px solid #d9dde2;background:#fff;font:600 13px inherit;cursor:pointer}
+.sigm button.ok{background:#1d3b8f;border-color:#1d3b8f;color:#fff}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -279,15 +294,16 @@ window.__OC={
       else{showGate("Pas encore ouvert","Les outils de calcul n'ont pas encore été activés par Dimitri.");throw new Error("stop")}}
     const [mine,acc]=await Promise.all([items(CFG.liste),items(CFG.acces)]);
     const dos={},params={};
-    mine.forEach(x=>{ids[x.t]=x.id;const m=x.t.match(/^d\/([^/]+)\//);if(m)(dos[m[1]]||(dos[m[1]]=[])).push(x.v);else if(x.t.startsWith("p/"))params[x.t.slice(2)]=x.v});
+    const sigs={};mine.forEach(x=>{ids[x.t]=x.id;if(x.t.startsWith("sig/")){sigs[x.t.slice(4)]=x.v;return}const m=x.t.match(/^d\/([^/]+)\//);if(m)(dos[m[1]]||(dos[m[1]]=[])).push(x.v);else if(x.t.startsWith("p/"))params[x.t.slice(2)]=x.v});
     Object.values(dos).forEach(L=>L.sort((a,b)=>String(b.maj||b.cree).localeCompare(String(a.maj||a.cree))));
     const pers=((acc.find(x=>x.t==="acces")||{}).v||{}).personnes||[],p=pers.find(z=>String(z.email||"").toLowerCase()===email);
     const nom=email===CFG.owner?"Dimitri":email==="k.kerfah@chassaing-technologies.fr"?"Karim":(p&&p.nom)||String(account.name||email).split(/[\s.@]/)[0];
     gate.hidden=true;
-    return {dos,params,me:{nom,email,owner:email===CFG.owner}};
+    return {dos,params,me:{nom,email,owner:email===CFG.owner,sig:sigs[email]||null}};
   },
   save(tool,e){const k="d/"+tool+"/"+e.id;clearTimeout(timers[k]);timers[k]=setTimeout(()=>put(k,strip(e)).catch(err=>{if(err.message!=="redirect")warn("Enregistrement impossible : "+err.message)}),700)},
   async del(tool,id){const k="d/"+tool+"/"+id;clearTimeout(timers[k]);if(ids[k]){await gx("DELETE",`/sites/${siteId}/lists/${L[CFG.liste]}/items/${ids[k]}`);delete ids[k]}},
+  saveSig(v){const k="sig/"+email;return put(k,v).catch(e=>{if(e.message!=="redirect")warn("Signature non enregistrée : "+e.message)})},
   saveParams(tool,P){if(email!==CFG.owner)return;const k="p/"+tool;clearTimeout(timers[k]);timers[k]=setTimeout(()=>put(k,P).catch(e=>{if(e.message!=="redirect")warn("Réglages non enregistrés : "+e.message)}),700)}
 };
 })();
@@ -356,7 +372,7 @@ function saveP(){if(OC)OC.saveParams(TOOL,PAR[TOOL]);else SS("par",PAR)}
 /* ---------- rendu ---------- */
 function head(){return `<header class="head"><div class="bar"><i></i><i></i><i></i><i></i></div><div class="hin"><div class="logos">${LOGOS.map((l,i)=>`<div class="logo"><img src="${l}" alt="${i?"Chassaing Technologies":"Artik Frigoriste"}"></div>`).join("")}</div>
   <div class="ht"><h1>Outils de calcul</h1><p>Les tableaux de dimensionnement du bureau, avec les mêmes formules, partout et pour tout le monde.</p></div>
-  ${OC?`<span class="vue">👤 ${esc(meNom())}</span>`:`<label class="vue" title="Aperçu seulement : sur le site, c'est le compte Microsoft qui décide">👁️ Voir comme <select id="vue">${PERS.map(c=>`<option${c===VUE?" selected":""}>${esc(c)}</option>`).join("")}</select></label>`}</div></header>
+  <button type="button" class="sigb" id="sigb" title="Dessinez votre signature une fois : elle sera mise sur vos PDF">✍️ Ma signature</button>${OC?`<span class="vue">👤 ${esc(meNom())}</span>`:`<label class="vue" title="Aperçu seulement : sur le site, c'est le compte Microsoft qui décide">👁️ Voir comme <select id="vue">${PERS.map(c=>`<option${c===VUE?" selected":""}>${esc(c)}</option>`).join("")}</select></label>`}</div></header>
   <nav class="tools" aria-label="Outils">${TOOLS.map(t=>`<button type="button" data-tool="${t.k}" aria-pressed="${t.k===TOOL}" style="--tc:${t.c}"><span class="ic">${t.ic}</span><span><b>${esc(t.n)}</b><small>${esc(t.s)}</small></span></button>`).join("")}</nav>`}
 function dosBar(t){const L=DOS[t.k]||[],d=cur();
   return `<div class="dbar"><label class="f" style="flex:1;min-width:200px">Dossier<select id="dsel">${L.map(x=>`<option value="${x.id}"${d&&x.id===d.id?" selected":""}>${esc(x.nom||"Sans nom")} · ${esc(x.par||"")}${x.date?" · "+new Date(x.date+"T12:00").toLocaleDateString("fr-FR"):""}</option>`).join("")}</select></label>
@@ -445,18 +461,70 @@ function loadPDFlib(){const s=(u)=>new Promise((ok,ko)=>{const e=document.create
     .then(()=>window.jspdf.jsPDF.API.autoTable?null:s("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"))}
 const imgSize=src=>new Promise(r=>{const i=new Image();i.onload=()=>r([i.naturalWidth,i.naturalHeight]);i.onerror=()=>r([4,1]);i.src=src});
 const fdate=s=>{try{return new Date((s||today())+"T12:00").toLocaleDateString("fr-FR")}catch(e){return s||""}};
-async function sigImage(name){if(!name)return null;try{try{await document.fonts.load('72px "Great Vibes"')}catch(e){}
-  const c=document.createElement("canvas"),x=c.getContext("2d"),fs=72;c.width=1200;c.height=120;x.font=`${fs}px "Great Vibes","Segoe Script","Brush Script MT",cursive`;
-  const tw=Math.min(1150,x.measureText(name).width);x.translate(20,78);x.rotate(-0.035);x.fillStyle="#1d3b8f";x.fillText(name,0,0,1150);
-  /* trait de soulignement léger, comme un paraphe */
-  x.strokeStyle="#1d3b8f";x.lineWidth=2.5;x.lineCap="round";x.beginPath();x.moveTo(tw*0.55,22);x.quadraticCurveTo(tw*0.8,34,tw+12,12);x.stroke();
-  const w=Math.ceil(tw+50),cut=document.createElement("canvas");cut.width=w;cut.height=120;cut.getContext("2d").drawImage(c,0,0);
-  return {src:cut.toDataURL("image/png"),r:120/w}}catch(e){return null}}
+/* ---------- signature manuscrite ---------- */
+const SIGC="#1d3b8f";
+function sigKey(){return "calc.sig."+((ME&&ME.email)||meNom()||"x")}
+function sigGet(){if(ME&&ME.sig&&ME.sig.png)return ME.sig;try{const v=JSON.parse(localStorage.getItem(sigKey())||"null");if(v&&v.png)return v}catch(e){}return null}
+function sigPut(v){if(ME)ME.sig=v;try{localStorage.setItem(sigKey(),JSON.stringify(v))}catch(e){}if(OC&&OC.saveSig)OC.saveSig(v)}
+/* rogne un canvas autour du tracé */
+function sigTrim(c){const x=c.getContext("2d"),{width:W,height:H}=c,d=x.getImageData(0,0,W,H).data;let x0=W,y0=H,x1=-1,y1=-1;
+  for(let y=0;y<H;y++)for(let i=0;i<W;i++)if(d[(y*W+i)*4+3]>20){if(i<x0)x0=i;if(i>x1)x1=i;if(y<y0)y0=y;if(y>y1)y1=y}
+  if(x1<0)return null;const m=8;x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(W-1,x1+m);y1=Math.min(H-1,y1+m);
+  const o=document.createElement("canvas");o.width=x1-x0+1;o.height=y1-y0+1;o.getContext("2d").drawImage(c,x0,y0,o.width,o.height,0,0,o.width,o.height);return o}
+function openSigPad(){const old=sigGet();const m=document.createElement("div");m.className="sigm";
+  m.innerHTML=`<div class="box" role="dialog" aria-label="Ma signature"><h3>✍️ Ma signature</h3>
+   <p>Signez dans le cadre avec la souris, le doigt ou le stylet, comme sur papier. Elle sera mise automatiquement, en bleu, sur les PDF que vous sortez.</p>
+   <label class="nm">Nom affiché sur les PDF (« Établi par »)<input id="sgn" value="${esc((old&&old.nom)||meNom()||"")}" placeholder="Prénom Nom"></label>
+   <div class="pad"><div class="ln"></div><div class="ph" id="sgph">Signez ici</div><canvas id="sgc"></canvas></div>
+   <div class="row"><button type="button" id="sgclr">Effacer</button><button type="button" id="sgimp">Importer une photo…</button><input type="file" id="sgf" accept="image/*" hidden>${old?`<button type="button" id="sgdel">Supprimer ma signature</button>`:""}<span class="sp"></span><button type="button" id="sgx">Annuler</button><button type="button" class="ok" id="sgok">Enregistrer</button></div></div>`;
+  document.body.appendChild(m);
+  const c=m.querySelector("#sgc"),ph=m.querySelector("#sgph"),R=c.getBoundingClientRect(),dpr=Math.max(2,window.devicePixelRatio||1);
+  c.width=Math.round(R.width*dpr);c.height=Math.round(R.height*dpr);const x=c.getContext("2d");x.scale(dpr,dpr);x.lineCap="round";x.lineJoin="round";x.strokeStyle=SIGC;x.fillStyle=SIGC;
+  let used=false,last=null,lw=2.4;
+  const pos=e=>{const r=c.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top,t:performance.now(),p:e.pressure}};
+  const mark=()=>{used=true;ph.hidden=true};
+  if(old&&old.png){const im=new Image();im.onload=()=>{const r=c.getBoundingClientRect(),k=Math.min((r.width-40)/im.width,(r.height-30)/im.height,1),w=im.width*k,h=im.height*k;x.drawImage(im,(r.width-w)/2,(r.height-h)/2-10,w,h);mark()};im.src=old.png}
+  c.addEventListener("pointerdown",e=>{e.preventDefault();c.setPointerCapture(e.pointerId);last=pos(e);mark();x.beginPath();x.arc(last.x,last.y,1.1,0,7);x.fill()});
+  c.addEventListener("pointermove",e=>{if(!last)return;e.preventDefault();const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];evs.forEach(ev=>{const p=pos(ev),dx=p.x-last.x,dy=p.y-last.y,d=Math.hypot(dx,dy);if(d<0.6)return;
+    const v=d/Math.max(1,p.t-last.t);/* plus vite = plus fin, comme un stylo */let t=ev.pressure&&ev.pointerType==="pen"?1.2+ev.pressure*2.6:Math.max(1.1,Math.min(3.2,3.4-v*1.3));lw=lw*0.65+t*0.35;
+    x.lineWidth=lw;x.beginPath();const mx=(last.x+p.x)/2,my=(last.y+p.y)/2;x.moveTo(last.mx??last.x,last.my??last.y);x.quadraticCurveTo(last.x,last.y,mx,my);x.stroke();p.mx=mx;p.my=my;last=p})});
+  const up=()=>{last=null};c.addEventListener("pointerup",up);c.addEventListener("pointercancel",up);c.addEventListener("pointerleave",up);
+  const close=()=>m.remove();
+  m.querySelector("#sgclr").onclick=()=>{x.clearRect(0,0,c.width,c.height);used=false;ph.hidden=false};
+  m.querySelector("#sgx").onclick=close;m.addEventListener("click",e=>{if(e.target===m)close()});
+  const del=m.querySelector("#sgdel");if(del)del.onclick=()=>{sigPut(null);if(ME)ME.sig=null;try{localStorage.removeItem(sigKey())}catch(e){}close();toast("Signature supprimée : le PDF utilisera une écriture manuscrite automatique.")};
+  const f=m.querySelector("#sgf");m.querySelector("#sgimp").onclick=()=>f.click();
+  f.onchange=()=>{const fl=f.files&&f.files[0];if(!fl)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{
+      /* photo d'une signature sur papier : on garde l'encre, on la passe en bleu, fond transparent */
+      const r=c.getBoundingClientRect(),k=Math.min((r.width-20)/im.width,(r.height-20)/im.height),w=im.width*k,h=im.height*k;
+      const t=document.createElement("canvas");t.width=Math.round(w*dpr);t.height=Math.round(h*dpr);const tx=t.getContext("2d");tx.drawImage(im,0,0,t.width,t.height);
+      const D=tx.getImageData(0,0,t.width,t.height),d=D.data;let sum=0;for(let i=0;i<d.length;i+=4)sum+=d[i]*.3+d[i+1]*.59+d[i+2]*.11;const bg=sum/(d.length/4),th=bg*0.72;
+      for(let i=0;i<d.length;i+=4){const l=d[i]*.3+d[i+1]*.59+d[i+2]*.11,a=l<th?Math.min(255,(th-l)/th*255*2.2):0;d[i]=29;d[i+1]=59;d[i+2]=143;d[i+3]=a}
+      tx.putImageData(D,0,0);x.clearRect(0,0,c.width,c.height);x.drawImage(t,(r.width-w)/2,(r.height-h)/2,w,h);mark()};im.src=rd.result};rd.readAsDataURL(fl)};
+  m.querySelector("#sgok").onclick=()=>{const nom=m.querySelector("#sgn").value.trim();const t=used?sigTrim(c):null;
+    if(!t){toast("Signez dans le cadre avant d'enregistrer.");return}
+    /* taille raisonnable pour l'enregistrement */
+    const k=Math.min(1,900/t.width,300/t.height),o=document.createElement("canvas");o.width=Math.round(t.width*k);o.height=Math.round(t.height*k);o.getContext("2d").drawImage(t,0,0,o.width,o.height);
+    sigPut({png:o.toDataURL("image/png"),nom,maj:new Date().toISOString()});close();toast("Signature enregistrée : elle sera sur vos prochains PDF.")}}
+document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("#sigb"))openSigPad()});
+/* image de signature pour le PDF : la signature dessinée si elle existe, sinon une écriture manuscrite irrégulière */
+async function sigImage(name){const sv=sigGet();if(sv&&sv.png){const [w,h]=await imgSize(sv.png);return {src:sv.png,r:h/w,drawn:true}}
+  if(!name)return null;try{const F='"Mrs Saint Delafield","Segoe Script","Brush Script MT",cursive';try{await document.fonts.load('90px "Mrs Saint Delafield"')}catch(e){}
+  const c=document.createElement("canvas"),x=c.getContext("2d"),fs=92;c.width=1400;c.height=170;x.fillStyle=SIGC;x.strokeStyle=SIGC;
+  /* lettre par lettre : petite variation de taille, de ligne de base et d'inclinaison, pour casser l'effet « police » */
+  let seed=0;for(const ch of name)seed=(seed*31+ch.charCodeAt(0))>>>0;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
+  let px=24,base=110;const pts=[];
+  for(const ch of name){const s=fs*(0.94+rnd()*0.12);x.font=`${s}px ${F}`;const dy=(rnd()-0.5)*5,rot=-0.05+(rnd()-0.5)*0.05;base-=0.6;
+    x.save();x.translate(px,base+dy);x.rotate(rot);x.fillText(ch,0,0);x.restore();pts.push([px,base+dy]);px+=x.measureText(ch).width*(0.9+rnd()*0.05)}
+  /* paraphe : un trait rapide qui repart sous le nom */
+  const tw=px;x.lineCap="round";x.beginPath();x.lineWidth=2.6;x.moveTo(tw*0.18,base+24);x.bezierCurveTo(tw*0.45,base+34+rnd()*6,tw*0.8,base+20,tw+18,base-8);x.stroke();
+  x.beginPath();x.lineWidth=1.4;x.moveTo(tw+18,base-8);x.quadraticCurveTo(tw+26,base-16,tw+14,base-2);x.stroke();
+  const t=sigTrim(c);if(!t)return null;return {src:t.toDataURL("image/png"),r:t.height/t.width}}catch(e){return null}}
 async function pdfStart(soc,kind){await loadPDFlib();const S=SOCS[soc]||SOCS.groupe,O=S.c,G=[93,102,112],LG=[205,209,214],INK=[31,35,40];
   const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}),W=210,H=297,M=15,LG2=await Promise.all((S.logos||[S.logo]).map(async i=>{const src=LOGOS[i],[w,h]=await imgSize(src);const lh_=S.logos?11:14,lw_=Math.min(S.logos?44:58,lh_*w/h);return {src,w:lw_,h:lw_*h/w}}));
   const X={doc,S,O,G,LG,INK,W,H,M,y:0,kind,first:true};
   /* signature électronique : nom de la personne connectée, écrit « à la main » */
-  X.signer=(typeof ME!=="undefined"&&ME&&ME.nom)||"";X.sigImg=await sigImage(X.signer);
+  {const sv=sigGet();X.signer=(sv&&sv.nom)||(typeof ME!=="undefined"&&ME&&ME.nom)||"";}X.sigImg=await sigImage(X.signer);
   X.bar=(x,y,w,h)=>{if(S.quatre)C4.forEach((c,i)=>{doc.setFillColor(...c);doc.rect(x+i*w/4,y,w/4,h,"F")});else{doc.setFillColor(...O);doc.rect(x,y,w*0.62,h,"F");doc.setFillColor(...G);doc.rect(x+w*0.62,y,w*0.38,h,"F")}};
   X.head=(t,sub)=>{X.bar(0,0,W,3);let lx=M;LG2.forEach(l=>{doc.addImage(l.src,"PNG",lx,8+(14-l.h)/2,l.w,l.h);lx+=l.w+6});
     doc.setFont("helvetica","bold");doc.setFontSize(14);doc.setTextColor(...INK);doc.text(pt(t),W-M,13.5,{align:"right"});
