@@ -526,7 +526,7 @@ function froidRows(pid,d,P){const out=[];
   (DOS.cf||[]).filter(x=>x.proj===pid).forEach(x=>{try{const C=T("cf").calc(x,PAR.cf);out.push({k:"cf",d:x,n:x.nom||x.produit||"Chambre",t:N(x.tch),To:C.To,kw:C.Pk})}catch(e){}});
   (DOS.blocage||[]).filter(x=>x.proj===pid).forEach(x=>{try{const C=T("blocage").calc(x,PAR.blocage);out.push({k:"blocage",d:x,n:x.nom||"Blocage",t:C.tb,To:C.To,kw:C.froid})}catch(e){}});
   (DOS.process||[]).filter(x=>x.proj===pid).forEach(x=>{try{const C=T("process").calc(x,PAR.process);out.push({k:"process",d:x,n:x.nom||x.type||"Salle",t:C.t,To:C.To,kw:C.froid})}catch(e){}});
-  (DOS.vitrine||[]).filter(x=>x.proj===pid).forEach(x=>{try{const C=T("vitrine").calc(x,PAR.vitrine);C.circ.forEach(c=>out.push({k:"vitrine",d:{...x,id:x.id+"-"+c.c},n:(c.c==="neg"?x.nNeg:x.nPos)||((x.nom||"Vitrines")+(c.c==="neg"?" (nég.)":" (pos.)")),t:c.c==="neg"?-20:3,To:c.To+N(PAR.vitrine.dTl),kw:c.Pk}))}catch(e){}});
+  (DOS.vitrine||[]).filter(x=>x.proj===pid).forEach(x=>{try{const C=T("vitrine").calc(x,PAR.vitrine);C.circ.forEach(c=>out.push({k:"vitrine",d:{...x,id:x.id+"-"+c.c},n:(x.nom||"Vitrines")+(c.c==="neg"?" (nég.)":" (pos.)"),t:c.c==="neg"?-20:3,To:c.To+N(PAR.vitrine.dTl),kw:c.Pk}))}catch(e){}});
   return out.map(r=>({...r,neg:r.t<N(P.seuilNeg),on:!(d.excl||{})[r.d.id]}))}
 function groupe(L,neg,d,P){const R=L.filter(r=>r.neg===neg&&r.on&&isFinite(r.kw)&&r.kw>0);if(!R.length)return null;
   const S=sum(R,r=>r.kw),fo=has(neg?d.fNeg:d.fPos)?num(neg?d.fNeg:d.fPos):N(neg?P.fNeg:P.fPos),Pc=rnd(S*fo,1),To=Math.min(...R.map(r=>isFinite(r.To)?r.To:r.t-8))-N(P.dTl);
@@ -602,13 +602,15 @@ const TYP={"Plafonnier simple flux (cubique)":["Cubique simple flux","Plafonnier
 function evap(o){const br=(EVB.find(b=>b[0]===o.evb)||EVB[0])[1],fl=nk(o.fl),neg=o.tch<0;
   let L=CAT.ev.filter(e=>e.b===br&&e.n===neg&&e.t!=="meuble"&&e.t!=="cassette");
   const capOf=e=>{let p=e.p.filter(x=>x[0]===fl);let note="";if(!p.length){p=e.p.filter(x=>x[0]==="R449A");note=" (valeurs R449A)"}if(!p.length)return {w:NaN};
-    const pts=p.map(x=>[x[1],x[3]/x[2]]),k=ip(pts,o.tch,6);return {w:k*o.dt,note}};
+    /* puissance par K d'écart, interpolée sur la T° de chambre ; au-dessus des points du catalogue on garde la dernière valeur (prudent), en dessous 3 K au plus */
+    const pts=p.map(x=>[x[1],x[3]/x[2]]).sort((a,b)=>a[0]-b[0]),hi=pts[pts.length-1][0],k=o.tch>hi?pts[pts.length-1][1]:ip(pts,o.tch,3);return {w:k*o.dt,note}};
   L=L.map(e=>({...e,...capOf(e)})).filter(e=>isFinite(e.w));
   const want=TYP[o.typ]||TYP["Plafonnier simple flux (cubique)"];let T=L.filter(e=>want.includes(e.t)),tn="";
   if(!T.length){T=L;tn=`Pas de modèle « ${o.typ} » ${br} dans cette gamme de température : choix parmi les autres types.`}
   if(o.tch<2){const f=T.filter(e=>e.pas>=5.5);if(f.length)T=f}
   if(o.tch>=0){const f=T.filter(e=>/air/i.test(e.dg));if(f.length)T=f}
-  const C=T.filter(e=>e.w>=o.need).sort((a,b)=>a.w-b.w||a.px-b.px);
+  let C=T.filter(e=>e.w>=o.need).sort((a,b)=>a.w-b.w||a.px-b.px);
+  if(!C.length&&T!==L){C=L.filter(e=>e.w>=o.need).sort((a,b)=>a.w-b.w||a.px-b.px);if(C.length)tn=`Pas de modèle « ${o.typ} » ${br} assez puissant à cette température : choix parmi les autres types.`}
   if(!C.length)return {err:`Aucun évaporateur ${br} assez puissant (${kwS(o.need)} par évaporateur) : augmenter le nombre d'évaporateurs.`,br};
   return {e:C[0],alt:C.slice(1,3),br,tn}}
 
@@ -1456,7 +1458,7 @@ window.pdfProjet=async function(kind){const p=cur();if(!p)return;const items=TOO
   X.title("Sommaire");X.table(["N°","Fiche","Outil","Résultat"],items.map((it,i)=>[String(i+1),it[1].nom||"Sans nom",it[0].n,res(it)]),{cols:{0:{cellWidth:10},3:{halign:"right"}}});
   /* centrale */
   const rows=[];items.forEach(([t,x])=>{if(!["cf","process","blocage"].includes(t.k)||(p.excl||{})[x.id])return;try{const C=t.calc(x,PAR[t.k]),kwv=t.k==="cf"?C.Pk:C.froid,tt=t.k==="cf"?N(x.tch):t.k==="blocage"?C.tb:C.t;rows.push([x.nom||t.n,f(tt,0)+" °C",isFinite(C.To)?f(C.To,0)+" °C":"-",kw(kwv),tt<N(PAR.projet.seuilNeg)?"négatif":"positif"])}catch(e){}});
-  items.forEach(([t,x])=>{if(t.k!=="vitrine")return;try{const C=t.calc(x,PAR.vitrine);C.circ.forEach(c=>{if((p.excl||{})[x.id+"-"+c.c])return;rows.push([(c.c==="neg"?x.nNeg:x.nPos)||((x.nom||"Vitrines")+(c.c==="neg"?" (négatif)":" (positif)")),c.c==="neg"?"-18 / -20 °C":"+2 / +8 °C",f(c.To,0)+" °C",kw(c.Pk),c.c==="neg"?"négatif":"positif"])})}catch(e){}});
+  items.forEach(([t,x])=>{if(t.k!=="vitrine")return;try{const C=t.calc(x,PAR.vitrine);C.circ.forEach(c=>{if((p.excl||{})[x.id+"-"+c.c])return;rows.push([(x.nom||"Vitrines")+(c.c==="neg"?" (négatif)":" (positif)"),c.c==="neg"?"-18 / -20 °C":"+2 / +8 °C",f(c.To,0)+" °C",kw(c.Pk),c.c==="neg"?"négatif":"positif"])})}catch(e){}});
   if(rows.length>1){X.title("Centrale frigorifique (pré-dimensionnement)");X.table(["Chambre","T°","Évaporation","Besoin","Circuit"],rows,{cols:{3:{halign:"right"}}});X.text("Le détail des circuits (foisonnement, compresseurs, condenseur) figure dans l'outil Projet ; à confirmer avec le logiciel du fabricant.",{s:8.4,c:X.G})}
   pr.forEach(([t,x],i)=>pdfSheet(X,t,{...x,client:x.client||p.client,chantier:x.chantier||p.chantier,devis:x.devis||p.devis},specOf(t,x),valid,i+1));
   if(valid){X.page("Validation du dossier",p.nom||"Projet");X.text("Le client confirme les conditions d'utilisation retenues dans chaque fiche (quantités et températures des produits entrants, ouvertures de porte, durées de cycle). Les puissances de l'installation sont calculées pour ces conditions ; une utilisation au-delà peut empêcher de tenir les températures dans les délais prévus.",{s:9});
@@ -1641,9 +1643,9 @@ function calc(d,P){const M=P.meubles||[],ta=has(d.tamb)?num(d.tamb):N(P.tRef),hr
   const dist=N(d.dist);
   return {ta,hr,corr,R,circ,dist,gr:d.grType||GR[0],tot:sum(circ,c=>c.Pk)}}
 function render(d,P){const C=calc(d,P);const M=P.meubles||[];
-  const cl=c=>c.c==="neg"?"❄️ "+(d.nNeg||"Circuit négatif"):"🧊 "+(d.nPos||"Circuit positif");
+  const cl=c=>c.c==="neg"?"❄️ Circuit négatif":"🧊 Circuit positif";
   return `<div class="kpis5">${kpi("📏 Linéaire",f(sum(C.R.filter(x=>x.ok),x=>x.ml*x.nb),1),"ml")}${C.circ.map(c=>kpi(cl(c),f2(c.Pk),"kW",c.c==="pos"?"main":"")).join("")}${kpi("🌡️ Correction magasin","× "+f2(C.corr),"")}</div>
-  ${card("① Le magasin",`<div class="grid4">${inp("nom",{lab:"Nom de la fiche (ligne du projet et du PDF)"})}${inp("nPos",{lab:"Nom du circuit positif",ph:"Vitrines positives"})}${inp("nNeg",{lab:"Nom du circuit négatif",ph:"Vitrines négatives"})}${inp("client",{lab:"Client"})}${inp("chantier",{lab:"Chantier"})}${inp("tamb",{n:1,lab:"T° du magasin (°C)",ph:f(N(P.tRef))})}${inp("hramb",{n:1,lab:"HR du magasin (%)",ph:f(N(P.hrRef))})}
+  ${card("① Le magasin",`<div class="grid4">${inp("client",{lab:"Client"})}${inp("chantier",{lab:"Chantier"})}${inp("tamb",{n:1,lab:"T° du magasin (°C)",ph:f(N(P.tRef))})}${inp("hramb",{n:1,lab:"HR du magasin (%)",ph:f(N(P.hrRef))})}
     ${sel("grType",GR,{lab:"Type de groupe"})}${inp("dist",{n:1,lab:"Distance groupe ↔ meubles (m)"})}${sel("fluide",["R449A","R448A","R452A","R454C","R455A","R744 (CO2)","R290 (propane)"],{lab:"Fluide"})}</div>
     <p class="hint">Les puissances des meubles sont données en classe climatique 3 (25 °C / 60 % HR). Un magasin plus chaud ou plus humide demande plus : correction ${f2(C.corr)}.</p>`)}
   ${card("② Les meubles",`${tbl(["Meuble","Désignation / repère","Longueur (ml)","Nombre","Puissance catalogue (kW / meuble)","À l'évap. de (°C)","ou kW / ml","#T° produit","#Puissance retenue (kW)",""],
